@@ -35,6 +35,12 @@ This repo is meant to be published from the **repository root** (the folder that
 - **Correct:** build/output folder = **`.`** (root). Visitors open `/` for the hub and `/yabbai/` for the main app.
 - **Wrong:** setting the static root to **`workers/payout`** or any Worker-only folder. That folder has **no** `index.html` for the UI — you may see raw config files (e.g. `wrangler.toml`) or broken routing.
 
+#### 4EVERLAND: `package.json not found` / `stat …/echo`
+
+The repo root now includes **`package.json`** so hosts can run **`npm install`** (no dependencies; completes instantly) and **`npm run build`** (checks that **`index.html`** exists at the publish root).
+
+If the log shows **`stat …/echo`**: the project **build command** is wrong — some runners treat **`echo`** as a path inside the repo. In **4EVERLAND → Build settings**, set **Build command** to **`npm run build`** or leave it **empty** for static-only, and **never** use a bare **`echo`** step. **Output / root directory** must be the repo root **`.`** so **`index.html`** and **`yabbai/`** are deployed together.
+
 Upload or connect **the whole project** (or at minimum root `index.html`, `_redirects`, `netlify.toml`, and all sibling app folders you use). Deploy **Cloudflare Workers** separately with Wrangler; they are **not** the static website root.
 
 #### Troubleshooting: browser shows `wrangler.toml` (plain text)
