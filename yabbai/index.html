@@ -182,7 +182,13 @@ body::before{content:'';position:fixed;inset:0;z-index:0;pointer-events:none;
 .co-icon{font-size:1.4rem;margin-bottom:6px;}
 .co-name{font-size:0.85rem;font-weight:600;margin-bottom:3px;}
 .co-desc{font-family:'Azeret Mono',monospace;font-size:0.56rem;color:var(--dim);}
-.cashout-amount{display:flex;gap:10px;margin-bottom:10px;}
+.cashout-amount{display:flex;gap:10px;margin-bottom:10px;flex-wrap:wrap;align-items:stretch;}
+.dep-avail-card{margin-bottom:14px;padding:12px 14px;background:var(--plate2);border:1px solid var(--wire2);border-radius:10px;display:flex;gap:12px;align-items:flex-start;}
+.dep-avail-icon{font-size:1.2rem;line-height:1;opacity:0.92;flex-shrink:0;margin-top:2px}
+.dep-avail-sol{font-family:'Syne',sans-serif;font-weight:700;font-size:1.05rem;color:var(--neon);letter-spacing:-0.02em;line-height:1.2}
+.dep-avail-usd{font-family:'Azeret Mono',monospace;font-size:0.58rem;color:var(--muted);margin-top:4px}
+.dep-avail-fee{font-family:'Azeret Mono',monospace;font-size:0.52rem;color:var(--dim);margin-top:8px;line-height:1.45}
+.dep-avail-actions{display:flex;gap:6px;flex-shrink:0;align-items:flex-start}
 .ca-input{flex:1;background:var(--plate2);border:1px solid var(--wire2);border-radius:8px;padding:10px 13px;color:var(--white);font-family:'Azeret Mono',monospace;font-size:0.85rem;outline:none;transition:border-color 0.15s;}
 .ca-input:focus{border-color:var(--neon);}
 .ca-max{padding:10px 14px;border-radius:8px;font-family:'Azeret Mono',monospace;font-size:0.62rem;cursor:pointer;border:1px solid var(--wire2);background:transparent;color:var(--dim);transition:all 0.15s;}
@@ -398,17 +404,17 @@ body::before{content:'';position:fixed;inset:0;z-index:0;pointer-events:none;
       <span class="ht1">Autonomous</span>
       <span class="ht2">Income Machine.</span>
     </h1>
-    <div class="hero-sub">Pump · Esky · Mission · Scale · Withdraw · Repeat</div>
+    <div class="hero-sub">Trade · Esky · Mission · Scale · Withdraw · Repeat</div>
     <p class="hero-desc">The dashboard helps you route Solana LP activity, treasury deposits, and missions in one place. LP fees and token prices are variable — nothing here guarantees profit. Where configured, autopayout rules are operational targets, not promises. Your keys, your signatures.</p>
     <div class="hero-cta">
-      <a class="btn btn-primary" href="https://pump.fun/coin/AcEVtpLEfxMHFzXQrhJiDhoWCkLVYH3drD2cxNAzLFUv" target="_blank">🦞 Buy $YABBAI</a>
+      <a class="btn btn-primary" href="https://raydium.io/swap/?inputMint=So11111111111111111111111111111111111111112&amp;outputMint=AcEVtpLEfxMHFzXQrhJiDhoWCkLVYH3drD2cxNAzLFUv" target="_blank">🦞 Buy $YABBAI</a>
       <button class="btn btn-sol" onclick="showPage('missions')">⚡ Launch Missions</button>
       <button class="btn btn-outline" onclick="showPage('cashout')">💸 Cashout</button>
     </div>
 
     <!-- PHASE TRACKER -->
     <div class="phases">
-      <div class="phase done"><div class="phase-dot"></div>Pump</div>
+      <div class="phase done"><div class="phase-dot"></div>Trade</div>
       <div class="phase-arrow">→</div>
       <div class="phase done"><div class="phase-dot"></div>Esky</div>
       <div class="phase-arrow">→</div>
@@ -461,12 +467,24 @@ body::before{content:'';position:fixed;inset:0;z-index:0;pointer-events:none;
           <div class="cp-icon">↓</div>
           <div><div class="cp-title">Deposit to treasury & credit vault</div></div>
         </div>
-        <div style="font-family:'Azeret Mono',monospace;font-size:0.56rem;color:var(--dim);text-transform:uppercase;letter-spacing:0.08em;margin-bottom:6px">Amount (SOL)</div>
+        <div class="dep-avail-card">
+          <div class="dep-avail-icon" aria-hidden="true">◎</div>
+          <div style="flex:1;min-width:0">
+            <div style="font-family:'Azeret Mono',monospace;font-size:0.52rem;color:var(--dim);text-transform:uppercase;letter-spacing:0.1em;margin-bottom:4px">Available</div>
+            <div class="dep-avail-sol" id="depositDashAvailSol">—</div>
+            <div class="dep-avail-usd" id="depositDashAvailUsd">—</div>
+            <div class="dep-avail-fee" id="depositDashAvailFee">Est. network fee · ~0.000005 SOL</div>
+          </div>
+        </div>
+        <div style="font-family:'Azeret Mono',monospace;font-size:0.56rem;color:var(--dim);text-transform:uppercase;letter-spacing:0.08em;margin-bottom:6px">Deposit amount (SOL)</div>
         <div class="cashout-amount">
           <input class="ca-input" id="depositAmt" type="number" placeholder="0.00" min="0" step="0.0001">
-          <button class="ca-max" type="button" onclick="setMaxDeposit()">MAX</button>
+          <div class="dep-avail-actions">
+            <button class="ca-max" type="button" onclick="setHalfDeposit()">HALF</button>
+            <button class="ca-max" type="button" onclick="setMaxDeposit()">MAX</button>
+          </div>
         </div>
-        <div style="font-family:'Azeret Mono',monospace;font-size:0.6rem;color:var(--dim);margin-bottom:12px" id="depositUsd">≈ $0.00 USD</div>
+        <div style="font-family:'Azeret Mono',monospace;font-size:0.6rem;color:var(--dim);margin-bottom:12px" id="depositUsd">≈ $0.00 USD · deposit size (not wallet balance)</div>
         <div id="rpcBalanceHint" class="vault-note" style="display:none;margin-bottom:10px;border-color:rgba(255,194,0,0.35);color:var(--gold)"></div>
         <label class="vault-note" style="display:flex;align-items:center;gap:8px;cursor:pointer;margin-bottom:10px;border-color:var(--wire2)">
           <input type="checkbox" id="depositDryRunDash" style="accent-color:var(--neon)">
@@ -632,15 +650,27 @@ body::before{content:'';position:fixed;inset:0;z-index:0;pointer-events:none;
       </div>
     </div>
     <div class="cashout-panel" style="margin:0;border-color:rgba(153,69,255,0.25);max-width:520px">
+      <div class="dep-avail-card">
+        <div class="dep-avail-icon" aria-hidden="true">◎</div>
+        <div style="flex:1;min-width:0">
+          <div style="font-family:'Azeret Mono',monospace;font-size:0.52rem;color:var(--dim);text-transform:uppercase;letter-spacing:0.1em;margin-bottom:4px">Available</div>
+          <div class="dep-avail-sol" id="depositAvailSol">—</div>
+          <div class="dep-avail-usd" id="depositAvailUsd">—</div>
+          <div class="dep-avail-fee" id="depositAvailFee">Est. network fee · ~0.000005 SOL</div>
+        </div>
+      </div>
       <div class="cp-header">
         <div class="cp-icon">↓</div>
-        <div><div class="cp-title">Amount (SOL)</div></div>
+        <div><div class="cp-title">Deposit amount (SOL)</div></div>
       </div>
       <div class="cashout-amount">
         <input class="ca-input" id="depositTabAmt" type="number" placeholder="0.00" min="0" step="0.0001">
-        <button class="ca-max" type="button" onclick="setMaxDeposit()">MAX</button>
+        <div class="dep-avail-actions">
+          <button class="ca-max" type="button" onclick="setHalfDeposit()">HALF</button>
+          <button class="ca-max" type="button" onclick="setMaxDeposit()">MAX</button>
+        </div>
       </div>
-      <div style="font-family:'Azeret Mono',monospace;font-size:0.6rem;color:var(--dim);margin-bottom:12px" id="depositTabUsd">≈ $0.00 USD</div>
+      <div style="font-family:'Azeret Mono',monospace;font-size:0.6rem;color:var(--dim);margin-bottom:12px" id="depositTabUsd">≈ $0.00 USD · deposit size (not wallet balance)</div>
       <label class="vault-note" style="display:flex;align-items:center;gap:8px;cursor:pointer;margin-bottom:10px;border-color:var(--wire2)">
         <input type="checkbox" id="depositDryRun" style="accent-color:var(--neon)">
         <span>Dry run only (summary, no wallet)</span>
@@ -880,9 +910,13 @@ const DEFAULT_TREASURY = '2DarZ9hCi5PirKsDsnriewZEGqaz6Q11pEitoZJxBsYM';
 /** Mainnet-beta genesis hash — `assertMainnetRpc` rejects any RPC whose `getGenesisHash()` does not match. */
 const MAINNET_GENESIS_HASH = 'EtWTRABZaYq6iMfeYKouRu166VU2xqa1wcaWoxeehBOw';
 const MIN_DEPOSIT_SOL = 1e-6;
+/** Small reserve so HALF/MAX leaves headroom for base tx fee (Phantom-style UX). */
+const DEPOSIT_FEE_PAD_SOL = 0.00002;
+const EST_BASE_TRANSFER_FEE_SOL = 0.000005;
 /** SOL deposit = SystemProgram.transfer(lamports); wallet + RPC enforce spendable SOL (no in-page fee holdback). */
 const PAYPAL   = 'basham_x@protonmail.com';
-const PUMP_URL = `https://pump.fun/coin/${MINT}`;
+const WSOL_MINT = 'So11111111111111111111111111111111111111112';
+const RAYDIUM_SWAP_URL = `https://raydium.io/swap/?inputMint=${WSOL_MINT}&outputMint=${MINT}`;
 const DEX_URL  = `https://dexscreener.com/solana/${POOL}`;
 /**
  * AI proxy URL (keys live only on that server — never in this static bundle).
@@ -1367,11 +1401,11 @@ const MISSIONS = [
     riskNote:'Fees accrue only if you have LP; APR varies. IL and pool risk apply.',
     progress:68, status:'active',
     action:()=>{ addLog('LP yield harvest initiated — opening Raydium', '#14F195', 'Raydium'); window.open(`https://raydium.io/portfolio/`, '_blank'); toast('Raydium portfolio opened — claim fees manually'); }},
-  { id:'buy_pump', name:'Bonding Curve Pump', type:'pump.fun · Buy Signal', icon:'🦞', color:'#9945FF', bg:'rgba(153,69,255,0.12)',
-    desc:'Open pump.fun to review the bonding curve. Buys move price but can reverse; treat size as risk capital.',
-    riskNote:'Bonding curves are volatile; verify mint matches official $YABBAI before swapping.',
+  { id:'buy_raydium', name:'Raydium Buy', type:'Raydium · DEX', icon:'🦞', color:'#9945FF', bg:'rgba(153,69,255,0.12)',
+    desc:'Open Raydium swap (SOL → $YABBAI mint). Pool depth and price impact vary; treat size as risk capital.',
+    riskNote:'DEX markets are volatile; verify mint matches official $YABBAI before swapping.',
     progress:35, status:'active',
-    action:()=>{ addLog('Opening pump.fun buy — bonding curve push', '#9945FF', 'pump.fun'); window.open(PUMP_URL, '_blank'); toast('pump.fun opened — buy $YABBAI to push the curve'); }},
+    action:()=>{ addLog('Opening Raydium swap for $YABBAI', '#9945FF', 'Raydium'); window.open(RAYDIUM_SWAP_URL, '_blank'); toast('Raydium opened — confirm swap in your wallet'); }},
   { id:'community', name:'Community Growth', type:'Claude AI · Social', icon:'👥', color:'#00b4ff', bg:'rgba(0,180,255,0.12)',
     desc:'Use the AI Brain (Worker) to draft posts and angles. You still choose what to publish; no auto-posting from this static page.',
     riskNote:'AI output needs human review; disclosure rules vary by platform.',
@@ -1404,7 +1438,10 @@ function showPage(id) {
   window.scrollTo({ top:0, behavior:'smooth' });
   applyTreasuryToDom();
   syncDepositUsdFromInputs();
-  if (id === 'deposit') renderDepositWithdrawDestPanel();
+  if (id === 'deposit') {
+    renderDepositWithdrawDestPanel();
+    updateDepositAvailableRows();
+  }
   if (id === 'missions') {
     renderMissionMetaStrip();
     renderAiBrainStatus();
@@ -1619,27 +1656,56 @@ function updateRpcBalanceHint() {
     '<strong>Deposit still works</strong> — your wallet shows the real balance when you sign.';
 }
 
+function updateDepositAvailableRows() {
+  const px = effectiveSolUsd();
+  const hasUsd = Number.isFinite(px) && px > 0;
+  const feeLine = `Est. network fee · ~${EST_BASE_TRANSFER_FEE_SOL.toFixed(6)} SOL`;
+
+  const fill = (solId, usdId, feeId) => {
+    const elSol = document.getElementById(solId);
+    const elUsd = document.getElementById(usdId);
+    const elFee = feeId ? document.getElementById(feeId) : null;
+    if (!elSol || !elUsd) return;
+    if (!walletAddr) {
+      elSol.textContent = '—';
+      elUsd.textContent = 'Connect wallet';
+      if (elFee) elFee.textContent = feeLine;
+      return;
+    }
+    if (!solBalanceFetchOk) {
+      elSol.textContent = '—';
+      elUsd.textContent = 'Loading… tap ↻ if stuck';
+      if (elFee) elFee.textContent = feeLine;
+      return;
+    }
+    elSol.textContent = `${solBalance.toFixed(4)} SOL`;
+    elUsd.textContent = hasUsd ? `~$${(solBalance * px).toFixed(2)}` : '—';
+    if (elFee) elFee.textContent = feeLine;
+  };
+  fill('depositAvailSol', 'depositAvailUsd', 'depositAvailFee');
+  fill('depositDashAvailSol', 'depositDashAvailUsd', 'depositDashAvailFee');
+}
+
 /** Keeps cashout bar, top wallet chip, and deposit USD in sync with solBalance + solPrice */
 function syncBalanceLabels() {
   if (!walletAddr) return;
   const px = effectiveSolUsd();
-  const usdTxt =
-    solBalanceFetchOk && Number.isFinite(solBalance) && solBalance > 0
-      ? (solBalance * px).toFixed(2)
-      : '—';
+  const hasUsd = Number.isFinite(px) && px > 0;
   const cp = document.getElementById('cpBalance');
   if (cp) {
     if (!solBalanceFetchOk) {
-      cp.textContent = 'Balance: — (RPC from browser failed — use Refresh or set YABBAI_SOLANA_RPC)';
+      cp.textContent = 'Balance: — (RPC unavailable — tap ↻ or set YABBAI_SOLANA_RPC / YABBAI_BALANCE_API)';
     } else if (solBalance > 0) {
-      cp.textContent = `Balance: ${solBalance.toFixed(4)} SOL · $${usdTxt} (RPC/worker)`;
+      cp.textContent = `Balance: ${solBalance.toFixed(4)} SOL · ~$${(solBalance * px).toFixed(2)}`;
     } else {
-      cp.textContent =
-        'Balance: RPC shows 0 — chip uses Solana RPC here (not a separate Phantom web API) · tap ↻ or check wallet';
+      cp.textContent = hasUsd
+        ? `Balance: 0.0000 SOL · ~$${(solBalance * px).toFixed(2)}`
+        : 'Balance: 0.0000 SOL · USD —';
     }
   }
   renderWalletUI();
   updateDepositUsd();
+  updateDepositAvailableRows();
   renderVaultPanel();
   updateRpcBalanceHint();
 }
@@ -1683,10 +1749,16 @@ function loadWeb3BalanceModule() {
  * Returns lamports (integer) or null.
  */
 async function tryWalletExtensionGetBalanceLamports(pubkeyBase58) {
+  const providers = [];
+  const pushProv = (p) => {
+    if (p && typeof p.request === 'function' && !providers.includes(p)) providers.push(p);
+  };
   try {
-    const s = typeof window !== 'undefined' ? window.solana : null;
-    if (!s || typeof s.request !== 'function') return null;
-    const res = await s.request({ method: 'getBalance', params: [pubkeyBase58] });
+    pushProv(getActiveWalletProvider());
+    pushProv(getWalletProviderByType(localStorage.getItem('yabbai_wallet_type') || 'phantom'));
+  } catch (_) {}
+
+  function parseWalletGetBalanceRes(res) {
     if (typeof res === 'number' && Number.isFinite(res) && res >= 0) return Math.floor(res);
     if (typeof res === 'string') {
       const x = parseInt(res, 10);
@@ -1704,8 +1776,17 @@ async function tryWalletExtensionGetBalanceLamports(pubkeyBase58) {
         return n >= 0 ? n : null;
       }
     }
-  } catch (_) {
-    /* optional path */
+    return null;
+  }
+
+  for (const s of providers) {
+    try {
+      const res = await s.request({ method: 'getBalance', params: [pubkeyBase58] });
+      const lamports = parseWalletGetBalanceRes(res);
+      if (lamports != null) return lamports;
+    } catch (_) {
+      /* try next provider */
+    }
   }
   return null;
 }
@@ -1824,6 +1905,9 @@ async function fetchWalletBalanceCore(opts) {
 
   try {
   const extBalancePromise = tryWalletExtensionGetBalanceLamports(addrRaw);
+  /** Distinct RPC URLs that returned lamports === 0 via Connection / JSON (used for consensus true-zero). */
+  const rpcZeroVote = new Set();
+  const jsonRpcZeroVote = new Set();
 
   /** Commit positive balance and exit fetch early. Zero lamports are never treated as authoritative from this path alone (avoids false $0 on flaky IPFS/RPC). */
   const applyPositiveLamports = (lamports, rpc, tag) => {
@@ -1903,6 +1987,8 @@ async function fetchWalletBalanceCore(opts) {
       }
       const lamports = await conn.getBalance(pk, 'confirmed');
       if (applyPositiveLamports(lamports, rpc, '(rpc)')) return;
+      const lamN = typeof lamports === 'bigint' ? Number(lamports) : lamports;
+      if (lamN === 0) rpcZeroVote.add(rpc);
     } catch (e) {
       console.warn('[YABBAI][SOL] Connection.getBalance', rpc, e?.message || e);
     }
@@ -1952,10 +2038,26 @@ async function fetchWalletBalanceCore(opts) {
         }
         const lamports = lamportsFromGetBalanceJson(d);
         if (lamports != null && applyPositiveLamports(lamports, rpc, '(http)')) return;
+        if (lamports === 0) jsonRpcZeroVote.add(rpc);
       } catch (e) {
         console.warn('[YABBAI][SOL] fetch', rpc, e?.message || e);
       }
     }
+  }
+
+  const customRpcActive =
+    typeof window !== 'undefined' &&
+    window.YABBAI_SOLANA_RPC &&
+    isMainnetHttpsRpcUrl(String(window.YABBAI_SOLANA_RPC).trim());
+  const minZeroConfirmations = customRpcActive ? 1 : 2;
+  const zeroRpcHosts = new Set([...rpcZeroVote, ...jsonRpcZeroVote]);
+  if (!solBalanceFetchOk && zeroRpcHosts.size >= minZeroConfirmations) {
+    primarySolanaRpc = primarySolanaRpc || [...rpcZeroVote][0] || [...jsonRpcZeroVote][0] || getSolanaRpcList()[0] || '';
+    solBalance = 0;
+    solBalanceFetchOk = true;
+    syncBalanceLabels();
+    addLog('Wallet balance: 0.0000 SOL (multi-RPC)', '#14F195', 'RPC');
+    return;
   }
 
   let extLamports = null;
@@ -1965,20 +2067,12 @@ async function fetchWalletBalanceCore(opts) {
     extLamports = null;
   }
   const curLam = solBalanceFetchOk ? Math.round(solBalance * 1e9) : 0;
-  if (extLamports != null) {
-    if (extLamports > curLam) {
-      primarySolanaRpc = primarySolanaRpc || getSolanaRpcList()[0] || '';
-      solBalance = extLamports / 1e9;
-      solBalanceFetchOk = true;
-      syncBalanceLabels();
-      addLog(`Wallet balance: ${solBalance.toFixed(4)} SOL (wallet getBalance)`, '#14F195', 'RPC');
-    } else if (extLamports === 0 && !solBalanceFetchOk) {
-      primarySolanaRpc = primarySolanaRpc || getSolanaRpcList()[0] || '';
-      solBalance = 0;
-      solBalanceFetchOk = true;
-      syncBalanceLabels();
-      addLog('Wallet balance: 0 SOL (wallet getBalance)', '#14F195', 'RPC');
-    }
+  if (extLamports != null && extLamports > 0 && (!solBalanceFetchOk || extLamports > curLam)) {
+    primarySolanaRpc = primarySolanaRpc || getSolanaRpcList()[0] || '';
+    solBalance = extLamports / 1e9;
+    solBalanceFetchOk = true;
+    syncBalanceLabels();
+    addLog(`Wallet balance: ${solBalance.toFixed(4)} SOL (wallet adapter)`, '#14F195', 'RPC');
   }
 
   if (!solBalanceFetchOk && attempt < maxAttempt) {
@@ -2134,16 +2228,38 @@ function getDepositControls() {
   };
 }
 
+function setHalfDeposit() {
+  const c = getDepositControls();
+  const input = c.amt;
+  if (!input) return;
+  if (!solBalanceFetchOk || !Number.isFinite(solBalance) || solBalance <= 0) {
+    toast('HALF unavailable — balance not loaded. Tap ↻ or enter SOL manually.', 'warn');
+    return;
+  }
+  const usable = Math.max(0, solBalance - DEPOSIT_FEE_PAD_SOL);
+  const half = usable / 2;
+  if (half < MIN_DEPOSIT_SOL) {
+    toast(`Amount would be below minimum (${MIN_DEPOSIT_SOL} SOL) after fee pad`, 'warn');
+    return;
+  }
+  input.value = half.toFixed(6);
+  syncDepositUsdFromInputs();
+}
+
 function setMaxDeposit() {
   const c = getDepositControls();
   const input = c.amt;
   if (!input) return;
-  if (!solBalanceFetchOk || solBalance <= 0) {
-    toast('MAX unavailable — RPC balance missing/zero here. Type SOL manually; Phantom shows real balance when you sign.', 'warn');
+  if (!solBalanceFetchOk || !Number.isFinite(solBalance) || solBalance <= 0) {
+    toast('MAX unavailable — balance not loaded. Tap ↻ or enter SOL manually.', 'warn');
     return;
   }
-  const max = Math.max(0, solBalance);
-  input.value = max > 0 ? max.toFixed(6) : '';
+  const usable = Math.max(0, solBalance - DEPOSIT_FEE_PAD_SOL);
+  if (usable < MIN_DEPOSIT_SOL) {
+    toast(`Wallet SOL too low to MAX-fill after ~${DEPOSIT_FEE_PAD_SOL} SOL fee reserve`, 'warn');
+    return;
+  }
+  input.value = usable.toFixed(6);
   syncDepositUsdFromInputs();
 }
 
@@ -2326,11 +2442,14 @@ function renderWalletUI() {
   const px = effectiveSolUsd();
   const walletType = localStorage.getItem('yabbai_wallet_type') || 'phantom';
   const icons = { phantom:'👻', solflare:'🔆', backpack:'🎒' };
-  const balLine = solBalanceFetchOk
-    ? solBalance > 0
-      ? `${solBalance.toFixed(4)} SOL · $${(solBalance * px).toFixed(2)}`
-      : `— SOL · <span style="color:var(--gold);font-size:0.52rem">RPC $0 here — wallet app has true balance · ↻</span>`
-    : `— SOL · <span style="color:var(--gold);font-size:0.52rem">RPC blocked?</span>`;
+  const hasPx = Number.isFinite(px) && px > 0;
+  const balLine = !solBalanceFetchOk
+    ? `<span style="color:var(--gold);font-size:0.58rem">SOL unavailable here</span> · <span style="color:var(--dim);font-size:0.52rem">tap ↻</span>`
+    : solBalance > 0
+      ? `${solBalance.toFixed(4)} SOL · ~$${(solBalance * px).toFixed(2)}`
+      : hasPx
+        ? `0.0000 SOL · ~$${(solBalance * px).toFixed(2)}`
+        : `0.0000 SOL · USD —`;
   const splHtml = (splWalletLines || [])
     .map(l => {
       const label = l.mint === MINT ? '$YABBAI' : `${l.mint.slice(0, 4)}…${l.mint.slice(-4)}`;
@@ -2371,6 +2490,7 @@ function disconnectWallet() {
   document.getElementById('walletArea').innerHTML = `<button class="wallet-btn wallet-disconnected" onclick="openSIWS()"><div class="w-dot"></div>Connect Wallet</button>`;
   const cp = document.getElementById('cpBalance');
   if (cp) cp.textContent = 'Balance: —';
+  updateDepositAvailableRows();
   renderVaultPanel();
   renderMissionMetaStrip();
   renderAiBrainStatus();
@@ -2648,7 +2768,7 @@ function buildYabbaiBrainSystemPrompt() {
 - Treasury receiver (SOL account for deposits): ${treasury}
 - $YABBAI mint: ${MINT}
 - Reference pool id: ${POOL}
-- Links: ${PUMP_URL} · ${DEX_URL}
+- Links: ${RAYDIUM_SWAP_URL} · ${DEX_URL}
 - Worker AI in this session: ${MISSION_API ? 'configured (API keys only on server)' : 'not configured — user relies on canned mission cards'}
 - Market snapshot from last Dexscreener refresh (may be stale): mcap ~$${mcap}, liq ~$${liq}, 24h vol ~$${vol}
 
@@ -3071,6 +3191,7 @@ window.addEventListener('load', async () => {
   addLog('Fetching live mainnet data from Dexscreener...', '#00D4AA', 'Data');
   addLog('Cashout destinations: Wallet · PayPal · USDC · Bank', '#ffc200', 'Cashout');
   addLog('Phantom/Solflare SIWS authentication ready', '#14F195', 'Auth');
+  updateDepositAvailableRows();
 });
 
 // ── DEPOSIT TERMINAL ─────────────────────────────────────────────

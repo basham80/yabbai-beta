@@ -535,13 +535,13 @@ canvas#netCanvas{width:100%;height:100%;}
 
         <div style="font-family:'Azeret Mono',monospace;font-size:0.56rem;color:var(--dim);letter-spacing:0.08em;text-transform:uppercase;margin-bottom:10px">Launch Platform</div>
         <div class="cf-routes">
-          <div class="cf-route selected" data-platform="pumpfun" onclick="selectPlatform(this)">
-            <div class="cfr-icon">🚀</div>
+          <div class="cf-route selected" data-platform="raydium_swap" onclick="selectPlatform(this)">
+            <div class="cfr-icon">💱</div>
             <div class="cfr-info">
-              <div class="cfr-name">Pump.fun</div>
-              <div class="cfr-desc">Bonding curve → auto-graduates to Raydium at $69K. Best for community meme tokens.</div>
+              <div class="cfr-name">Raydium Swap</div>
+              <div class="cfr-desc">Trade on Raydium (AMM). New pairs: open swap, pick mints, confirm pool in the Raydium UI.</div>
             </div>
-            <div class="cfr-cost">~0.02 SOL</div>
+            <div class="cfr-cost">Varies</div>
           </div>
           <div class="cf-route" data-platform="raydium" onclick="selectPlatform(this)">
             <div class="cfr-icon">⚡</div>
@@ -765,8 +765,8 @@ function confirmRemoveLP(tokenId, pool) {
 }
 
 function openMint(tokenId) {
-  window.open('https://pump.fun', '_blank');
-  toast('Mint your token on pump.fun then paste the CA here');
+  window.open('https://raydium.io/launchpad/', '_blank');
+  toast('Use Raydium Launchpad or SPL tooling, then paste the CA here');
 }
 
 // ── LP ROUTER ───────────────────────────────────────────
@@ -830,7 +830,7 @@ function executeRouter() {
     } else if (toToken?.mint) {
       window.open(`https://raydium.io/liquidity/add/?baseMint=${toToken.mint}&quoteMint=So11111111111111111111111111111111111111112`, '_blank');
     } else {
-      window.open('https://pump.fun', '_blank');
+      window.open('https://raydium.io/swap/', '_blank');
     }
   }, 2000);
 
@@ -852,7 +852,7 @@ function launchToken() {
   if (!name || !symbol) { toast('Enter token name and symbol', 'error'); return; }
 
   let url;
-  if (platform === 'pumpfun') url = 'https://pump.fun';
+  if (platform === 'raydium_swap') url = 'https://raydium.io/swap/';
   else if (platform === 'raydium') url = 'https://raydium.io/launchpad/';
   else url = 'https://solana-token-creator.com';
 

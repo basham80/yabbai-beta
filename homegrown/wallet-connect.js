@@ -5,7 +5,9 @@ const YABBAI_MINT = 'AcEVtpLEfxMHFzXQrhJiDhoWCkLVYH3drD2cxNAzLFUv';
 const YABBAI_POOL = 'DaxLJ5mRkqWtfhFBKtibtGSYaiE7zFrtgsi5evmVBAax';
 const TREASURY   = '2DarZ9hCi5PirKsDsnriewZEGqaz6Q11pEitoZJxBsYM';
 const RPC        = 'https://api.mainnet-beta.solana.com';
-const PUMP_LINK  = 'https://pump.fun/coin/'+YABBAI_MINT;
+const WSOL_MINT = 'So11111111111111111111111111111111111111112';
+const RAYDIUM_SWAP_LINK =
+  'https://raydium.io/swap/?inputMint=' + WSOL_MINT + '&outputMint=' + YABBAI_MINT;
 const DEX_LINK   = 'https://dexscreener.com/solana/'+YABBAI_POOL;
 
 let walletPubkey = null;
@@ -186,10 +188,10 @@ function renderWalletUI() {
         <div style="background:rgba(255,200,0,0.08);border:1px solid rgba(255,200,0,0.2);
           border-radius:8px;padding:8px 14px;font-size:12px;color:#ffc200;max-width:220px">
           ⚡ Low balance — even $8 AUD in SOL gets you started
-          <br><a href="${PUMP_LINK}" target="_blank" 
+          <br><a href="${RAYDIUM_SWAP_LINK}" target="_blank" 
             style="color:#14F195;text-decoration:none;font-size:11px">Buy $YABBAI →</a>
         </div>` : `
-        <a href="${PUMP_LINK}" target="_blank" style="${btnStyle('#14F195')}">
+        <a href="${RAYDIUM_SWAP_LINK}" target="_blank" style="${btnStyle('#14F195')}">
           🦞 Buy $YABBAI
         </a>`}
       <button onclick="disconnectWallet()" 
