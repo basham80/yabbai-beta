@@ -1,4 +1,4 @@
-# Publish from repo root so `/` = hub (index.html) and `/yabbai/` = main app.
+# Publish from repo root so `/` = `index.html` (YABBAI Beta hub) and `/yabbai/` = main app.
 # Do not point publish at workers/payout — that is only for Wrangler deploy.
 
 [build]
@@ -6,18 +6,7 @@ publish = "."
 command = "echo 'Static site - no build needed'"
 functions = "netlify/functions"
 
-# Do not use /* → /index.html here — this repo is multi-page (hub, yabbai/, bash/, …). A SPA fallback can
-# force every URL onto root index.html and breaks IPFS deploys when root index is wrong.
-# Root workaround: send / and /index.html to hub.html (works even when repo hub index was mis-uploaded).
-[[redirects]]
-from = "/"
-to = "/hub.html"
-status = 302
-
-[[redirects]]
-from = "/index.html"
-to = "/hub.html"
-status = 302
+# No root redirects — `/` serves repo `index.html`. Many IPFS gateways ignore Netlify/_redirects anyway.
 
 [env.production]
   [env.production.context]

@@ -1,4 +1,2 @@
-# Multi-page static site — no SPA catch-all (that was routing traffic to a broken root index on IPFS).
-# Temporarily send domain root to hub.html until publish root on 4EVERLAND is repo root with correct index.html.
-/               /hub.html   302
-/index.html     /hub.html   302
+# Optional host-specific rules. IPFS gateways often ignore this file — publish repo root so `/` = `index.html`.
+# Do not add /* → /index.html SPA fallback (breaks multi-page sites).

@@ -43,9 +43,10 @@ That almost always means the static host’s **publish directory** is set to **`
 
 #### After redeploy (Git / IPFS)
 
-If **`/`** still shows **`wrangler.toml` text**, your **publish root on 4EVERLAND is still wrong** (often `workers/payout`). Fix **Root Directory = empty**, **Output Directory = empty**, republish from **repo root**.
+The **homepage** for `https://…ipfs.4everland.app/` must be the repository **`index.html`** at the **root of your deployment** (title: *YABBAI Beta — Full Ecosystem*).
 
-If **`/`** is wrong but **`/hub.html`** and **`/yabbai/`** work, this repo uses **`_redirects` + `netlify.toml`** so **`/` redirects to `/hub.html`** after redeploy. If your gateway ignores those files, set **Advanced → Rewrite** in the 4EVERLAND project: path **`/`** → **`/hub.html`** (or **`/yabbai/`**).
+- If **`/`** shows **`wrangler.toml`** or non-HTML text, **Root Directory** on 4EVERLAND is still pointed at **`workers/payout`** (or another subfolder). Set **Root Directory** and **Output Directory** to **empty**, connect the **full Git repo**, and redeploy so the pinned folder contains **`index.html`** next to **`yabbai/`**, **`bash/`**, etc.
+- **IPFS does not reliably honor** `_redirects` / Netlify-style redirects; fixing the **publish root** is the real solution. Optional: in 4EVERLAND **Advanced → Rewrite**, map **`/`** → **`/index.html`** only if your gateway serves a wrong default file.
 
 #### Add Environment Variable
 
