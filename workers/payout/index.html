@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Wrong publish folder — YABBAI payout Worker</title>
+<style>
+  body{font-family:system-ui,sans-serif;background:#0a0f1c;color:#e8f4ff;max-width:640px;margin:48px auto;padding:0 24px;line-height:1.6;}
+  code{background:#162030;padding:2px 8px;border-radius:4px;font-size:0.9em;}
+  a{color:#14F195;}
+  .warn{border-left:4px solid #ffc200;padding-left:16px;margin:24px 0;}
+</style>
+</head>
+<body>
+  <h1>This URL is not your website</h1>
+  <p>You are viewing the <strong>payout Worker</strong> project folder. It only contains Cloudflare Worker code (<code>wrangler.toml</code>, <code>src/</code>). It must <strong>not</strong> be used as the static site root on IPFS, Netlify, 4EVERLAND, or GitHub Pages.</p>
+  <div class="warn">
+    <strong>If the browser showed raw <code>wrangler.toml</code> text:</strong> your host’s <em>publish / output / root directory</em> is set to <code>workers/payout</code>. Change it to the <strong>repository root</strong> (where the hub <code>index.html</code> lives) or to <strong><code>yabbai/</code></strong> if you only want the main app.
+  </div>
+  <p><strong>Deploy this folder only with Wrangler:</strong></p>
+  <pre style="background:#06080f;padding:16px;border-radius:8px;overflow:auto;font-size:13px;">cd workers/payout
+npm install
+npx wrangler secret put TREASURY_SECRET_KEY
+npx wrangler deploy</pre>
+  <p><code>TREASURY_SECRET_KEY</code> must be the keypair for the same on-chain address the static app shows (meta / <code>window.YABBAI_TREASURY_RECEIVER</code> if set, otherwise <code>DEFAULT_TREASURY</code> in <code>yabbai/index.html</code>). Optionally set plain var <code>YABBAI_TREASURY_RECEIVER</code> in <code>wrangler.toml</code> to that pubkey so GET <code>treasuryPubkey</code> / <code>treasuryMatchesEnv</code> can verify a match.</p>
+  <p>Then set <code>window.YABBAI_PAYOUT_API</code> in <code>yabbai/mission-config.js</code> to the Worker HTTPS URL.</p>
+</body>
+</html>
