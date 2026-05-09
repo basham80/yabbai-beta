@@ -702,7 +702,6 @@ const MINT     = 'AcEVtpLEfxMHFzXQrhJiDhoWCkLVYH3drD2cxNAzLFUv';
 const POOL     = 'DaxLJ5mRkqWtfhFBKtibtGSYaiE7zFrtgsi5evmVBAax';
 const TREASURY = '8e6ogxfUnj6YXHp1tR4Kj1ytSkmEhLhi2fbKqRVxUHPi';
 const PAYPAL   = 'basham_x@protonmail.com';
-const RPC      = 'https://api.mainnet-beta.solana.com';
 const PUMP_URL = `https://pump.fun/coin/${MINT}`;
 const DEX_URL  = `https://dexscreener.com/solana/${POOL}`;
 /**
@@ -714,7 +713,24 @@ const MISSION_API = (typeof window !== 'undefined' && window.YABBAI_MISSION_API 
   ? String(window.YABBAI_MISSION_API).trim()
   : '';
 
+function getSolanaRpcList() {
+  const custom =
+    typeof window !== 'undefined' &&
+    window.YABBAI_SOLANA_RPC &&
+    String(window.YABBAI_SOLANA_RPC).trim();
+  const fallback = [
+    'https://api.mainnet-beta.solana.com',
+    'https://solana-mainnet.rpc.extrnode.com',
+    'https://solana-mainnet.publicnode.com',
+    'https://rpc.ankr.com/solana',
+  ];
+  const list = custom ? [custom.trim(), ...fallback] : fallback;
+  return [...new Set(list)];
+}
+
 let walletAddr = null;
+/** Last RPC that answered getBalance — reused for deposit Connection when set */
+let primarySolanaRpc = null;
 let solBalance = 0;
 let solPrice   = 88;
 try {
@@ -1026,8 +1042,11 @@ async function connectWallet(type) {
       return;
     }
 
-    const resp = await provider.connect();
-    walletAddr = resp.publicKey.toString();
+    await provider.connect();
+    if (!provider.publicKey) {
+      throw new Error('Wallet did not return a public key');
+    }
+    walletAddr = provider.publicKey.toString();
     localStorage.setItem('yabbai_wallet', walletAddr);
     localStorage.setItem('yabbai_wallet_type', type);
 
@@ -1095,40 +1114,93 @@ function syncBalanceLabels() {
   renderVaultPanel();
 }
 
+function resolveLiveWalletAddress() {
+  const type = localStorage.getItem('yabbai_wallet_type') || 'phantom';
+  const provider = getWalletProviderByType(type);
+  if (!provider?.publicKey) return walletAddr;
+  try {
+    const live = provider.publicKey.toString();
+    if (live && live !== walletAddr) {
+      walletAddr = live;
+      localStorage.setItem('yabbai_wallet', walletAddr);
+    }
+    return walletAddr;
+  } catch (_) {
+    return walletAddr;
+  }
+}
+
+let web3BalanceModulePromise = null;
+function loadWeb3BalanceModule() {
+  if (!web3BalanceModulePromise) {
+    web3BalanceModulePromise = import('https://cdn.jsdelivr.net/npm/@solana/web3.js@1.95.3/+esm');
+  }
+  return web3BalanceModulePromise;
+}
+
 async function fetchWalletBalance() {
+  resolveLiveWalletAddress();
   if (!walletAddr) return;
-  const RPCS = [
-    RPC,
-    'https://api.mainnet-beta.solana.com',
-    'https://rpc.ankr.com/solana',
-  ];
-  for (const rpc of RPCS) {
+
+  const endpoints = getSolanaRpcList();
+  const jsonBody = JSON.stringify({
+    jsonrpc: '2.0',
+    id: 1,
+    method: 'getBalance',
+    params: [walletAddr, { commitment: 'confirmed' }],
+  });
+
+  for (const rpc of endpoints) {
     try {
-      const sigOpt = abortableFetchSignal(8000);
+      const sigOpt = abortableFetchSignal(12000);
       const signal = sigOpt.signal || sigOpt;
       const r = await fetch(rpc, {
-        method:'POST',
-        headers:{'Content-Type':'application/json'},
-        body: JSON.stringify({jsonrpc:'2.0',id:1,method:'getBalance',params:[walletAddr]}),
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: jsonBody,
         signal,
       });
       if (sigOpt.cancel) sigOpt.cancel();
       if (!r.ok) continue;
       const d = await r.json();
+      if (d.error) {
+        console.warn('[YABBAI][SOL]', rpc, d.error);
+        continue;
+      }
       const lamports = d.result?.value;
-      if (lamports !== undefined) {
+      if (typeof lamports === 'number') {
+        primarySolanaRpc = rpc;
         solBalance = lamports / 1e9;
         syncBalanceLabels();
-        addLog(
-          `Wallet balance: ${solBalance.toFixed(4)} SOL`,
-          '#14F195',
-          'RPC'
-        );
+        addLog(`Wallet balance: ${solBalance.toFixed(4)} SOL`, '#14F195', 'RPC');
         return;
       }
-    } catch(e) { continue; }
+    } catch (e) {
+      console.warn('[YABBAI][SOL]', rpc, e?.message || e);
+    }
   }
-  addLog('Balance fetch failed — check RPC connection', '#ffc200', 'RPC');
+
+  try {
+    const web3 = await loadWeb3BalanceModule();
+    const { Connection, PublicKey } = web3;
+    const pk = new PublicKey(walletAddr);
+    for (const rpc of endpoints) {
+      try {
+        const conn = new Connection(rpc, 'confirmed');
+        const lamports = await conn.getBalance(pk, 'confirmed');
+        primarySolanaRpc = rpc;
+        solBalance = lamports / 1e9;
+        syncBalanceLabels();
+        addLog(`Wallet balance: ${solBalance.toFixed(4)} SOL`, '#14F195', 'RPC');
+        return;
+      } catch (_) {}
+    }
+  } catch (e) {
+    console.warn('[YABBAI][SOL] web3 fallback', e);
+  }
+
+  addLog('Balance fetch failed — set window.YABBAI_SOLANA_RPC in mission-config.js (private RPC)', '#ffc200', 'RPC');
+  toast('Could not load SOL balance (public RPC busy). Add YABBAI_SOLANA_RPC in mission-config.js.', 'warn');
 }
 
 async function ensureBufferPolyfill() {
@@ -1158,6 +1230,9 @@ async function depositSolToTreasury() {
   if (!amt || amt <= 0) { toast('Enter a deposit amount (SOL)', 'error'); return; }
   if (!walletAddr) { openSIWS(); toast('Connect wallet first', 'warn'); return; }
   if (depositBusy) return;
+
+  resolveLiveWalletAddress();
+  await fetchWalletBalance();
 
   const provider = getActiveWalletProvider();
   if (!provider?.publicKey) {
@@ -1190,7 +1265,8 @@ async function depositSolToTreasury() {
     const lamports = Math.round(amt * 1e9);
     if (lamports < 1) { throw new Error('Amount too small'); }
 
-    const connection = new Connection(RPC, 'confirmed');
+    const rpcUrl = primarySolanaRpc || getSolanaRpcList()[0];
+    const connection = new Connection(rpcUrl, 'confirmed');
     const fromPubkey = provider.publicKey;
     const toPubkey = new PublicKey(TREASURY);
 
@@ -1317,6 +1393,7 @@ async function restoreWalletSession() {
   }
 
   await fetchSolPrice({ skipBalanceSync: true });
+  resolveLiveWalletAddress();
   await fetchWalletBalance();
   syncBalanceLabels();
   renderVaultPanel();
@@ -1747,7 +1824,10 @@ window.addEventListener('load', async () => {
   fetchTokenData();
   setInterval(fetchTokenData, 30000);
   setInterval(fetchSolPrice, 60000);
-  setInterval(() => { if (walletAddr) fetchWalletBalance(); }, 45000);
+  setInterval(() => { if (walletAddr) fetchWalletBalance(); }, 20000);
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'visible' && walletAddr) fetchWalletBalance();
+  });
   setInterval(() => {
     if (!walletAddr) return;
     accrueVaultYield();

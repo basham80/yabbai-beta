@@ -17,3 +17,6 @@ window.YABBAI_MISSION_API = '';
 
 /** Optional: treasury SOL payout Worker URL (HTTPS). Empty disables on-chain withdraw. */
 window.YABBAI_PAYOUT_API = '';
+
+/** Optional: dedicated Solana RPC for balance + deposits (recommended — public RPC rate-limits browsers). */
+window.YABBAI_SOLANA_RPC = '';
