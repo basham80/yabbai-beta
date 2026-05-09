@@ -770,7 +770,7 @@ body::before{content:'';position:fixed;inset:0;z-index:0;pointer-events:none;
 
 </div><!-- /main -->
 
-<script src="mission-config.js"></script>
+<script src="mission-config.js?v=20260510"></script>
 <script>
 // ── CONFIG ──────────────────────────────────────────────
 const MINT     = 'AcEVtpLEfxMHFzXQrhJiDhoWCkLVYH3drD2cxNAzLFUv';
@@ -779,7 +779,7 @@ const DEFAULT_TREASURY = '8e6ogxfUnj6YXHp1tR4Kj1ytSkmEhLhi2fbKqRVxUHPi';
 /** Mainnet-beta genesis hash — `assertMainnetRpc` rejects any RPC whose `getGenesisHash()` does not match. */
 const MAINNET_GENESIS_HASH = 'EtWTRABZaYq6iMfeYKouRu166VU2xqa1wcaWoxeehBOw';
 const MIN_DEPOSIT_SOL = 1e-6;
-/** SOL deposit = SystemProgram.transfer(lamports); no app-side fee reserve — wallet/RPC enforce spendable SOL. */
+/** SOL deposit = SystemProgram.transfer(lamports); wallet + RPC enforce spendable SOL (no in-page fee holdback). */
 const PAYPAL   = 'basham_x@protonmail.com';
 const PUMP_URL = `https://pump.fun/coin/${MINT}`;
 const DEX_URL  = `https://dexscreener.com/solana/${POOL}`;
@@ -1563,7 +1563,8 @@ function lamportsFromGetBalanceJson(d) {
   return null;
 }
 
-async function fetchWalletBalance() {
+async function fetchWalletBalance(opts) {
+  const isRetry = !!(opts && opts.isRetry);
   resolveLiveWalletAddress();
   const addrRaw = walletAddr ? String(walletAddr).trim() : '';
   if (!addrRaw) return;
@@ -1596,9 +1597,8 @@ async function fetchWalletBalance() {
 
   try {
   const extBalancePromise = tryWalletExtensionGetBalanceLamports(addrRaw);
-  let lastZeroRpc = null;
 
-  /** Commit positive balance and exit fetch early. Record RPC for zero so we can commit after trying all endpoints (first RPC often lies with 0). */
+  /** Commit positive balance and exit fetch early. Zero lamports are never treated as authoritative from this path alone (avoids false $0 on flaky IPFS/RPC). */
   const applyPositiveLamports = (lamports, rpc, tag) => {
     let n =
       typeof lamports === 'bigint'
@@ -1608,7 +1608,6 @@ async function fetchWalletBalance() {
           : Number(lamports);
     if (!Number.isFinite(n) || n < 0) return false;
     if (n === 0) {
-      lastZeroRpc = rpc;
       return false;
     }
     primarySolanaRpc = rpc;
@@ -1628,7 +1627,7 @@ async function fetchWalletBalance() {
     try {
       const u = new URL('balance', balBase.replace(/\/$/, '') + '/');
       u.searchParams.set('wallet', addrRaw);
-      const sigOpt = abortableFetchSignal(15000);
+      const sigOpt = abortableFetchSignal(24000);
       const signal = sigOpt.signal || sigOpt;
       const r = await fetch(u.toString(), { method: 'GET', signal, mode: 'cors', cache: 'no-store' });
       if (sigOpt.cancel) sigOpt.cancel();
@@ -1643,7 +1642,16 @@ async function fetchWalletBalance() {
                 : NaN;
           if (Number.isFinite(lp) && lp >= 0) {
             const rpcHint = getSolanaRpcList()[0] || 'https://api.mainnet-beta.solana.com';
-            if (applyPositiveLamports(lp, rpcHint, '(Worker+D1)')) return;
+            if (lp > 0) {
+              if (applyPositiveLamports(lp, rpcHint, '(Worker+D1)')) return;
+            } else if (j.ok === true) {
+              primarySolanaRpc = rpcHint;
+              solBalance = 0;
+              solBalanceFetchOk = true;
+              syncBalanceLabels();
+              addLog('Wallet balance: 0 SOL (Worker+D1)', '#14F195', 'RPC');
+              return;
+            }
           }
         }
       }
@@ -1688,7 +1696,7 @@ async function fetchWalletBalance() {
   for (const rpc of endpoints) {
     for (const body of jsonBodies) {
       try {
-        const sigOpt = abortableFetchSignal(20000);
+        const sigOpt = abortableFetchSignal(26000);
         const signal = sigOpt.signal || sigOpt;
         const r = await fetch(rpc, {
           method: 'POST',
@@ -1719,14 +1727,6 @@ async function fetchWalletBalance() {
     }
   }
 
-  if (!solBalanceFetchOk && lastZeroRpc) {
-    primarySolanaRpc = lastZeroRpc;
-    solBalance = 0;
-    solBalanceFetchOk = true;
-    syncBalanceLabels();
-    addLog('Wallet balance: 0.0000 SOL (rpc)', '#14F195', 'RPC');
-  }
-
   let extLamports = null;
   try {
     extLamports = await extBalancePromise;
@@ -1734,12 +1734,27 @@ async function fetchWalletBalance() {
     extLamports = null;
   }
   const curLam = solBalanceFetchOk ? Math.round(solBalance * 1e9) : 0;
-  if (extLamports != null && extLamports > curLam) {
-    primarySolanaRpc = primarySolanaRpc || getSolanaRpcList()[0] || '';
-    solBalance = extLamports / 1e9;
-    solBalanceFetchOk = true;
+  if (extLamports != null) {
+    if (extLamports > curLam) {
+      primarySolanaRpc = primarySolanaRpc || getSolanaRpcList()[0] || '';
+      solBalance = extLamports / 1e9;
+      solBalanceFetchOk = true;
+      syncBalanceLabels();
+      addLog(`Wallet balance: ${solBalance.toFixed(4)} SOL (wallet getBalance)`, '#14F195', 'RPC');
+    } else if (extLamports === 0 && !solBalanceFetchOk) {
+      primarySolanaRpc = primarySolanaRpc || getSolanaRpcList()[0] || '';
+      solBalance = 0;
+      solBalanceFetchOk = true;
+      syncBalanceLabels();
+      addLog('Wallet balance: 0 SOL (wallet getBalance)', '#14F195', 'RPC');
+    }
+  }
+
+  if (!solBalanceFetchOk && !isRetry) {
+    addLog('Balance fetch retry in 1.1s (IPFS / public RPC)', '#ffc200', 'RPC');
     syncBalanceLabels();
-    addLog(`Wallet balance: ${solBalance.toFixed(4)} SOL (wallet getBalance)`, '#14F195', 'RPC');
+    await new Promise((r) => setTimeout(r, 1100));
+    return await fetchWalletBalance({ isRetry: true });
   }
 
   if (!solBalanceFetchOk) {
@@ -1908,9 +1923,12 @@ async function depositSolToTreasury() {
   }
 
   // Only block when RPC reported a **positive** spendable balance and amount exceeds it.
-  // Zero / unknown in-page balance never blocks (no fee-reserve messaging; wallet enforces real SOL).
+  // Zero / unknown in-page balance never blocks deposit (wallet enforces real SOL at sign time).
   if (solBalanceFetchOk && solBalance > 0 && amt > solBalance) {
-    toast(`Insufficient SOL for this amount (RPC shows ${solBalance.toFixed(4)} SOL, sending ${amt.toFixed(4)}).`, 'error');
+    toast(
+      `Amount exceeds on-chain balance reported here (${solBalance.toFixed(4)} SOL vs ${amt.toFixed(4)} sent). Lower the amount or tap ↻ Refresh balance.`,
+      'error'
+    );
     return;
   }
 

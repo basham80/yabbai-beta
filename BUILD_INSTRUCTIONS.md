@@ -88,6 +88,8 @@ If the wallet chip shows **0** or **—** on IPFS because browsers cannot reach 
 
 The page calls **`GET /balance?wallet=<pubkey>`** first; falls back to in-browser RPC if unset.
 
+**IPFS / gateway caching:** the hub root is **`index.html`** (ecosystem links only). **SOL deposit + wallet chip** live under **`yabbai/index.html`** (open **`/yabbai/`**). After editing `mission-config.js`, do a **hard refresh** or bump the `?v=` on its script tag in `yabbai/index.html` so gateways do not serve an old config.
+
 #### For Netlify Specifically
 
 

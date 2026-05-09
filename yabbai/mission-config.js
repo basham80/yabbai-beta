@@ -58,6 +58,9 @@ window.YABBAI_SOLANA_RPC = '';
  * Optional: Cloudflare Worker + D1 balance API (`workers/balance-api`). Deploy then set base URL (no trailing slash needed).
  * GET /balance?wallet=<pubkey> returns { ok, lamports, sol } using server-side RPC + SQLite cache.
  * Example: window.YABBAI_BALANCE_API = 'https://yabbai-balance-api.<account>.workers.dev';
+ *
+ * IPFS / static-only hosts: leave this empty and the page relies on browser → public Solana RPC (often rate-limited).
+ * Set this Worker URL **before** pinning to IPFS if users should see reliable SOL without a private YABBAI_SOLANA_RPC.
  */
 window.YABBAI_BALANCE_API = '';
 
