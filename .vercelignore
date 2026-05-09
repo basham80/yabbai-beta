@@ -1,0 +1,13 @@
+# Cloudflare Workers — deployed separately via Wrangler, not via Vercel
+workers/
+
+# Netlify Functions shim — Vercel uses /api/mission.mjs instead
+netlify/
+
+# Local secrets (defense in depth on top of .gitignore)
+treasury-operator-only.local.json
+.env.local
+
+# Worker docs / build helpers Vercel doesn't need to read
+node_modules/
+*/node_modules/

@@ -1,0 +1,26 @@
+# Dependencies
+node_modules/
+*/node_modules/
+
+# Local env files (NEVER commit secrets)
+.env
+.env.local
+.env.*.local
+treasury-operator-only.local.json
+
+# Build artifacts
+.vercel/
+.netlify/
+.wrangler/
+dist/
+build/
+
+# Logs
+*.log
+npm-debug.log*
+
+# Editor
+.DS_Store
+.idea/
+.vscode/
+*.swp
