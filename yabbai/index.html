@@ -1217,6 +1217,8 @@ function showPage(id) {
   if (page) page.classList.add('active');
   document.querySelector(`[data-page="${id}"]`)?.classList.add('active');
   window.scrollTo({ top:0, behavior:'smooth' });
+  applyTreasuryToDom();
+  syncDepositUsdFromInputs();
 }
 
 // ── WALLET / SIWS ────────────────────────────────────────
@@ -1516,6 +1518,7 @@ async function fetchWalletBalance() {
 
   solBalanceFetchOk = false;
 
+  try {
   const applyLamports = (lamports, rpc, tag) => {
     let n =
       typeof lamports === 'bigint'
@@ -1597,9 +1600,11 @@ async function fetchWalletBalance() {
   solBalanceFetchOk = false;
   syncBalanceLabels();
   toast('Could not load SOL balance in-browser. You can still deposit — wallet shows real SOL. Set YABBAI_SOLANA_RPC for live chip.', 'warn');
-  try {
-    await refreshSplTokenBalances(pk, web3, endpoints);
-  } catch (_) {}
+  } finally {
+    try {
+      await refreshSplTokenBalances(pk, web3, endpoints);
+    } catch (_) {}
+  }
 }
 
 async function assertMainnetRpc(connection) {
@@ -1668,8 +1673,27 @@ async function ensureBufferPolyfill() {
   globalThis.Buffer = mod.Buffer;
 }
 
+function getDepositControls() {
+  const dep = document.getElementById('page-deposit');
+  if (dep && dep.classList.contains('active')) {
+    return {
+      amt: document.getElementById('depositTabAmt'),
+      usd: document.getElementById('depositTabUsd'),
+      btn: document.getElementById('depositTabBtn'),
+      dry: document.getElementById('depositDryRun'),
+    };
+  }
+  return {
+    amt: document.getElementById('depositAmt'),
+    usd: document.getElementById('depositUsd'),
+    btn: document.getElementById('depositBtn'),
+    dry: document.getElementById('depositDryRunDash'),
+  };
+}
+
 function setMaxDeposit() {
-  const input = document.getElementById('depositAmt');
+  const c = getDepositControls();
+  const input = c.amt;
   if (!input) return;
   if (!solBalanceFetchOk) {
     toast('Balance unknown on this page — type amount manually or set YABBAI_SOLANA_RPC and tap ↻', 'warn');
@@ -1678,21 +1702,39 @@ function setMaxDeposit() {
   const reserve = 0.015;
   const max = Math.max(0, solBalance - reserve);
   input.value = max > 0 ? max.toFixed(6) : '';
-  updateDepositUsd();
+  syncDepositUsdFromInputs();
+}
+
+function syncDepositUsdFromInputs() {
+  const px = effectiveSolUsd();
+  const syncOne = (amtEl, usdEl) => {
+    if (!amtEl || !usdEl) return;
+    const amt = parseFloat(amtEl.value || 0);
+    usdEl.textContent = `≈ $${(amt * px).toFixed(2)} USD · Fee paid separately by wallet`;
+  };
+  syncOne(document.getElementById('depositAmt'), document.getElementById('depositUsd'));
+  syncOne(document.getElementById('depositTabAmt'), document.getElementById('depositTabUsd'));
 }
 
 function updateDepositUsd() {
-  const amt = parseFloat(document.getElementById('depositAmt')?.value || 0);
-  const el = document.getElementById('depositUsd');
-  const px = effectiveSolUsd();
-  if (el) el.textContent = `≈ $${(amt * px).toFixed(2)} USD · Fee paid separately by wallet`;
+  syncDepositUsdFromInputs();
 }
 
 async function depositSolToTreasury() {
-  const amt = parseFloat(document.getElementById('depositAmt')?.value || 0);
+  const depCtx = getDepositControls();
+  const amt = parseFloat(depCtx.amt?.value || 0);
   if (!amt || amt <= 0) { toast('Enter a deposit amount (SOL)', 'error'); return; }
+  if (amt < MIN_DEPOSIT_SOL) { toast(`Minimum deposit is ${MIN_DEPOSIT_SOL} SOL`, 'error'); return; }
   if (!walletAddr) { openSIWS(); toast('Connect wallet first', 'warn'); return; }
   if (depositBusy) return;
+
+  const dryRun = !!(depCtx.dry && depCtx.dry.checked);
+  if (dryRun) {
+    const t = treasuryShortAddr(getTreasuryAddress());
+    toast(`Dry run: would send ${amt} SOL → treasury ${t}`, '');
+    addLog(`Dry run · ${amt} SOL → treasury (${getTreasuryAddress()})`, '#9945FF', 'Deposit');
+    return;
+  }
 
   resolveLiveWalletAddress();
   await fetchWalletBalance();
@@ -1728,8 +1770,13 @@ async function depositSolToTreasury() {
     toast('Opening wallet — it will show your real SOL; this site could not read balance (RPC/CORS).', 'warn');
   }
 
+  if (!window.confirm(`Send ${amt} SOL to treasury ${treasuryShortAddr(getTreasuryAddress())}? On-chain transfer — you approve in your wallet only; not reversible.`)) {
+    toast('Cancelled', 'warn');
+    return;
+  }
+
   depositBusy = true;
-  const btn = document.getElementById('depositBtn');
+  const btn = depCtx.btn;
   if (btn) { btn.disabled = true; btn.textContent = 'Approve in wallet…'; }
 
   try {
@@ -1741,7 +1788,13 @@ async function depositSolToTreasury() {
     if (lamports < 1) { throw new Error('Amount too small'); }
 
     const fromPubkey = provider.publicKey;
-    const toPubkey = new PublicKey(TREASURY);
+    let toPubkey;
+    try {
+      toPubkey = new PublicKey(getTreasuryAddress());
+    } catch (_) {
+      throw new Error('Treasury address invalid — set YABBAI_TREASURY_RECEIVER in mission-config.js');
+    }
+
     const rpcCandidates = getSolanaRpcList();
 
     for (let ri = 0; ri < rpcCandidates.length; ri++) {
@@ -1749,6 +1802,7 @@ async function depositSolToTreasury() {
       let connection;
       try {
         connection = new Connection(rpcUrl, 'confirmed');
+        await assertMainnetRpc(connection);
         const latest = await connection.getLatestBlockhash('confirmed');
         const tx = new Transaction();
         tx.recentBlockhash = latest.blockhash;
@@ -1790,8 +1844,11 @@ async function depositSolToTreasury() {
         addLog(`Deposit confirmed · ${sigStr.slice(0, 10)}…`, '#14F195', 'Solana');
         toast('Deposit confirmed — vault credited');
         vaultCreditDeposit(amt);
-        document.getElementById('depositAmt').value = '';
-        updateDepositUsd();
+        const da = document.getElementById('depositAmt');
+        const dtab = document.getElementById('depositTabAmt');
+        if (da) da.value = '';
+        if (dtab) dtab.value = '';
+        syncDepositUsdFromInputs();
         await fetchWalletBalance();
         break;
       } catch (e) {
@@ -1811,7 +1868,11 @@ async function depositSolToTreasury() {
     }
   } finally {
     depositBusy = false;
-    if (btn) { btn.disabled = false; btn.textContent = '◎ Deposit SOL → Treasury'; }
+    const c2 = getDepositControls();
+    if (c2.btn) {
+      c2.btn.disabled = false;
+      c2.btn.textContent = c2.btn.id === 'depositTabBtn' ? '◎ Sign deposit in wallet' : '◎ Confirm deposit';
+    }
   }
 }
 
@@ -1823,6 +1884,12 @@ function renderWalletUI() {
   const balLine = solBalanceFetchOk
     ? `${solBalance.toFixed(4)} SOL · $${(solBalance * px).toFixed(2)}`
     : `— SOL · <span style="color:var(--gold);font-size:0.52rem">RPC blocked?</span>`;
+  const splHtml = (splWalletLines || [])
+    .map(l => {
+      const label = l.mint === MINT ? '$YABBAI' : `${l.mint.slice(0, 4)}…${l.mint.slice(-4)}`;
+      return `<div class="w-bal" style="font-size:0.52rem;color:var(--sol)">${label}: ${Number(l.ui).toLocaleString(undefined, { maximumFractionDigits: 6 })}</div>`;
+    })
+    .join('');
   document.getElementById('walletArea').innerHTML = `
     <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap">
       <div class="wallet-btn wallet-connected">
@@ -1830,6 +1897,7 @@ function renderWalletUI() {
         <div>
           <div class="w-addr">${icons[walletType]} ${walletAddr.slice(0,6)}...${walletAddr.slice(-4)}</div>
           <div class="w-bal">${balLine}</div>
+          ${splHtml}
         </div>
       </div>
       <button type="button" class="btn btn-outline" style="font-size:0.58rem;padding:6px 8px" onclick="refreshWalletBalanceUi()" title="Re-fetch SOL from RPC">↻</button>
@@ -1849,6 +1917,7 @@ function disconnectWallet() {
   walletAddr = null;
   solBalance = 0;
   solBalanceFetchOk = false;
+  splWalletLines = [];
   localStorage.removeItem('yabbai_wallet');
   localStorage.removeItem('yabbai_wallet_type');
   document.getElementById('walletArea').innerHTML = `<button class="wallet-btn wallet-disconnected" onclick="openSIWS()"><div class="w-dot"></div>Connect Wallet</button>`;
@@ -2073,7 +2142,7 @@ Add secrets ANTHROPIC_API_KEY and/or MOONSHOT_API_KEY on the Worker. Manual miss
 
   const modelChoice = document.getElementById('aiModel')?.value || 'auto';
   const systemPrompt = `You are the YABBAI autonomous income mission brain.
-Treasury: ${TREASURY}
+Treasury: ${getTreasuryAddress()}
 Token: $YABBAI on Solana. Mint: ${MINT}
 Market Cap: $${tokenMcap.toFixed(0)} USD
 Your job: Generate actionable, specific mission plans for growing $YABBAI.
@@ -2225,7 +2294,7 @@ async function executeCashout() {
   if (!walletAddr) { openSIWS(); toast('Connect wallet first', 'warn'); return; }
 
   const destinations = {
-    wallet: { label:'Solana Wallet', action:()=>{ addLog(`Cashout: ${amt} SOL → ${TREASURY.slice(0,8)}...`, '#14F195', 'Wallet'); toast('Open Phantom → Send → paste treasury address'); window.open('https://phantom.app','_blank'); }},
+    wallet: { label:'Solana Wallet', action:()=>{ addLog(`Cashout: ${amt} SOL → treasury ${treasuryShortAddr(getTreasuryAddress())}`, '#14F195', 'Wallet'); showPage('deposit'); toast('Use Deposit tab for in-app signed SOL transfer, or Send in Phantom to copied treasury'); }},
     paypal: { label:'PayPal', action:()=>{ addLog(`Cashout: ${amt} SOL → PayPal (${PAYPAL})`, '#14F195', 'PayPal'); window.open('https://www.paypal.com/ncp/payment/RNKZ6497VNA8G','_blank'); toast('PayPal payment link opened'); }},
     usdc: { label:'USDC via Jupiter', action:()=>{ addLog(`Cashout: ${amt} SOL → USDC via Jupiter`, '#00D4AA', 'Jupiter'); window.open(`https://jup.ag/swap/SOL-USDC?inputAmount=${amt}`,'_blank'); toast('Jupiter SOL→USDC swap opened'); }},
     bank: { label:'Bank via off-ramp', action:()=>{ addLog(`Cashout: ${amt} SOL → USDC → Bank`, '#ffc200', 'Off-ramp'); window.open('https://jup.ag/swap/SOL-USDC','_blank'); toast('Swap SOL to USDC first, then use MoonPay or Coinbase to cash out'); }},
@@ -2288,7 +2357,7 @@ function addLog(msg, color='#14F195', source='YABBAI') {
 
 // ── UTILS ────────────────────────────────────────────────
 function copyTreasury() {
-  navigator.clipboard.writeText(TREASURY).then(() => toast('Treasury address copied'));
+  navigator.clipboard.writeText(getTreasuryAddress()).then(() => toast('Treasury address copied'));
 }
 
 function toast(msg, type='') {
@@ -2300,10 +2369,14 @@ function toast(msg, type='') {
 
 // ── CASHOUT INPUT LISTENER ───────────────────────────────
 window.addEventListener('load', async () => {
+  applyTreasuryToDom();
+
   const ca = document.getElementById('cashoutAmt');
   if (ca) ca.addEventListener('input', updateCashoutCalc);
   const da = document.getElementById('depositAmt');
-  if (da) da.addEventListener('input', updateDepositUsd);
+  if (da) da.addEventListener('input', syncDepositUsdFromInputs);
+  const dtab = document.getElementById('depositTabAmt');
+  if (dtab) dtab.addEventListener('input', syncDepositUsdFromInputs);
   const vw = document.getElementById('vaultWithdrawAmt');
   if (vw) vw.addEventListener('input', updateVaultWithdrawUsd);
 
