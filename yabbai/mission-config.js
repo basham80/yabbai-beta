@@ -8,3 +8,6 @@
  * Leave empty to disable AI calls until configured.
  */
 window.YABBAI_MISSION_API = '';
+
+/** Optional: POST JSON { wallet, amountSol } — Worker signs treasury → wallet payout */
+window.YABBAI_PAYOUT_API = '';
