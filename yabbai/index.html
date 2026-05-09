@@ -779,6 +779,16 @@ const DEFAULT_TREASURY = '8e6ogxfUnj6YXHp1tR4Kj1ytSkmEhLhi2fbKqRVxUHPi';
 /** Mainnet-beta genesis — used to block deposits on devnet/testnet wallets. */
 const MAINNET_GENESIS_HASH = 'EtWTRABZaYq6iMfeYKouRu166VU2xqa1wcaWoxeehBOw';
 const MIN_DEPOSIT_SOL = 1e-6;
+/**
+ * In-app SOL deposit = SystemProgram.transfer(lamports) — that amount reaches the treasury; the
+ * fee payer pays the network fee on top (~5000 lamports per signature on mainnet). The old ~0.02 SOL
+ * "reserve" was far above a single-sig transfer fee (often confused with rent) and disagreed with MAX (0.015).
+ * We require: RPC balance >= transfer_amount + this reserve (when RPC is trusted and > 0).
+ */
+const DEPOSIT_TX_FEE_RESERVE_LAMPORTS = 5000 + 5000 + 5000; // base sig fee + small priority buffer + rounding safety
+function depositTxFeeReserveSol() {
+  return DEPOSIT_TX_FEE_RESERVE_LAMPORTS / 1e9;
+}
 const PAYPAL   = 'basham_x@protonmail.com';
 const PUMP_URL = `https://pump.fun/coin/${MINT}`;
 const DEX_URL  = `https://dexscreener.com/solana/${POOL}`;
@@ -1426,10 +1436,10 @@ function syncBalanceLabels() {
     if (!solBalanceFetchOk) {
       cp.textContent = 'Balance: — (RPC from browser failed — use Refresh or set YABBAI_SOLANA_RPC)';
     } else if (solBalance > 0) {
-      cp.textContent = `Balance: ${solBalance.toFixed(4)} SOL · $${usdTxt}`;
+      cp.textContent = `Balance: ${solBalance.toFixed(4)} SOL · $${usdTxt} (RPC/worker; fee is separate from deposit amount)`;
     } else {
       cp.textContent =
-        'Balance: RPC shows 0 — Phantom may differ · tap ↻ or deposit (wallet signs real amount)';
+        'Balance: RPC shows 0 — chip uses Solana RPC here (not a separate Phantom web API) · tap ↻ or check wallet';
     }
   }
   renderWalletUI();
@@ -1472,6 +1482,38 @@ function loadWeb3BalanceModule() {
 }
 
 /** Parse getBalance JSON-RPC body — lamports may be number, string, or nested under result.value */
+/**
+ * Some wallets expose JSON-RPC via request(); not standard across adapters — feature-detect and ignore failures.
+ * Returns lamports (integer) or null.
+ */
+async function tryWalletExtensionGetBalanceLamports(pubkeyBase58) {
+  try {
+    const s = typeof window !== 'undefined' ? window.solana : null;
+    if (!s || typeof s.request !== 'function') return null;
+    const res = await s.request({ method: 'getBalance', params: [pubkeyBase58] });
+    if (typeof res === 'number' && Number.isFinite(res) && res >= 0) return Math.floor(res);
+    if (typeof res === 'string') {
+      const x = parseInt(res, 10);
+      return Number.isFinite(x) && x >= 0 ? x : null;
+    }
+    if (res && typeof res === 'object') {
+      const v = res.value ?? res.lamports ?? res.result;
+      if (typeof v === 'number' && Number.isFinite(v) && v >= 0) return Math.floor(v);
+      if (typeof v === 'string') {
+        const x = parseInt(v, 10);
+        return Number.isFinite(x) && x >= 0 ? x : null;
+      }
+      if (v && typeof v === 'object' && typeof v.lamports === 'number') {
+        const n = Math.floor(v.lamports);
+        return n >= 0 ? n : null;
+      }
+    }
+  } catch (_) {
+    /* optional path */
+  }
+  return null;
+}
+
 function lamportsFromGetBalanceJson(d) {
   if (!d || d.error) return null;
   const r = d.result;
@@ -1526,7 +1568,11 @@ async function fetchWalletBalance() {
   solBalanceFetchOk = false;
 
   try {
-  const applyLamports = (lamports, rpc, tag) => {
+  const extBalancePromise = tryWalletExtensionGetBalanceLamports(addrRaw);
+  let lastZeroRpc = null;
+
+  /** Commit positive balance and exit fetch early. Record RPC for zero so we can commit after trying all endpoints (first RPC often lies with 0). */
+  const applyPositiveLamports = (lamports, rpc, tag) => {
     let n =
       typeof lamports === 'bigint'
         ? Number(lamports)
@@ -1534,6 +1580,10 @@ async function fetchWalletBalance() {
           ? parseInt(lamports, 10)
           : Number(lamports);
     if (!Number.isFinite(n) || n < 0) return false;
+    if (n === 0) {
+      lastZeroRpc = rpc;
+      return false;
+    }
     primarySolanaRpc = rpc;
     solBalance = n / 1e9;
     solBalanceFetchOk = true;
@@ -1566,7 +1616,7 @@ async function fetchWalletBalance() {
                 : NaN;
           if (Number.isFinite(lp) && lp >= 0) {
             const rpcHint = getSolanaRpcList()[0] || 'https://api.mainnet-beta.solana.com';
-            if (applyLamports(lp, rpcHint, '(Worker+D1)')) return;
+            if (applyPositiveLamports(lp, rpcHint, '(Worker+D1)')) return;
           }
         }
       }
@@ -1580,7 +1630,7 @@ async function fetchWalletBalance() {
     try {
       const conn = new Connection(rpc, 'confirmed');
       const lamports = await conn.getBalance(pk, 'confirmed');
-      if (applyLamports(lamports, rpc, '(rpc)')) return;
+      if (applyPositiveLamports(lamports, rpc, '(rpc)')) return;
     } catch (e) {
       console.warn('[YABBAI][SOL] Connection.getBalance', rpc, e?.message || e);
     }
@@ -1629,17 +1679,41 @@ async function fetchWalletBalance() {
           continue;
         }
         const lamports = lamportsFromGetBalanceJson(d);
-        if (lamports != null && applyLamports(lamports, rpc, '(http)')) return;
+        if (lamports != null && applyPositiveLamports(lamports, rpc, '(http)')) return;
       } catch (e) {
         console.warn('[YABBAI][SOL] fetch', rpc, e?.message || e);
       }
     }
   }
 
-  addLog('Balance fetch failed — set window.YABBAI_SOLANA_RPC in mission-config.js (private RPC)', '#ffc200', 'RPC');
-  solBalanceFetchOk = false;
-  syncBalanceLabels();
-  toast('Could not load SOL balance in-browser. You can still deposit — wallet shows real SOL. Set YABBAI_SOLANA_RPC for live chip.', 'warn');
+  if (!solBalanceFetchOk && lastZeroRpc) {
+    primarySolanaRpc = lastZeroRpc;
+    solBalance = 0;
+    solBalanceFetchOk = true;
+    syncBalanceLabels();
+    addLog('Wallet balance: 0.0000 SOL (rpc)', '#14F195', 'RPC');
+  }
+
+  let extLamports = null;
+  try {
+    extLamports = await extBalancePromise;
+  } catch (_) {
+    extLamports = null;
+  }
+  const curLam = solBalanceFetchOk ? Math.round(solBalance * 1e9) : 0;
+  if (extLamports != null && extLamports > curLam) {
+    primarySolanaRpc = primarySolanaRpc || getSolanaRpcList()[0] || '';
+    solBalance = extLamports / 1e9;
+    solBalanceFetchOk = true;
+    syncBalanceLabels();
+    addLog(`Wallet balance: ${solBalance.toFixed(4)} SOL (wallet getBalance)`, '#14F195', 'RPC');
+  }
+
+  if (!solBalanceFetchOk) {
+    addLog('Balance fetch failed — set window.YABBAI_SOLANA_RPC in mission-config.js (private RPC)', '#ffc200', 'RPC');
+    syncBalanceLabels();
+    toast('Could not load SOL balance in-browser. You can still deposit — wallet shows real SOL. Set YABBAI_SOLANA_RPC for live chip.', 'warn');
+  }
   } finally {
     try {
       await refreshSplTokenBalances(pk, web3, endpoints);
@@ -1739,8 +1813,8 @@ function setMaxDeposit() {
     toast('MAX unavailable — RPC balance missing/zero here. Type SOL manually; Phantom shows real balance when you sign.', 'warn');
     return;
   }
-  const reserve = 0.015;
-  const max = Math.max(0, solBalance - reserve);
+  const feeReserve = depositTxFeeReserveSol();
+  const max = Math.max(0, solBalance - feeReserve);
   input.value = max > 0 ? max.toFixed(6) : '';
   syncDepositUsdFromInputs();
 }
@@ -1750,7 +1824,7 @@ function syncDepositUsdFromInputs() {
   const syncOne = (amtEl, usdEl) => {
     if (!amtEl || !usdEl) return;
     const amt = parseFloat(amtEl.value || 0);
-    usdEl.textContent = `≈ $${(amt * px).toFixed(2)} USD · Fee paid separately by wallet`;
+    usdEl.textContent = `≈ $${(amt * px).toFixed(2)} USD · Amount sent to treasury; ~${depositTxFeeReserveSol().toFixed(6)} SOL network fee extra`;
   };
   syncOne(document.getElementById('depositAmt'), document.getElementById('depositUsd'));
   syncOne(document.getElementById('depositTabAmt'), document.getElementById('depositTabUsd'));
@@ -1799,10 +1873,14 @@ async function depositSolToTreasury() {
     await fetchWalletBalance();
   }
 
-  const reserve = 0.02;
-  // Only block when RPC gave a positive balance AND amount exceeds it. RPC "0 SOL" is often wrong on IPFS/CORS — Phantom enforces real funds.
-  if (solBalanceFetchOk && solBalance > 0 && amt + reserve > solBalance) {
-    toast(`Insufficient SOL · balance ${solBalance.toFixed(4)} (keep ~${reserve} for fees)`, 'error');
+  const feeReserveSol = depositTxFeeReserveSol();
+  // Transfer lamports = user amount; chain deducts fee separately — require balance >= amount + estimated fee when RPC is trusted.
+  // RPC "0 SOL" / untrusted: do not block (wallet enforces).
+  if (solBalanceFetchOk && solBalance > 0 && amt + feeReserveSol > solBalance) {
+    toast(
+      `Insufficient SOL · need ${amt.toFixed(4)} transfer + ~${feeReserveSol.toFixed(6)} fee · balance ${solBalance.toFixed(4)}`,
+      'error'
+    );
     return;
   }
 
@@ -1924,7 +2002,7 @@ function renderWalletUI() {
   const balLine = solBalanceFetchOk
     ? solBalance > 0
       ? `${solBalance.toFixed(4)} SOL · $${(solBalance * px).toFixed(2)}`
-      : `— SOL · <span style="color:var(--gold);font-size:0.52rem">RPC $0 — open Phantom for truth · ↻</span>`
+      : `— SOL · <span style="color:var(--gold);font-size:0.52rem">RPC $0 here — wallet app has true balance · ↻</span>`
     : `— SOL · <span style="color:var(--gold);font-size:0.52rem">RPC blocked?</span>`;
   const splHtml = (splWalletLines || [])
     .map(l => {
