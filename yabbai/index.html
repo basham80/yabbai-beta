@@ -316,7 +316,7 @@ body::before{content:'';position:fixed;inset:0;z-index:0;pointer-events:none;
     <span class="ticker-item">◈ TREASURY: <span class="js-treasury-short">8e6ogxf...UHPi</span></span>
     <span class="ticker-item">◈ MINT: AcEVtp...LFUv</span>
     <span class="ticker-item">◈ 14 APIs LIVE</span>
-    <span class="ticker-item">◈ PAYPAL AUTOPAYOUT ACTIVE</span>
+    <span class="ticker-item">◈ AUTOPAYOUT TARGET (RULE-BASED · NOT GUARANTEED)</span>
     <span class="ticker-item">🦞 $YABBAI · SOLANA</span>
     <span class="ticker-item" id="tickPrice2">PRICE: FETCHING...</span>
     <span class="ticker-item" id="tickMcap2">MCAP: FETCHING...</span>
@@ -324,7 +324,7 @@ body::before{content:'';position:fixed;inset:0;z-index:0;pointer-events:none;
     <span class="ticker-item">◈ TREASURY: <span class="js-treasury-short">8e6ogxf...UHPi</span></span>
     <span class="ticker-item">◈ MINT: AcEVtp...LFUv</span>
     <span class="ticker-item">◈ 14 APIs LIVE</span>
-    <span class="ticker-item">◈ PAYPAL AUTOPAYOUT ACTIVE</span>
+    <span class="ticker-item">◈ AUTOPAYOUT TARGET (RULE-BASED · NOT GUARANTEED)</span>
   </div>
 </div>
 
@@ -902,6 +902,7 @@ function addTrackedMintFromInput() {
   if (hint) hint.textContent = 'Mint saved — balances refresh on next RPC poll.';
   toast('Mint added to watch list');
   if (walletAddr) fetchWalletBalance();
+  renderMissionMetaStrip();
 }
 
 let splWalletLines = [];
@@ -2196,6 +2197,8 @@ async function restoreWalletSession() {
   await fetchWalletBalance();
   syncBalanceLabels();
   renderVaultPanel();
+  renderMissionMetaStrip();
+  renderAiBrainStatus();
 }
 
 // ── LIVE DATA ────────────────────────────────────────────
@@ -2325,6 +2328,9 @@ async function fetchTokenData() {
 }
 
 // ── AI BRAIN (MISSION_API from mission-config.js) ─────────
+/** null = unknown, true/false from last GET / ping */
+let missionApiReachable = null;
+
 function syncAiModelLabel() {
   const sel = document.getElementById('aiModel')?.value || 'auto';
   const labels = {
@@ -2336,23 +2342,157 @@ function syncAiModelLabel() {
   if (el) el.textContent = labels[sel] || labels.auto;
 }
 
+function renderMissionMetaStrip() {
+  const apiEl = document.getElementById('missionApiBadge');
+  const wEl = document.getElementById('missionWalletBadge');
+  if (apiEl) {
+    if (!MISSION_API) {
+      apiEl.className = 'mms-warn';
+      apiEl.innerHTML = '<strong>AI API:</strong> not set (cards & deep links still work)';
+    } else if (missionApiReachable === true) {
+      apiEl.className = 'mms-ok';
+      apiEl.innerHTML = '<strong>AI API:</strong> reachable';
+    } else if (missionApiReachable === false) {
+      apiEl.className = 'mms-warn';
+      apiEl.innerHTML = '<strong>AI API:</strong> URL set · last ping failed';
+    } else {
+      apiEl.className = 'mms-off';
+      apiEl.innerHTML = '<strong>AI API:</strong> not checked yet';
+    }
+  }
+  if (wEl) {
+    if (!walletAddr) {
+      wEl.className = 'mms-off';
+      wEl.innerHTML = '<strong>Wallet:</strong> not connected';
+    } else {
+      wEl.className = 'mms-ok';
+      wEl.innerHTML = '<strong>Wallet:</strong> ' + treasuryShortAddr(walletAddr);
+    }
+  }
+}
+
+function renderAiBrainStatus() {
+  const el = document.getElementById('aiBrainStatus');
+  if (!el) return;
+  if (!MISSION_API) {
+    el.className = 'mms-off';
+    el.textContent = '○ Local only';
+  } else if (missionApiReachable === true) {
+    el.className = 'mms-ok';
+    el.textContent = '● API ready';
+  } else if (missionApiReachable === false) {
+    el.className = 'mms-warn';
+    el.textContent = '◐ API unreachable';
+  } else {
+    el.className = 'mms-warn';
+    el.textContent = '◐ API not verified';
+  }
+}
+
+function getBrainWalletSummaryLine() {
+  if (!walletAddr) return '- Wallet: not connected.';
+  try {
+    accrueVaultYield();
+  } catch (_) {}
+  const v = loadVaultState();
+  const tail = treasuryShortAddr(walletAddr);
+  return (
+    `- Wallet (short): ${tail}\n` +
+    `- SOL balance (mainnet RPC est.): ${Number.isFinite(solBalance) ? solBalance.toFixed(4) : '?'} SOL\n` +
+    `- Vault ledger on this device: ${v.totalSol.toFixed(4)} SOL tracked · ${v.depositedCumulative.toFixed(4)} SOL cumulative deposited`
+  );
+}
+
+function getBrainTokenWatchlistLine() {
+  const mints = getTrackedMintStrings();
+  const max = 12;
+  const head = mints.slice(0, max);
+  const more = mints.length > max ? ` …+${mints.length - max} more mints` : '';
+  return `- SPL mints in UI watchlist (${mints.length}): ${head.join(', ') || '(none)'}${more}`;
+}
+
+function buildBrainUserSnapshot() {
+  const px = typeof effectiveSolUsd === 'function' ? effectiveSolUsd() : solPrice;
+  const lines = [
+    '### Live snapshot (browser; not a server audit)',
+    getBrainWalletSummaryLine(),
+    getBrainTokenWatchlistLine(),
+    `- SOL/USD label uses ~$${Number.isFinite(px) ? px.toFixed(2) : '?'} for estimates`,
+    `- $YABBAI price (last feed): ${tokenPrice > 0 ? '$' + tokenPrice.toFixed(8) : 'n/a'}`,
+  ];
+  return lines.join('\n');
+}
+
+function buildYabbaiBrainSystemPrompt() {
+  const treasury = getTreasuryAddress();
+  const mcap = Number.isFinite(tokenMcap) ? Math.round(tokenMcap) : 0;
+  const liq = Number.isFinite(tokenLiq) ? Math.round(tokenLiq) : 0;
+  const vol = Number.isFinite(tokenVol) ? Math.round(tokenVol) : 0;
+  return `You are the YABBAI mission brain — a concise strategist for the $YABBAI Solana community dashboard (static site + optional Worker AI proxy).
+
+## Canonical context
+- Treasury receiver (SOL account for deposits): ${treasury}
+- $YABBAI mint: ${MINT}
+- Reference pool id: ${POOL}
+- Links: ${PUMP_URL} · ${DEX_URL}
+- Worker AI in this session: ${MISSION_API ? 'configured (API keys only on server)' : 'not configured — user relies on canned mission cards'}
+- Market snapshot from last Dexscreener refresh (may be stale): mcap ~$${mcap}, liq ~$${liq}, 24h vol ~$${vol}
+
+## Required answer shape
+1) One-line thesis.
+2) **Steps:** up to 5 numbered items — each a concrete next action (verify mint/address, open a named product, draft copy, check balance, etc.).
+3) **Risks / checks:** 2–4 bullets (fees, slippage, IL, protocol risk, regulatory, phishing/wrong-address).
+
+## Guardrails (must follow)
+- Informational only — not personalised financial, tax, or legal advice.
+- Never promise guaranteed profit, fixed APR, or risk-free outcomes.
+- Tell the user to verify the treasury pubkey against official config and a block explorer before sending funds.
+- Prefer "estimate", "if configured", and "check live UI" over absolutes.
+- Encourage small test transactions when learning a flow.
+
+Tone: direct, crypto-literate, no hype guarantees.`;
+}
+
+function buildBrainFullUserPrompt(userPrompt, contextTag) {
+  const tag = contextTag && String(contextTag).trim() ? String(contextTag).trim() : 'mission';
+  return `${buildBrainUserSnapshot()}
+- Route / context tag: ${tag}
+
+---
+
+User mission request:
+${userPrompt.trim()}`;
+}
+
 async function fetchMissionApiStatus() {
+  missionApiReachable = null;
+  renderMissionMetaStrip();
+  renderAiBrainStatus();
   if (!MISSION_API) {
     addLog('AI: set YABBAI_MISSION_API in mission-config.js (e.g. Cloudflare Worker) — see workers/wrangler.toml', '#ffc200', 'AI');
     return;
   }
   try {
     const r = await fetch(MISSION_API, { method: 'GET' });
-    if (!r.ok) return;
+    if (!r.ok) {
+      missionApiReachable = false;
+      renderMissionMetaStrip();
+      renderAiBrainStatus();
+      return;
+    }
     const d = await r.json();
+    missionApiReachable = true;
     const ok = [];
     if (d.anthropicConfigured) ok.push('Anthropic ✓');
     if (d.moonshotConfigured) ok.push('Moonshot ✓');
     if (ok.length) addLog(`AI backend ready · ${ok.join(' · ')}`, '#14F195', 'AI');
     else addLog('AI backend: set ANTHROPIC_API_KEY / MOONSHOT_API_KEY as Worker secrets', '#ffc200', 'AI');
   } catch (_) {
+    missionApiReachable = false;
     addLog('AI backend not reachable — check MISSION_API URL and CORS', '#ffc200', 'AI');
   }
+  renderMissionMetaStrip();
+  renderAiBrainStatus();
 }
 
 async function callAI(prompt, context='mission') {
@@ -2378,13 +2518,8 @@ Add secrets ANTHROPIC_API_KEY and/or MOONSHOT_API_KEY on the Worker. Manual miss
   }
 
   const modelChoice = document.getElementById('aiModel')?.value || 'auto';
-  const systemPrompt = `You are the YABBAI autonomous income mission brain.
-Treasury: ${getTreasuryAddress()}
-Token: $YABBAI on Solana. Mint: ${MINT}
-Market Cap: $${tokenMcap.toFixed(0)} USD
-Your job: Generate actionable, specific mission plans for growing $YABBAI.
-Always include: specific actions, timelines, expected outcomes.
-Be concise. Be specific. Think like a crypto growth hacker.`;
+  const systemPrompt = buildYabbaiBrainSystemPrompt();
+  const fullUserPrompt = buildBrainFullUserPrompt(prompt, context);
 
   try {
     const apiResp = await fetch(MISSION_API, {
@@ -2392,7 +2527,7 @@ Be concise. Be specific. Think like a crypto growth hacker.`;
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         modelChoice,
-        prompt,
+        prompt: fullUserPrompt,
         context,
         system: systemPrompt,
       }),
@@ -2450,9 +2585,14 @@ async function runAllMissions() {
   const active = MISSIONS.filter(m => m.status === 'active');
   for (const m of active) {
     addLog(`Mission: ${m.name}`, m.color, m.type);
-    await new Promise(r => setTimeout(r, 400));
+    try {
+      await Promise.resolve(m.action());
+    } catch (e) {
+      addLog(`${m.name}: ${e?.message || e}`, '#ff3b3b', 'YABBAI');
+    }
+    await new Promise(r => setTimeout(r, 500));
   }
-  toast(`${active.length} missions activated`);
+  toast(`${active.length} mission runs finished (check tabs / AI output)`);
 }
 
 // ── RENDER MISSIONS ──────────────────────────────────────
@@ -2473,9 +2613,10 @@ function renderMissions() {
       </div>
       <div class="mc-body">
         <div class="mc-desc">${m.desc}</div>
+        ${m.riskNote ? `<div class="mc-risk">⚠ ${m.riskNote}</div>` : ''}
         ${m.progress > 0 ? `<div class="mc-progress">
           <div class="mcp-bar"><div class="mcp-fill" style="width:${m.progress}%;background:linear-gradient(90deg,${m.color}88,${m.color})"></div></div>
-          <div class="mcp-label">${m.progress}% complete</div>
+          <div class="mcp-label">${m.progress}% illustrative progress</div>
         </div>` : ''}
       </div>
       <div class="mc-footer">
@@ -2496,7 +2637,21 @@ function runMission(id) {
 function configureMission(id) {
   const m = MISSIONS.find(x => x.id === id);
   if (!m) return;
-  toast(`Mission config: ${m.name} — edit mission parameters`);
+  const ta = document.getElementById('aiPrompt');
+  if (ta) {
+    const tshort = treasuryShortAddr(getTreasuryAddress());
+    const hint =
+      `[Mission card: ${m.name} · ${m.type}]\n` +
+      `Goal: improve steps, copy, and risk notes for this playbook. Treasury (verify): ${tshort}.\n` +
+      `Constraints: no guaranteed returns; mention fees/slippage where relevant.\n\n`;
+    const rest = (ta.value || '').trim();
+    ta.value = rest ? hint + rest : hint + `Refine strategy for: ${m.desc}`;
+    ta.focus();
+    try {
+      ta.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    } catch (_) {}
+  }
+  toast('Prompt staged in AI Brain — review and Deploy Mission');
 }
 
 // ── CASHOUT ──────────────────────────────────────────────
