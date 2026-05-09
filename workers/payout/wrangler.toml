@@ -1,0 +1,13 @@
+name = "yabbai-payout"
+main = "src/index.js"
+compatibility_date = "2024-09-23"
+compatibility_flags = ["nodejs_compat"]
+
+# Plain vars (safe to commit):
+[vars]
+SOLANA_RPC_URL = "https://api.mainnet-beta.solana.com"
+MAX_WITHDRAW_SOL = "25"
+
+# Secrets (never commit):
+#   cd workers/payout && npx wrangler secret put TREASURY_SECRET_KEY
+# Paste base58-encoded 64-byte secret key (same format as Phantom export / solana-keygen)

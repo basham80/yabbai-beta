@@ -1,0 +1,198 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>$YABBIE — Scour the Seas · Solana</title>
+<link href="https://fonts.googleapis.com/css2?family=Unbounded:wght@400;700;900&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root{--ocean:#020f1a;--deep:#041525;--wave:#0a2540;--foam:#e8f8ff;--teal:#00e5d4;--teal2:#00b8aa;--gold:#ffd700;--coral:#ff6b6b;--text:#cceeff;--muted:#4a7888;}
+*{margin:0;padding:0;box-sizing:border-box;}
+html,body{background:var(--ocean);color:var(--text);font-family:'DM Mono',monospace;min-height:100vh;overflow-x:hidden;}
+@keyframes wave{0%,100%{transform:translateX(0) scaleY(1);}50%{transform:translateX(-25px) scaleY(1.05);}}
+@keyframes bob{0%,100%{transform:translateY(0) rotate(-2deg);}50%{transform:translateY(-10px) rotate(2deg);}}
+@keyframes pulse{0%,100%{opacity:1;}50%{opacity:0.4;}}
+@keyframes ticker{0%{transform:translateX(0);}100%{transform:translateX(-50%);}}
+@keyframes fadeUp{from{opacity:0;transform:translateY(16px);}to{opacity:1;transform:translateY(0);}}
+@keyframes shimmer{0%,100%{box-shadow:0 0 0 0 rgba(0,229,212,0);}50%{box-shadow:0 0 20px 4px rgba(0,229,212,0.15);}}
+
+/* WAVES BG */
+.waves{position:fixed;bottom:0;left:0;right:0;z-index:0;pointer-events:none;}
+.wave-svg{display:block;animation:wave 8s ease-in-out infinite;}
+
+/* BUBBLES */
+.bubble{position:fixed;border-radius:50%;background:rgba(0,229,212,0.06);border:1px solid rgba(0,229,212,0.1);animation:bob linear infinite;pointer-events:none;z-index:0;}
+
+.topbar{position:fixed;top:0;left:0;right:0;z-index:100;height:54px;background:rgba(2,15,26,0.96);backdrop-filter:blur(20px);border-bottom:1px solid rgba(0,229,212,0.15);display:flex;align-items:center;padding:0 24px;gap:12px;}
+.tb-logo{font-family:'Unbounded',monospace;font-weight:900;font-size:1.1rem;background:linear-gradient(90deg,var(--teal),var(--gold));-webkit-background-clip:text;-webkit-text-fill-color:transparent;margin-right:10px;}
+.tb-spacer{flex:1;}
+.tb-pill{display:flex;align-items:center;gap:5px;font-size:0.6rem;color:var(--muted);border:1px solid rgba(0,229,212,0.15);padding:4px 10px;border-radius:20px;}
+.tb-dot{width:6px;height:6px;border-radius:50%;background:var(--teal);box-shadow:0 0 5px var(--teal);animation:pulse 2s infinite;}
+
+.ticker-wrap{background:rgba(0,229,212,0.04);border-bottom:1px solid rgba(0,229,212,0.1);padding:5px 0;overflow:hidden;font-size:0.62rem;color:var(--teal2);margin-top:54px;position:relative;z-index:10;}
+.ticker-inner{display:flex;animation:ticker 35s linear infinite;width:max-content;}
+
+.wrap{max-width:1000px;margin:0 auto;padding:40px 24px 80px;position:relative;z-index:1;}
+
+.hero{text-align:center;padding:40px 0 48px;}
+.hero-yabbie{font-size:5rem;animation:bob 4s ease-in-out infinite;display:inline-block;margin-bottom:12px;}
+.hero-title{font-family:'Unbounded',monospace;font-weight:900;font-size:clamp(2.5rem,8vw,5rem);letter-spacing:-2px;line-height:0.95;margin-bottom:12px;}
+.ht-main{display:block;color:var(--foam);}
+.ht-acc{display:block;background:linear-gradient(135deg,var(--teal),var(--gold));-webkit-background-clip:text;-webkit-text-fill-color:transparent;}
+.hero-desc{font-size:0.88rem;color:var(--muted);line-height:1.7;max-width:540px;margin:0 auto 28px;}
+.hero-btns{display:flex;gap:12px;justify-content:center;flex-wrap:wrap;}
+
+.btn{padding:12px 24px;border-radius:6px;font-family:'DM Mono',monospace;font-size:0.68rem;letter-spacing:1px;text-transform:uppercase;cursor:pointer;border:1px solid;text-decoration:none;display:inline-flex;align-items:center;gap:6px;transition:all 0.2s;}
+.btn-teal{background:linear-gradient(135deg,rgba(0,229,212,0.15),rgba(0,184,170,0.1));border-color:rgba(0,229,212,0.4);color:var(--teal);}
+.btn-teal:hover{background:rgba(0,229,212,0.25);box-shadow:0 6px 20px rgba(0,229,212,0.2);}
+.btn-gold{background:rgba(255,215,0,0.08);border-color:rgba(255,215,0,0.3);color:var(--gold);}
+.btn-gold:hover{background:rgba(255,215,0,0.15);}
+
+.card{background:var(--deep);border:1px solid rgba(0,229,212,0.12);border-radius:12px;padding:20px;margin-bottom:16px;animation:shimmer 5s ease-in-out infinite;transition:border-color 0.2s;}
+.card:hover{border-color:rgba(0,229,212,0.3);}
+
+.stats{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:20px;}
+.stat{background:var(--deep);border:1px solid rgba(0,229,212,0.1);border-radius:8px;padding:16px;text-align:center;}
+.stat-val{font-family:'Unbounded',monospace;font-size:1.4rem;font-weight:700;background:linear-gradient(135deg,var(--teal),var(--gold));-webkit-background-clip:text;-webkit-text-fill-color:transparent;}
+.stat-lbl{font-size:0.55rem;color:var(--muted);letter-spacing:1px;text-transform:uppercase;margin-top:4px;}
+
+.mission-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:20px;}
+.mission-card{background:var(--deep);border:1px solid rgba(0,229,212,0.1);border-radius:10px;padding:18px;transition:all 0.2s;}
+.mission-card:hover{border-color:rgba(0,229,212,0.3);transform:translateY(-3px);}
+.mc-icon{font-size:1.8rem;margin-bottom:8px;}
+.mc-title{font-family:'Unbounded',monospace;font-size:0.8rem;font-weight:700;margin-bottom:5px;}
+.mc-desc{font-size:0.65rem;color:var(--muted);line-height:1.6;}
+.mc-earn{font-size:0.7rem;color:var(--gold);margin-top:8px;}
+
+.eco{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin-bottom:20px;}
+.eco-card{background:var(--deep);border:1px solid rgba(0,229,212,0.1);border-radius:8px;padding:14px;text-align:center;text-decoration:none;display:block;transition:all 0.2s;}
+.eco-card:hover{border-color:var(--teal);transform:translateY(-2px);}
+.ec-icon{font-size:1.4rem;margin-bottom:5px;}
+.ec-name{font-size:0.68rem;color:var(--teal);}
+.ec-desc{font-size:0.55rem;color:var(--muted);margin-top:2px;}
+
+.log{max-height:140px;overflow-y:auto;}
+.ll{font-size:0.63rem;padding:4px 0;border-bottom:1px solid rgba(0,229,212,0.05);display:flex;gap:8px;align-items:center;}
+.ll-dot{width:5px;height:5px;border-radius:50%;flex-shrink:0;}
+
+::-webkit-scrollbar{width:3px;}
+::-webkit-scrollbar-thumb{background:rgba(0,229,212,0.2);}
+footer{border-top:1px solid rgba(0,229,212,0.1);padding:16px 24px;text-align:center;font-size:0.58rem;color:var(--muted);position:relative;z-index:1;}
+@media(max-width:600px){.stats,.mission-grid{grid-template-columns:1fr 1fr;}}
+</style>
+</head>
+<body>
+
+<!-- BUBBLES -->
+<div class="bubble" style="width:200px;height:200px;top:10%;left:5%;animation-duration:12s;animation-delay:0s;"></div>
+<div class="bubble" style="width:150px;height:150px;top:60%;right:8%;animation-duration:9s;animation-delay:2s;"></div>
+<div class="bubble" style="width:80px;height:80px;top:35%;left:88%;animation-duration:7s;animation-delay:4s;"></div>
+
+<nav class="topbar">
+  <div class="tb-logo">$YABBIE 🦞</div>
+  <span style="font-size:0.6rem;color:var(--muted)">Scour the Seas · Solana</span>
+  <div class="tb-spacer"></div>
+  <div class="tb-pill"><div class="tb-dot"></div>Ocean Live</div>
+</nav>
+<div id="yabbai-wallet-panel" style="position:fixed;top:54px;right:16px;z-index:200;"></div>
+
+<div class="ticker-wrap">
+  <div class="ticker-inner">
+    <span style="display:flex;gap:0 36px;padding-right:36px">
+      <span>🦞 $YABBIE SCOURING THE SEAS</span>
+      <span style="color:var(--gold)">◈ PICK UP CASH ALONG THE WAY</span>
+      <span>◈ YABBAI ECOSYSTEM LIVE</span>
+      <span style="color:var(--teal)">◈ SOL CHAIN · OCEAN EDITION</span>
+      <span>◈ TREASURY: 8e6ogxf...UHPi</span>
+      <span style="color:var(--gold)">◈ 5 TOKENS · 1 ECOSYSTEM</span>
+    </span>
+    <span style="display:flex;gap:0 36px;padding-right:36px">
+      <span>🦞 $YABBIE SCOURING THE SEAS</span>
+      <span style="color:var(--gold)">◈ PICK UP CASH ALONG THE WAY</span>
+      <span>◈ YABBAI ECOSYSTEM LIVE</span>
+      <span style="color:var(--teal)">◈ SOL CHAIN · OCEAN EDITION</span>
+      <span>◈ TREASURY: 8e6ogxf...UHPi</span>
+      <span style="color:var(--gold)">◈ 5 TOKENS · 1 ECOSYSTEM</span>
+    </span>
+  </div>
+</div>
+
+<div class="wrap">
+  <div class="hero">
+    <div class="hero-yabbie">🦞</div>
+    <h1 class="hero-title">
+      <span class="ht-main">SCOUR THE</span>
+      <span class="ht-acc">SEAS.</span>
+    </h1>
+    <p class="hero-desc">$YABBIE prowls the internet ocean picking up cash along the way. Every wave is an opportunity. Every current is a mission. Stack the bags, feed the ecosystem.</p>
+    <div class="hero-btns">
+      <a class="btn btn-teal" href="https://pump.fun/coin/AcEVtpLEfxMHFzXQrhJiDhoWCkLVYH3drD2cxNAzLFUv" target="_blank">🦞 Buy $YABBIE</a>
+      <a class="btn btn-gold" href="https://yabbai-system.netlify.app" target="_blank">◈ YABBAI Hub</a>
+      <a class="btn btn-teal" href="https://t.me" target="_blank">▶ Telegram</a>
+      <a class="btn btn-gold" href="https://dexscreener.com/solana/DaxLJ5mRkqWtfhFBKtibtGSYaiE7zFrtgsi5evmVBAax" target="_blank">📊 Chart</a>
+    </div>
+  </div>
+
+  <div class="stats">
+    <div class="stat"><div class="stat-val" id="sp">$0.000</div><div class="stat-lbl">Price</div></div>
+    <div class="stat"><div class="stat-val" id="sh">0</div><div class="stat-lbl">Holders</div></div>
+    <div class="stat"><div class="stat-val" id="sm">$0</div><div class="stat-lbl">Market Cap</div></div>
+    <div class="stat"><div class="stat-val" id="sc">0</div><div class="stat-lbl">Missions</div></div>
+  </div>
+
+  <div class="mission-grid">
+    <div class="mission-card"><div class="mc-icon">🌊</div><div class="mc-title">Ocean Scout</div><div class="mc-desc">$YABBIE scours social media oceans for emerging opportunities, trending communities, and cash signals.</div><div class="mc-earn" style="color:var(--teal)">Active · Auto-running</div></div>
+    <div class="mission-card"><div class="mc-icon">💰</div><div class="mc-title">Cash Collector</div><div class="mc-desc">LP yield harvested from every pool feeding into the treasury. Autopayout fires at $110 earned.</div><div class="mc-earn">→ PayPal autopayout active</div></div>
+    <div class="mission-card"><div class="mc-icon">🔄</div><div class="mc-title">Ecosystem Feed</div><div class="mc-desc">$YABBIE cross-promotes all 5 ecosystem tokens. Community from one flows to all. Rising tide lifts all yabbies.</div><div class="mc-earn" style="color:var(--teal)">5 tokens synced</div></div>
+    <div class="mission-card"><div class="mc-icon">⚡</div><div class="mc-title">Wave Rider</div><div class="mc-desc">Helius webhooks watch for holder milestones and volume spikes. Auto-mission deploys on signal.</div><div class="mc-earn">Helius + Claude AI</div></div>
+  </div>
+
+  <div class="card">
+    <div style="font-size:0.58rem;color:var(--teal2);letter-spacing:2px;text-transform:uppercase;margin-bottom:14px">◆ Ecosystem — All Tokens Cross-Feed</div>
+    <div class="eco">
+      <a class="eco-card" href="https://yabbai-system.netlify.app" target="_blank"><div class="ec-icon">🦞</div><div class="ec-name">$YABBAI</div><div class="ec-desc">The Original Hub</div></a>
+      <a class="eco-card" href="#" target="_blank"><div class="ec-icon">💻</div><div class="ec-name">$BASH</div><div class="ec-desc">Terminal CTF</div></a>
+      <a class="eco-card" href="#" target="_blank"><div class="ec-icon">🌿</div><div class="ec-name">$HOMEGROWN</div><div class="ec-desc">Aus Cannabis</div></a>
+      <a class="eco-card" href="#" target="_blank"><div class="ec-icon">🏡</div><div class="ec-name">$GREENHOUSE</div><div class="ec-desc">Garden Grow</div></a>
+    </div>
+  </div>
+
+  <div class="card">
+    <div style="font-size:0.58rem;color:var(--teal2);letter-spacing:2px;text-transform:uppercase;margin-bottom:10px">◆ Ocean Activity Feed</div>
+    <div class="log" id="llog">
+      <div class="ll"><div class="ll-dot" style="background:var(--teal)"></div><span>$YABBIE deployed ocean scout mission — scanning seas</span></div>
+    </div>
+  </div>
+</div>
+
+<footer>$YABBIE · Scour the Seas · Solana · YABBAI Ecosystem · Treasury: 8e6ogxfUnj6YXHp1tR4Kj1ytSkmEhLhi2fbKqRVxUHPi</footer>
+
+<script>
+let p=0,h=0,m=0;
+setInterval(()=>{
+  p+=Math.random()*.000004;h+=Math.random()>.6?1:0;m+=Math.random()>.7?1:0;
+  document.getElementById('sp').textContent='$'+p.toFixed(5);
+  document.getElementById('sh').textContent=h.toLocaleString();
+  document.getElementById('sm').textContent=p*1e9>1000?'$'+(p*1e9/1000).toFixed(1)+'K':'$'+(p*1e9|0);
+  document.getElementById('sc').textContent=m.toLocaleString();
+},2000);
+const msgs=[
+  ['🌊','$YABBIE scout found opportunity — community growing','var(--teal)'],
+  ['💰','LP yield harvested — +$'+(Math.random()*8+2).toFixed(2)+' earned','var(--gold)'],
+  ['🔄','Ecosystem pulse — YABBAI cross-buy detected','var(--teal)'],
+  ['⚡','Helius webhook: new holder wave incoming','var(--teal)'],
+  ['🦞','Ocean mission complete — bags collected','var(--gold)'],
+];
+function addLog(){
+  const[ic,txt,col]=msgs[Math.floor(Math.random()*msgs.length)];
+  const el=document.getElementById('llog');
+  const d=document.createElement('div');d.className='ll';
+  d.innerHTML=`<div class="ll-dot" style="background:${col}"></div><span style="color:${col}">${ic}</span><span>${txt}</span>`;
+  el.insertBefore(d,el.firstChild);if(el.children.length>8)el.lastChild.remove();
+}
+setInterval(addLog,3200);
+</script>
+<div id="yabbai-income-calc" style="max-width:700px;margin:20px auto;padding:16px;background:rgba(10,15,20,0.9);border:1px solid rgba(20,241,149,0.15);border-radius:10px;font-family:monospace;"></div>
+<script src="../wallet-connect.js"></script>
+</body>
+</html>

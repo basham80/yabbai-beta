@@ -1,0 +1,19 @@
+# Dependencies
+node_modules/
+
+# Local secrets (copy from .env.example)
+.env
+.env.local
+.env.*.local
+
+# OS / editor
+.DS_Store
+Thumbs.db
+
+# Packaged exports (regenerate with scripts if added)
+*-bundle.zip
+*-github-bundle.zip
+*-site-full.zip
+
+# Local export / staging folders (do not commit)
+yabbai-github-upload-bundle/

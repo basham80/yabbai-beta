@@ -1,0 +1,20 @@
+# Publish from repo root so `/` = hub (index.html) and `/yabbai/` = main app.
+# Do not point publish at workers/payout — that is only for Wrangler deploy.
+
+[build]
+publish = "."
+command = "echo 'Static site - no build needed'"
+functions = "netlify/functions"
+
+# SPA fallback (4EVERLAND / Netlify static). AI runs separately — see wrangler.toml + yabbai/mission-config.js
+[[redirects]]
+from = "/*"
+to = "/index.html"
+status = 200
+
+[env.production]
+  [env.production.context]
+    environment = { VITE_SOLANA_RPC_URL = "https://api.mainnet-beta.solana.com" }
+
+# Optional Netlify env (same names as Worker secrets if you use Functions):
+# ANTHROPIC_API_KEY, MOONSHOT_API_KEY, ANTHROPIC_MODEL, MOONSHOT_MODEL, MOONSHOT_API_BASE

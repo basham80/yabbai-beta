@@ -1,0 +1,276 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>$BASH — Terminal Token · Solana</title>
+<link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=VT323&display=swap" rel="stylesheet">
+<style>
+:root{--black:#000305;--terminal:#050f05;--green:#00ff41;--green2:#00cc33;--green3:#005510;--blue:#00b4ff;--cyan:#00ffee;--red:#ff3333;--white:#ccffcc;--dim:#1a3a1a;}
+*{margin:0;padding:0;box-sizing:border-box;}
+html,body{background:var(--black);color:var(--green);font-family:'Share Tech Mono',monospace;min-height:100vh;overflow-x:hidden;}
+body::before{content:'';position:fixed;inset:0;background:repeating-linear-gradient(0deg,transparent,transparent 2px,rgba(0,255,65,0.012) 2px,rgba(0,255,65,0.012) 4px);pointer-events:none;z-index:9998;}
+.scan{position:fixed;top:0;left:0;right:0;height:2px;background:linear-gradient(transparent,rgba(0,255,65,0.25),transparent);animation:scan 7s linear infinite;pointer-events:none;z-index:9999;}
+@keyframes scan{0%{top:-2px;}100%{top:100vh;}}
+@keyframes blink{0%,49%{opacity:1;}50%,100%{opacity:0;}}
+@keyframes pulse{0%,100%{opacity:1;}50%{opacity:0.3;}}
+@keyframes ticker{0%{transform:translateX(0);}100%{transform:translateX(-50%);}}
+@keyframes fadeIn{from{opacity:0;}to{opacity:1;}}
+
+#matrix{position:fixed;top:0;left:0;z-index:0;opacity:0.1;pointer-events:none;}
+
+.topbar{position:fixed;top:0;left:0;right:0;z-index:100;height:44px;background:rgba(0,3,5,0.97);border-bottom:1px solid var(--green3);display:flex;align-items:center;padding:0 20px;gap:10px;font-size:0.68rem;}
+.tb-prompt{color:var(--green2);}
+.tb-cmd{color:var(--white);}
+.cursor{display:inline-block;width:8px;height:14px;background:var(--green);animation:blink 1s infinite;vertical-align:middle;margin-left:2px;}
+.tb-spacer{flex:1;}
+.tb-pills{display:flex;gap:12px;}
+.pill{display:flex;align-items:center;gap:5px;font-size:0.58rem;padding:3px 8px;border-radius:2px;border:1px solid;}
+.pill-g{background:rgba(0,255,65,0.06);border-color:rgba(0,255,65,0.25);color:var(--green);}
+.pill-b{background:rgba(0,180,255,0.06);border-color:rgba(0,180,255,0.25);color:var(--blue);}
+.pill-r{background:rgba(255,51,51,0.06);border-color:rgba(255,51,51,0.25);color:var(--red);}
+.dot{width:5px;height:5px;border-radius:50%;background:currentColor;animation:pulse 2s infinite;}
+
+.ticker-wrap{background:rgba(0,255,65,0.04);border-bottom:1px solid var(--green3);padding:5px 0;overflow:hidden;font-size:0.6rem;color:var(--green2);margin-top:44px;position:relative;z-index:10;}
+.ticker-inner{display:flex;animation:ticker 32s linear infinite;width:max-content;}
+
+.wrap{max-width:920px;margin:0 auto;padding:32px 20px 60px;position:relative;z-index:1;}
+
+.term-win{background:var(--terminal);border:1px solid var(--green3);border-radius:6px;overflow:hidden;margin-bottom:18px;}
+.term-bar{background:#0a150a;padding:8px 14px;border-bottom:1px solid var(--green3);display:flex;align-items:center;gap:7px;}
+.tb-dot{width:10px;height:10px;border-radius:50%;}
+.term-title{flex:1;text-align:center;font-size:0.62rem;color:var(--green3);}
+.term-body{padding:18px;font-size:0.76rem;line-height:1.7;}
+.line{display:flex;gap:8px;margin-bottom:2px;}
+.prompt{color:var(--green2);flex-shrink:0;}
+.cmd{color:var(--white);}
+.out{padding-left:14px;color:var(--green);}
+.out.bl{color:var(--blue);}
+.out.cy{color:var(--cyan);}
+.out.rd{color:var(--red);}
+.out.dm{color:var(--dim);}
+
+.ascii{font-family:'VT323',monospace;font-size:clamp(2rem,6vw,4.5rem);color:var(--green);text-shadow:0 0 18px var(--green);line-height:1;margin-bottom:4px;}
+.hero-sub{font-size:0.68rem;color:var(--green2);letter-spacing:3px;margin-bottom:16px;}
+.hero-desc{font-size:0.78rem;color:var(--white);line-height:1.7;margin-bottom:20px;max-width:600px;}
+
+.sb{background:var(--terminal);border:1px solid var(--green3);border-radius:6px;padding:18px;margin-bottom:18px;}
+.sb-title{font-size:0.6rem;color:var(--green3);letter-spacing:2px;text-transform:uppercase;margin-bottom:14px;}
+.sb-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;}
+.sb-team{padding:12px;border-radius:4px;text-align:center;border:1px solid;}
+.sb-team.g{border-color:rgba(0,255,65,0.3);background:rgba(0,255,65,0.04);}
+.sb-team.b{border-color:rgba(0,180,255,0.3);background:rgba(0,180,255,0.04);}
+.sb-team.r{border-color:rgba(255,51,51,0.3);background:rgba(255,51,51,0.04);}
+.sb-score{font-family:'VT323',monospace;font-size:2rem;line-height:1;}
+.g .sb-score{color:var(--green);}
+.b .sb-score{color:var(--blue);}
+.r .sb-score{color:var(--red);}
+.sb-lbl{font-size:0.52rem;color:var(--dim);margin-top:3px;}
+
+.stats{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:18px;}
+.sc{background:var(--terminal);border:1px solid var(--green3);border-radius:4px;padding:14px;text-align:center;}
+.sc-val{font-family:'VT323',monospace;font-size:1.9rem;color:var(--green);}
+.sc-lbl{font-size:0.52rem;color:var(--dim);letter-spacing:1px;text-transform:uppercase;margin-top:3px;}
+
+.btns{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:18px;}
+.btn{padding:9px 18px;border-radius:3px;font-family:'Share Tech Mono',monospace;font-size:0.68rem;letter-spacing:1px;cursor:pointer;border:1px solid;text-decoration:none;display:inline-flex;align-items:center;gap:6px;transition:all 0.2s;}
+.btn-g{background:rgba(0,255,65,0.08);border-color:rgba(0,255,65,0.4);color:var(--green);}
+.btn-g:hover{background:rgba(0,255,65,0.18);box-shadow:0 0 14px rgba(0,255,65,0.25);}
+.btn-b{background:rgba(0,180,255,0.06);border-color:rgba(0,180,255,0.35);color:var(--blue);}
+.btn-b:hover{background:rgba(0,180,255,0.14);}
+
+.eco{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin-bottom:18px;}
+.eco-card{background:var(--terminal);border:1px solid var(--green3);border-radius:4px;padding:12px;text-align:center;text-decoration:none;display:block;transition:all 0.2s;}
+.eco-card:hover{border-color:var(--green);box-shadow:0 0 10px rgba(0,255,65,0.12);}
+.ec-icon{font-size:1.4rem;margin-bottom:5px;}
+.ec-name{font-size:0.68rem;color:var(--green);}
+.ec-desc{font-size:0.55rem;color:var(--dim);margin-top:2px;}
+
+.log{background:var(--terminal);border:1px solid var(--green3);border-radius:4px;padding:12px;max-height:150px;overflow-y:auto;}
+.log-line{font-size:0.63rem;padding:2px 0;border-bottom:1px solid rgba(0,255,65,0.04);animation:fadeIn 0.3s;}
+
+::-webkit-scrollbar{width:3px;}
+::-webkit-scrollbar-thumb{background:var(--green3);}
+footer{border-top:1px solid var(--green3);padding:14px 20px;text-align:center;font-size:0.58rem;color:var(--dim);position:relative;z-index:1;}
+@media(max-width:600px){.stats,.sb-grid{grid-template-columns:1fr 1fr;}.term-body{font-size:0.65rem;}}
+</style>
+</head>
+<body>
+<div class="scan"></div>
+<canvas id="matrix"></canvas>
+
+<nav class="topbar">
+  <span class="tb-prompt">root@bash:~$</span>
+  <span class="tb-cmd" id="tbCmd">./launch_bash_token.sh</span><span class="cursor"></span>
+  <div class="tb-spacer"></div>
+  <div class="tb-pills">
+    <div class="pill pill-g"><div class="dot"></div>GREEN HAT</div>
+    <div class="pill pill-b"><div class="dot"></div>WHITE HAT</div>
+    <div class="pill pill-r"><div class="dot"></div>RED TEAM</div>
+  </div>
+</nav>
+<div id="yabbai-wallet-panel" style="position:fixed;top:54px;right:16px;z-index:200;"></div>
+
+<div class="ticker-wrap">
+  <div class="ticker-inner">
+    <span style="display:flex;gap:0 36px;padding-right:36px">
+      <span>◈ $BASH LAUNCHING ON SOLANA</span>
+      <span style="color:#00b4ff">◈ CTF ACTIVE — ALL TEAMS PUMP</span>
+      <span style="color:#ff3333">◈ RED TEAM: DEFENCE MODE</span>
+      <span>◈ GREEN HATS: BUY SIGNAL</span>
+      <span style="color:#00ffee">◈ TREASURY: 8e6ogxf...UHPi</span>
+      <span>◈ ECOSYSTEM: YABBAI+BASH+YABBIE+HOMEGROWN+GREENHOUSE</span>
+    </span>
+    <span style="display:flex;gap:0 36px;padding-right:36px">
+      <span>◈ $BASH LAUNCHING ON SOLANA</span>
+      <span style="color:#00b4ff">◈ CTF ACTIVE — ALL TEAMS PUMP</span>
+      <span style="color:#ff3333">◈ RED TEAM: DEFENCE MODE</span>
+      <span>◈ GREEN HATS: BUY SIGNAL</span>
+      <span style="color:#00ffee">◈ TREASURY: 8e6ogxf...UHPi</span>
+      <span>◈ ECOSYSTEM: YABBAI+BASH+YABBIE+HOMEGROWN+GREENHOUSE</span>
+    </span>
+  </div>
+</div>
+
+<div class="wrap">
+
+  <div class="term-win">
+    <div class="term-bar">
+      <div class="tb-dot" style="background:#ff5f57"></div>
+      <div class="tb-dot" style="background:#ffbd2e"></div>
+      <div class="tb-dot" style="background:#28c840"></div>
+      <div class="term-title">bash@solana:~ — CTF Token Terminal</div>
+    </div>
+    <div class="term-body">
+      <div class="out bl">  ██████╗  █████╗ ███████╗██╗  ██╗</div>
+      <div class="out bl">  ██╔══██╗██╔══██╗██╔════╝██║  ██║</div>
+      <div class="out" style="color:#00ff41">  ██████╔╝███████║███████╗███████║</div>
+      <div class="out" style="color:#00ff41">  ██╔══██╗██╔══██║╚════██║██╔══██║</div>
+      <div class="out cy">  ██████╔╝██║  ██║███████║██║  ██║</div>
+      <div class="out cy">  ╚═════╝ ╚═╝  ╚═╝╚══════╝╚═╝  ╚═╝</div>
+      <br>
+      <div class="line"><span class="prompt">root@bash:~$</span><span class="cmd"> cat token.info</span></div>
+      <div class="out">TOKEN: $BASH | CHAIN: Solana | THEME: Terminal CTF</div>
+      <div class="out">TREASURY: 8e6ogxfUnj6YXHp1tR4Kj1ytSkmEhLhi2fbKqRVxUHPi</div>
+      <div class="out">ECOSYSTEM: $YABBAI $BASH $YABBIE $HOMEGROWN $GREENHOUSEGROW</div>
+      <br>
+      <div class="line"><span class="prompt">root@bash:~$</span><span class="cmd"> ./status.sh --live</span></div>
+      <div class="out">[ <span style="color:#00ff41">OK</span> ] Solana RPC connected — mainnet-beta</div>
+      <div class="out">[ <span style="color:#00ff41">OK</span> ] Jupiter price feed active</div>
+      <div class="out">[ <span style="color:#00ff41">OK</span> ] Ecosystem cross-links: 5 tokens synced</div>
+      <div class="out">[ <span style="color:#ffbd2e">~~</span> ] Pump.fun bonding curve: CLIMBING</div>
+      <div class="out">[ <span style="color:#00b4ff">--</span> ] CTF game: ALL TEAMS PUMPING <span class="cursor"></span></div>
+    </div>
+  </div>
+
+  <div class="sb">
+    <div class="sb-title">◆ CTF SCOREBOARD — OBJECTIVE: PUMP $BASH TO THE TOP</div>
+    <div class="sb-grid">
+      <div class="sb-team g"><div style="font-size:0.62rem;color:#00ff41;margin-bottom:5px">🟢 GREEN HAT</div><div class="sb-score" id="gs">4,821</div><div class="sb-lbl">BUY ORDERS</div></div>
+      <div class="sb-team b"><div style="font-size:0.62rem;color:#00b4ff;margin-bottom:5px">🔵 WHITE HAT</div><div class="sb-score" id="ws">3,140</div><div class="sb-lbl">LP POSITIONS</div></div>
+      <div class="sb-team r"><div style="font-size:0.62rem;color:#ff3333;margin-bottom:5px">🔴 RED TEAM</div><div class="sb-score" id="rs">2,088</div><div class="sb-lbl">DUMPS REPELLED</div></div>
+    </div>
+  </div>
+
+  <div class="stats">
+    <div class="sc"><div class="sc-val" id="sp">$0.000000</div><div class="sc-lbl">Price</div></div>
+    <div class="sc"><div class="sc-val" id="sh">0</div><div class="sc-lbl">Holders</div></div>
+    <div class="sc"><div class="sc-val" id="sm">$0</div><div class="sc-lbl">Market Cap</div></div>
+    <div class="sc"><div class="sc-val" id="sv">$0</div><div class="sc-lbl">24h Volume</div></div>
+  </div>
+
+  <div class="btns">
+    <a class="btn btn-g" href="https://pump.fun/coin/AcEVtpLEfxMHFzXQrhJiDhoWCkLVYH3drD2cxNAzLFUv" target="_blank">▶ BUY $BASH ON PUMP.FUN</a>
+    <a class="btn btn-b" href="https://yabbai-system.netlify.app" target="_blank">◈ YABBAI HUB</a>
+    <a class="btn btn-g" href="https://t.me" target="_blank">▶ TELEGRAM</a>
+    <a class="btn btn-b" href="https://twitter.com" target="_blank">▶ TWITTER/X</a>
+    <a class="btn btn-g" href="https://dexscreener.com/solana/DaxLJ5mRkqWtfhFBKtibtGSYaiE7zFrtgsi5evmVBAax" target="_blank">▶ DEXSCREENER</a>
+  </div>
+
+  <div style="font-size:0.58rem;color:var(--green3);letter-spacing:2px;margin-bottom:8px">◆ ECOSYSTEM — ALL TOKENS CROSS-FEED INTO EACH OTHER</div>
+  <div class="eco">
+    <a class="eco-card" href="https://yabbai-system.netlify.app" target="_blank"><div class="ec-icon">🦞</div><div class="ec-name">$YABBAI</div><div class="ec-desc">The Original Hub</div></a>
+    <a class="eco-card" href="#" target="_blank"><div class="ec-icon">🌊</div><div class="ec-name">$YABBIE</div><div class="ec-desc">Scour the Seas</div></a>
+    <a class="eco-card" href="#" target="_blank"><div class="ec-icon">🌿</div><div class="ec-name">$HOMEGROWN</div><div class="ec-desc">Australian Grown</div></a>
+    <a class="eco-card" href="#" target="_blank"><div class="ec-icon">🏡</div><div class="ec-name">$GREENHOUSEGROW</div><div class="ec-desc">Back Garden Vibes</div></a>
+  </div>
+
+  <div style="font-size:0.58rem;color:var(--green3);letter-spacing:2px;margin-bottom:6px">◆ LIVE TERMINAL LOG</div>
+  <div class="log" id="liveLog">
+    <div class="log-line"><span style="color:#333">[INIT]</span> <span style="color:#00ff41">system</span> $BASH token terminal online</div>
+  </div>
+
+</div>
+
+<footer>$BASH · Solana CTF Terminal Token · YABBAI Ecosystem · Treasury: 8e6ogxfUnj6YXHp1tR4Kj1ytSkmEhLhi2fbKqRVxUHPi</footer>
+
+<script>
+// MATRIX
+const cv=document.getElementById('matrix');const cx=cv.getContext('2d');
+function rsz(){cv.width=window.innerWidth;cv.height=window.innerHeight;}rsz();
+window.addEventListener('resize',rsz);
+const cols=Math.floor(window.innerWidth/15);const drops=Array(cols).fill(1);
+const chars='ABCDEFabcdef0123456789@#$%BASH$PUMP01';
+function mat(){
+  cx.fillStyle='rgba(0,3,5,0.06)';cx.fillRect(0,0,cv.width,cv.height);
+  drops.forEach((y,i)=>{
+    cx.fillStyle=Math.random()>.96?'#00ffee':Math.random()>.92?'#00b4ff':'#00ff41';
+    cx.font='13px Share Tech Mono';
+    cx.fillText(chars[Math.floor(Math.random()*chars.length)],i*15,y*15);
+    if(y*15>cv.height&&Math.random()>.975)drops[i]=0;drops[i]++;
+  });
+}
+setInterval(mat,55);
+
+// STATS
+let p=0,h=0,v=0;
+setInterval(()=>{
+  p+=Math.random()*.000003;h+=Math.random()>.65?Math.floor(Math.random()*2):0;v+=Math.random()*80;
+  document.getElementById('sp').textContent='$'+p.toFixed(6);
+  document.getElementById('sh').textContent=h.toLocaleString();
+  document.getElementById('sm').textContent=p*1e9>1000?'$'+(p*1e9/1000).toFixed(1)+'K':'$'+(p*1e9).toFixed(0);
+  document.getElementById('sv').textContent='$'+Math.floor(v).toLocaleString();
+},2200);
+
+// SCORES
+setInterval(()=>{
+  ['gs','ws','rs'].forEach((id,i)=>{
+    const el=document.getElementById(id);
+    el.textContent=(parseInt(el.textContent.replace(/,/g,''))+Math.floor(Math.random()*(4-i))).toLocaleString();
+  });
+},1900);
+
+// LOG
+const msgs=[
+  ['GREEN_HAT','buy order: {n} SOL — bonding curve +{p}%','#00ff41'],
+  ['WHITE_HAT','LP position added — BASH/SOL pool','#00b4ff'],
+  ['RED_TEAM','dump attempt repelled — community wall held','#ff3333'],
+  ['SYSTEM','ecosystem pulse — YABBAI cross-buy detected','#00ffee'],
+  ['GREEN_HAT','{n} new holders joined the terminal','#00ff41'],
+  ['SYSTEM','bonding curve: {p}% to $69K graduation','#00ffee'],
+  ['WHITE_HAT','price analysis: pattern bullish','#00b4ff'],
+];
+function addLog(){
+  const [t,m,c]=msgs[Math.floor(Math.random()*msgs.length)];
+  const txt=m.replace('{n}',Math.floor(Math.random()*15+1)).replace('{p}',Math.floor(Math.random()*8+1));
+  const time=new Date().toTimeString().slice(0,8);
+  const log=document.getElementById('liveLog');
+  const d=document.createElement('div');d.className='log-line';
+  d.innerHTML=`<span style="color:#333">[${time}]</span> <span style="color:${c}">${t}</span> ${txt}`;
+  log.insertBefore(d,log.firstChild);if(log.children.length>10)log.lastChild.remove();
+}
+setInterval(addLog,2800);
+
+// TOPBAR TYPEWRITER
+const cmds=['./launch_bash_token.sh','./ctf_game.sh --mode=pump','./buy_signal.sh --all','./status.sh --live','cat treasury.txt'];
+let ci=0,chi=0,typ=true;
+function type(){const el=document.getElementById('tbCmd');if(!el)return;const cmd=cmds[ci];
+  if(typ){chi++;el.textContent=cmd.slice(0,chi);if(chi>=cmd.length){typ=false;setTimeout(type,1400);return;}}
+  else{chi--;el.textContent=cmd.slice(0,chi);if(chi<=0){typ=true;ci=(ci+1)%cmds.length;}}
+  setTimeout(type,typ?75:35);}
+setTimeout(type,800);
+</script>
+<div id="yabbai-income-calc" style="max-width:700px;margin:20px auto;padding:16px;background:rgba(10,15,20,0.9);border:1px solid rgba(20,241,149,0.15);border-radius:10px;font-family:monospace;"></div>
+<script src="../wallet-connect.js"></script>
+</body>
+</html>
