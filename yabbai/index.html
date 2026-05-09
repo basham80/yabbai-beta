@@ -423,7 +423,7 @@ body::before{content:'';position:fixed;inset:0;z-index:0;pointer-events:none;
   <!-- TREASURY -->
   <div class="treasury-strip">
     <span class="ts-label">◆ Master Treasury</span>
-    <span class="ts-addr js-treasury-full">8e6ogxfUnj6YXHp1tR4Kj1ytSkmEhLhi2fbKqRVxUHPi</span>
+    <span class="ts-addr js-treasury-full">2DarZ9hCi5PirKsDsnriewZEGqaz6Q11pEitoZJxBsYM</span>
     <span class="ts-copy" onclick="copyTreasury()">Copy</span>
   </div>
 
@@ -534,7 +534,7 @@ body::before{content:'';position:fixed;inset:0;z-index:0;pointer-events:none;
 
   <div class="treasury-strip" style="margin-bottom:20px">
     <span class="ts-label">◆ Treasury receiver</span>
-    <span class="ts-addr js-treasury-full">8e6ogxfUnj6YXHp1tR4Kj1ytSkmEhLhi2fbKqRVxUHPi</span>
+    <span class="ts-addr js-treasury-full">2DarZ9hCi5PirKsDsnriewZEGqaz6Q11pEitoZJxBsYM</span>
     <span class="ts-copy" onclick="copyTreasury()">Copy</span>
   </div>
   <div class="vault-note" style="margin-bottom:18px;border-color:rgba(153,69,255,0.25)">
@@ -594,12 +594,12 @@ body::before{content:'';position:fixed;inset:0;z-index:0;pointer-events:none;
         <div class="cp-icon">↓</div>
         <div>
           <div class="cp-title">Deposit to</div>
-          <div class="sh-sub" style="margin-top:4px">Treasury receiver — resolved via <code>getTreasuryAddress()</code> (meta tag → <code>YABBAI_TREASURY_RECEIVER</code> → default). Same pubkey for <strong>SOL</strong> and <strong>SPL</strong>.</div>
+          <div class="sh-sub" style="margin-top:4px">Treasury receiver — resolved via <code>getTreasuryAddress()</code> (meta tag → <code>YABBAI_TREASURY_RECEIVER</code> / <code>YABBAI_TREASURY_ADDRESS</code> → site default). Same pubkey for <strong>SOL</strong> and <strong>SPL</strong>. Forks can override; otherwise deposits use the project treasury.</div>
         </div>
       </div>
       <div class="treasury-strip" style="margin-bottom:12px">
         <span class="ts-label">Receiver</span>
-        <span class="ts-addr js-treasury-full">8e6ogxfUnj6YXHp1tR4Kj1ytSkmEhLhi2fbKqRVxUHPi</span>
+        <span class="ts-addr js-treasury-full">2DarZ9hCi5PirKsDsnriewZEGqaz6Q11pEitoZJxBsYM</span>
         <span class="ts-copy" onclick="copyTreasury()" title="Copy treasury address">Copy</span>
       </div>
       <div style="display:flex;gap:8px;flex-wrap:wrap">
@@ -621,7 +621,7 @@ body::before{content:'';position:fixed;inset:0;z-index:0;pointer-events:none;
   <div class="vault-note" style="margin-bottom:20px;line-height:1.65">
     <strong>SOL:</strong> use the form below — the app builds a normal transfer and your wallet (Phantom, Solflare, etc.) asks you to sign. Nothing is sent automatically.
     <br><strong>SPL tokens:</strong> send from your wallet app’s <strong>Send</strong> flow to the treasury address above; pick the token there. In-page SPL transfers are not bundled here — same note as <code>mission-config.js</code>.
-    <br><strong>Config:</strong> set <code>window.YABBAI_TREASURY_RECEIVER</code> in <code>mission-config.js</code> (env name <code>YABBAI_TREASURY_RECEIVER</code> for parity with Workers). Optional <code>YABBAI_PAYOUT_API</code> enables signed vault withdraw → SOL back to your connected pubkey.
+    <br><strong>Config:</strong> this deployment uses the built-in site treasury unless you set <code>window.YABBAI_TREASURY_RECEIVER</code> in <code>mission-config.js</code> or a meta tag (same env name <code>YABBAI_TREASURY_RECEIVER</code> on Workers for parity). Optional <code>YABBAI_PAYOUT_API</code> enables signed vault withdraw → SOL back to your connected wallet.
   </div>
 
   <div class="vault-panel" style="margin-bottom:24px">
@@ -828,7 +828,7 @@ body::before{content:'';position:fixed;inset:0;z-index:0;pointer-events:none;
 
   <div class="treasury-strip">
     <span class="ts-label">◆ Master Treasury</span>
-    <span class="ts-addr js-treasury-full">8e6ogxfUnj6YXHp1tR4Kj1ytSkmEhLhi2fbKqRVxUHPi</span>
+    <span class="ts-addr js-treasury-full">2DarZ9hCi5PirKsDsnriewZEGqaz6Q11pEitoZJxBsYM</span>
     <span class="ts-copy" onclick="copyTreasury()">Copy</span>
   </div>
 
@@ -875,7 +875,8 @@ body::before{content:'';position:fixed;inset:0;z-index:0;pointer-events:none;
 // ── CONFIG ──────────────────────────────────────────────
 const MINT     = 'AcEVtpLEfxMHFzXQrhJiDhoWCkLVYH3drD2cxNAzLFUv';
 const POOL     = 'DaxLJ5mRkqWtfhFBKtibtGSYaiE7zFrtgsi5evmVBAax';
-const DEFAULT_TREASURY = '8e6ogxfUnj6YXHp1tR4Kj1ytSkmEhLhi2fbKqRVxUHPi';
+/** Canonical YABBAI site treasury (public key only in git). Private key is NOT stored here — ops hold it off-repo (e.g. `wrangler secret put TREASURY_SECRET_KEY` for the payout Worker). Hosts/forks may override via `<meta name="yabbai-treasury-receiver">` or `window.YABBAI_TREASURY_RECEIVER`. */
+const DEFAULT_TREASURY = '2DarZ9hCi5PirKsDsnriewZEGqaz6Q11pEitoZJxBsYM';
 /** Mainnet-beta genesis hash — `assertMainnetRpc` rejects any RPC whose `getGenesisHash()` does not match. */
 const MAINNET_GENESIS_HASH = 'EtWTRABZaYq6iMfeYKouRu166VU2xqa1wcaWoxeehBOw';
 const MIN_DEPOSIT_SOL = 1e-6;
@@ -893,7 +894,7 @@ const MISSION_API = (typeof window !== 'undefined' && window.YABBAI_MISSION_API 
   : '';
 
 /**
- * Treasury receiver: meta tag (host inject) > window.YABBAI_TREASURY_RECEIVER > YABBAI_TREASURY_ADDRESS > default.
+ * Treasury receiver: meta tag (host inject) > window.YABBAI_TREASURY_RECEIVER > window.YABBAI_TREASURY_ADDRESS > DEFAULT_TREASURY (site canonical; public key only in repo).
  * Recommended env-style name for ops: YABBAI_TREASURY_RECEIVER (set on window in mission-config.js for static hosts).
  */
 function getTreasuryAddress() {
