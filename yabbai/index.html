@@ -413,6 +413,7 @@ body::before{content:'';position:fixed;inset:0;z-index:0;pointer-events:none;
           <button class="ca-max" type="button" onclick="setMaxDeposit()">MAX</button>
         </div>
         <div style="font-family:'Azeret Mono',monospace;font-size:0.6rem;color:var(--dim);margin-bottom:12px" id="depositUsd">≈ $0.00 USD</div>
+        <div id="rpcBalanceHint" class="vault-note" style="display:none;margin-bottom:10px;border-color:rgba(255,194,0,0.35);color:var(--gold)"></div>
         <button class="cashout-execute" id="depositBtn" type="button" onclick="depositSolToTreasury()" style="background:linear-gradient(135deg,#1a0d2e,rgba(153,69,255,0.85));color:#fff">◎ Confirm deposit</button>
       </div>
       <div class="cashout-panel" style="margin:0;border-color:rgba(20,241,149,0.22)">
@@ -713,24 +714,57 @@ const MISSION_API = (typeof window !== 'undefined' && window.YABBAI_MISSION_API 
   ? String(window.YABBAI_MISSION_API).trim()
   : '';
 
+/** Some wallets expose the RPC they use — often more reliable from the browser than our public list. */
+function collectWalletRpcHints() {
+  const out = [];
+  const push = (u) => {
+    if (!u || typeof u !== 'string') return;
+    const t = u.trim();
+    if (!/^https?:\/\//i.test(t)) return;
+    if (!out.includes(t)) out.push(t);
+  };
+  try {
+    const type = localStorage.getItem('yabbai_wallet_type') || 'phantom';
+    const p = getWalletProviderByType(type);
+    if (!p) return out;
+    push(p.rpcEndpoint);
+    push(p._rpcEndpoint);
+    const c = p.connection;
+    if (c && typeof c.rpcEndpoint === 'string') push(c.rpcEndpoint);
+    if (c && c._rpcEndpoint) push(c._rpcEndpoint);
+    const w = p.wallet || p._wallet;
+    const ad = w && w.adapter;
+    if (ad?.connection?.rpcEndpoint) push(ad.connection.rpcEndpoint);
+  } catch (_) {}
+  return out;
+}
+
 function getSolanaRpcList() {
   const custom =
     typeof window !== 'undefined' &&
     window.YABBAI_SOLANA_RPC &&
     String(window.YABBAI_SOLANA_RPC).trim();
+  const hints = collectWalletRpcHints();
   const fallback = [
     'https://api.mainnet-beta.solana.com',
     'https://solana-mainnet.rpc.extrnode.com',
     'https://solana-mainnet.publicnode.com',
+    'https://solana-rpc.publicnode.com',
     'https://rpc.ankr.com/solana',
+    'https://mainnet.rpcpool.com',
+    'https://solana.drpc.org',
   ];
-  const list = custom ? [custom.trim(), ...fallback] : fallback;
-  return [...new Set(list)];
+  const customFirst = custom ? [custom.trim()] : [];
+  return [...new Set([...customFirst, ...hints, ...fallback])];
 }
 
 let walletAddr = null;
+/** Cleanup from provider.on('accountChanged'|'disconnect', …) — cleared before reconnect / disconnect */
+let walletListenerCleanup = null;
 /** Last RPC that answered getBalance — reused for deposit Connection when set */
 let primarySolanaRpc = null;
+/** Set true only after a successful getBalance (IPFS often gets CORS/rate-limit failures). */
+let solBalanceFetchOk = false;
 let solBalance = 0;
 let solPrice   = 88;
 try {
@@ -1015,7 +1049,85 @@ function showPage(id) {
 function getWalletProviderByType(type) {
   if (type === 'solflare') return window.solflare || null;
   if (type === 'backpack') return window.backpack?.solana || window.backpack || null;
-  return window.phantom?.solana || (window.solana?.isPhantom ? window.solana : null) || window.solana || null;
+  if (type === 'phantom') {
+    // Never fall back to generic window.solana for "Phantom" — another adapter often wins that slot (wrong pubkey → 0 SOL on RPC).
+    return window.phantom?.solana || (window.solana?.isPhantom ? window.solana : null) || null;
+  }
+  return (
+    window.phantom?.solana ||
+    (window.solana?.isPhantom ? window.solana : null) ||
+    window.solflare ||
+    window.backpack?.solana ||
+    null
+  );
+}
+
+function clearWalletListenerCleanup() {
+  if (typeof walletListenerCleanup === 'function') {
+    try {
+      walletListenerCleanup();
+    } catch (_) {}
+  }
+  walletListenerCleanup = null;
+}
+
+/**
+ * Phantom (and compatible wallets) update publicKey asynchronously on multi-account switch — refetch balance on same pubkey RPC uses.
+ */
+function bindWalletProviderEvents(provider, type) {
+  clearWalletListenerCleanup();
+  if (!provider || typeof provider.on !== 'function') return;
+
+  const onAccountChanged = async (newPublicKey) => {
+    try {
+      if (newPublicKey && typeof newPublicKey.toString === 'function') {
+        const next = newPublicKey.toString().trim();
+        if (!next) return;
+        walletAddr = next;
+        try {
+          localStorage.setItem('yabbai_wallet', walletAddr);
+        } catch (_) {}
+        await fetchWalletBalance();
+        syncBalanceLabels();
+        renderVaultPanel();
+        toast('Wallet account switched — balance refreshed', '');
+      } else {
+        disconnectWallet();
+      }
+    } catch (_) {
+      await fetchWalletBalance();
+      syncBalanceLabels();
+    }
+  };
+
+  const onDisconnect = () => {
+    disconnectWallet();
+  };
+
+  try {
+    provider.on('accountChanged', onAccountChanged);
+    provider.on('disconnect', onDisconnect);
+  } catch (_) {
+    return;
+  }
+
+  walletListenerCleanup = () => {
+    try {
+      if (typeof provider.removeListener === 'function') {
+        provider.removeListener('accountChanged', onAccountChanged);
+        provider.removeListener('disconnect', onDisconnect);
+      } else if (typeof provider.off === 'function') {
+        provider.off('accountChanged', onAccountChanged);
+        provider.off('disconnect', onDisconnect);
+      }
+    } catch (_) {}
+  };
+}
+
+function readProviderPublicKeyString(provider, connectResult) {
+  const pk = provider?.publicKey || connectResult?.publicKey;
+  if (!pk || typeof pk.toString !== 'function') return '';
+  return pk.toString().trim();
 }
 
 function getActiveWalletProvider() {
@@ -1042,13 +1154,15 @@ async function connectWallet(type) {
       return;
     }
 
-    await provider.connect();
-    if (!provider.publicKey) {
+    const connectResult = await provider.connect();
+    walletAddr = readProviderPublicKeyString(provider, connectResult);
+    if (!walletAddr) {
       throw new Error('Wallet did not return a public key');
     }
-    walletAddr = provider.publicKey.toString().trim();
     localStorage.setItem('yabbai_wallet', walletAddr);
     localStorage.setItem('yabbai_wallet_type', type);
+
+    bindWalletProviderEvents(provider, type);
 
     // Sign In With Solana — sign a message to verify ownership
     const message = `Sign in to YABBAI\nWallet: ${walletAddr}\nTimestamp: ${Date.now()}\nThis signature proves wallet ownership and does not initiate any transaction.`;
@@ -1103,19 +1217,46 @@ function persistSolUsd(price) {
   } catch (_) {}
 }
 
+function updateRpcBalanceHint() {
+  const el = document.getElementById('rpcBalanceHint');
+  if (!el) return;
+  if (!walletAddr || solBalanceFetchOk) {
+    el.style.display = 'none';
+    el.textContent = '';
+    return;
+  }
+  el.style.display = 'block';
+  el.innerHTML =
+    '<strong>Wallet SOL not readable from this page</strong> (common on IPFS: browser RPC blocked). ' +
+    'Use <strong>Refresh balance</strong> or set <code>window.YABBAI_SOLANA_RPC</code> in mission-config.js (Helius/Alchemy). ' +
+    '<strong>Deposit still works</strong> — your wallet shows the real balance when you sign.';
+}
+
 /** Keeps cashout bar, top wallet chip, and deposit USD in sync with solBalance + solPrice */
 function syncBalanceLabels() {
   if (!walletAddr) return;
   const px = effectiveSolUsd();
   const usdTxt =
-    Number.isFinite(solBalance) && solBalance >= 0
+    solBalanceFetchOk && Number.isFinite(solBalance) && solBalance >= 0
       ? (solBalance * px).toFixed(2)
       : '—';
   const cp = document.getElementById('cpBalance');
-  if (cp) cp.textContent = `Balance: ${solBalance.toFixed(4)} SOL · $${usdTxt}`;
+  if (cp) {
+    cp.textContent = solBalanceFetchOk
+      ? `Balance: ${solBalance.toFixed(4)} SOL · $${usdTxt}`
+      : 'Balance: — (RPC from browser failed — use Refresh or set YABBAI_SOLANA_RPC)';
+  }
   renderWalletUI();
   updateDepositUsd();
   renderVaultPanel();
+  updateRpcBalanceHint();
+}
+
+async function refreshWalletBalanceUi() {
+  toast('Refreshing SOL balance…', '');
+  await fetchWalletBalance();
+  if (solBalanceFetchOk) toast(`Balance: ${solBalance.toFixed(4)} SOL`, '');
+  else toast('Still could not read balance — you can deposit anyway (wallet will confirm).', 'warn');
 }
 
 function resolveLiveWalletAddress() {
@@ -1175,7 +1316,9 @@ async function fetchWalletBalance() {
     web3 = await loadWeb3BalanceModule();
   } catch (e) {
     console.warn('[YABBAI][SOL] web3 load failed', e);
+    solBalanceFetchOk = false;
     addLog('Balance: could not load Solana library — try refresh', '#ffc200', 'RPC');
+    syncBalanceLabels();
     return;
   }
 
@@ -1192,6 +1335,8 @@ async function fetchWalletBalance() {
 
   const endpoints = getSolanaRpcList();
 
+  solBalanceFetchOk = false;
+
   const applyLamports = (lamports, rpc, tag) => {
     let n =
       typeof lamports === 'bigint'
@@ -1202,6 +1347,7 @@ async function fetchWalletBalance() {
     if (!Number.isFinite(n) || n < 0) return false;
     primarySolanaRpc = rpc;
     solBalance = n / 1e9;
+    solBalanceFetchOk = true;
     syncBalanceLabels();
     addLog(`Wallet balance: ${solBalance.toFixed(4)} SOL${tag ? ' ' + tag : ''}`, '#14F195', 'RPC');
     return true;
@@ -1249,7 +1395,13 @@ async function fetchWalletBalance() {
         });
         if (sigOpt.cancel) sigOpt.cancel();
         if (!r.ok) continue;
-        const d = await r.json();
+        let d;
+        try {
+          d = JSON.parse(await r.text());
+        } catch (parseErr) {
+          console.warn('[YABBAI][SOL] non-JSON', rpc, parseErr);
+          continue;
+        }
         if (d.error) {
           console.warn('[YABBAI][SOL]', rpc, d.error);
           continue;
@@ -1263,7 +1415,9 @@ async function fetchWalletBalance() {
   }
 
   addLog('Balance fetch failed — set window.YABBAI_SOLANA_RPC in mission-config.js (private RPC)', '#ffc200', 'RPC');
-  toast('Could not load SOL balance. Set YABBAI_SOLANA_RPC in mission-config.js (Helius/Alchemy RPC).', 'warn');
+  solBalanceFetchOk = false;
+  syncBalanceLabels();
+  toast('Could not load SOL balance in-browser. You can still deposit — wallet shows real SOL. Set YABBAI_SOLANA_RPC for live chip.', 'warn');
 }
 
 async function ensureBufferPolyfill() {
@@ -1275,6 +1429,10 @@ async function ensureBufferPolyfill() {
 function setMaxDeposit() {
   const input = document.getElementById('depositAmt');
   if (!input) return;
+  if (!solBalanceFetchOk) {
+    toast('Balance unknown on this page — type amount manually or set YABBAI_SOLANA_RPC and tap ↻', 'warn');
+    return;
+  }
   const reserve = 0.015;
   const max = Math.max(0, solBalance - reserve);
   input.value = max > 0 ? max.toFixed(6) : '';
@@ -1318,9 +1476,14 @@ async function depositSolToTreasury() {
   }
 
   const reserve = 0.02;
-  if (amt + reserve > solBalance) {
-    toast(`Insufficient SOL · balance ${solBalance.toFixed(4)} (keep ~${reserve} for fees)`, 'error');
-    return;
+  if (solBalanceFetchOk) {
+    if (amt + reserve > solBalance) {
+      toast(`Insufficient SOL · balance ${solBalance.toFixed(4)} (keep ~${reserve} for fees)`, 'error');
+      return;
+    }
+  } else {
+    addLog('Deposit without client balance check (RPC unreadable) — wallet validates', '#ffc200', 'Deposit');
+    toast('Opening wallet — it will show your real SOL; this site could not read balance (RPC/CORS).', 'warn');
   }
 
   depositBusy = true;
@@ -1335,54 +1498,67 @@ async function depositSolToTreasury() {
     const lamports = Math.round(amt * 1e9);
     if (lamports < 1) { throw new Error('Amount too small'); }
 
-    const rpcUrl = primarySolanaRpc || getSolanaRpcList()[0];
-    const connection = new Connection(rpcUrl, 'confirmed');
     const fromPubkey = provider.publicKey;
     const toPubkey = new PublicKey(TREASURY);
+    const rpcCandidates = getSolanaRpcList();
 
-    const latest = await connection.getLatestBlockhash('confirmed');
-    const tx = new Transaction();
-    tx.recentBlockhash = latest.blockhash;
-    tx.feePayer = fromPubkey;
-    tx.add(
-      SystemProgram.transfer({
-        fromPubkey,
-        toPubkey,
-        lamports,
-      })
-    );
+    for (let ri = 0; ri < rpcCandidates.length; ri++) {
+      const rpcUrl = rpcCandidates[ri];
+      let connection;
+      try {
+        connection = new Connection(rpcUrl, 'confirmed');
+        const latest = await connection.getLatestBlockhash('confirmed');
+        const tx = new Transaction();
+        tx.recentBlockhash = latest.blockhash;
+        tx.feePayer = fromPubkey;
+        tx.add(
+          SystemProgram.transfer({
+            fromPubkey,
+            toPubkey,
+            lamports,
+          })
+        );
 
-    toast('Confirm the transfer in your wallet…', 'warn');
-    addLog(`Deposit ${amt} SOL → treasury — awaiting wallet approval`, '#9945FF', 'Deposit');
+        toast('Confirm the transfer in your wallet…', 'warn');
+        addLog(`Deposit ${amt} SOL → treasury — awaiting wallet (${ri === 0 ? 'primary' : 'fallback'} RPC)`, '#9945FF', 'Deposit');
 
-    let signature;
-    if (typeof provider.signAndSendTransaction === 'function') {
-      const result = await provider.signAndSendTransaction(tx);
-      signature = typeof result === 'string' ? result : result?.signature;
-    } else if (typeof provider.signTransaction === 'function') {
-      const signed = await provider.signTransaction(tx);
-      signature = await connection.sendRawTransaction(signed.serialize(), {
-        skipPreflight: false,
-        maxRetries: 3,
-      });
-    } else {
-      throw new Error('This wallet cannot sign SOL transfers from this page');
+        let signature;
+        if (typeof provider.signAndSendTransaction === 'function') {
+          const result = await provider.signAndSendTransaction(tx);
+          signature = typeof result === 'string' ? result : result?.signature;
+        } else if (typeof provider.signTransaction === 'function') {
+          const signed = await provider.signTransaction(tx);
+          signature = await connection.sendRawTransaction(signed.serialize(), {
+            skipPreflight: false,
+            maxRetries: 3,
+          });
+        } else {
+          throw new Error('This wallet cannot sign SOL transfers from this page');
+        }
+
+        if (!signature) throw new Error('No signature returned');
+        const sigStr = typeof signature === 'string' ? signature : String(signature);
+
+        await connection.confirmTransaction(
+          { signature: sigStr, blockhash: latest.blockhash, lastValidBlockHeight: latest.lastValidBlockHeight },
+          'confirmed'
+        );
+
+        primarySolanaRpc = rpcUrl;
+        addLog(`Deposit confirmed · ${sigStr.slice(0, 10)}…`, '#14F195', 'Solana');
+        toast('Deposit confirmed — vault credited');
+        vaultCreditDeposit(amt);
+        document.getElementById('depositAmt').value = '';
+        updateDepositUsd();
+        await fetchWalletBalance();
+        break;
+      } catch (e) {
+        const msg = e?.message || String(e);
+        if (/User rejected|cancel/i.test(msg)) throw e;
+        console.warn('[YABBAI][Deposit] RPC attempt failed', rpcUrl, msg);
+        if (ri === rpcCandidates.length - 1) throw e;
+      }
     }
-
-    if (!signature) throw new Error('No signature returned');
-    const sigStr = typeof signature === 'string' ? signature : String(signature);
-
-    await connection.confirmTransaction(
-      { signature: sigStr, blockhash: latest.blockhash, lastValidBlockHeight: latest.lastValidBlockHeight },
-      'confirmed'
-    );
-
-    addLog(`Deposit confirmed · ${sigStr.slice(0, 10)}…`, '#14F195', 'Solana');
-    toast('Deposit confirmed — vault credited');
-    vaultCreditDeposit(amt);
-    document.getElementById('depositAmt').value = '';
-    updateDepositUsd();
-    await fetchWalletBalance();
   } catch (e) {
     const msg = e?.message || String(e);
     if (/User rejected|cancel/i.test(msg)) {
@@ -1402,25 +1578,26 @@ function renderWalletUI() {
   const px = effectiveSolUsd();
   const walletType = localStorage.getItem('yabbai_wallet_type') || 'phantom';
   const icons = { phantom:'👻', solflare:'🔆', backpack:'🎒' };
-  const usdChip =
-    Number.isFinite(solBalance) && solBalance >= 0
-      ? '$' + (solBalance * px).toFixed(2)
-      : '$—';
+  const balLine = solBalanceFetchOk
+    ? `${solBalance.toFixed(4)} SOL · $${(solBalance * px).toFixed(2)}`
+    : `— SOL · <span style="color:var(--gold);font-size:0.52rem">RPC blocked?</span>`;
   document.getElementById('walletArea').innerHTML = `
-    <div style="display:flex;align-items:center;gap:8px">
+    <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap">
       <div class="wallet-btn wallet-connected">
         <div class="w-dot"></div>
         <div>
           <div class="w-addr">${icons[walletType]} ${walletAddr.slice(0,6)}...${walletAddr.slice(-4)}</div>
-          <div class="w-bal">${solBalance.toFixed(4)} SOL · ${usdChip}</div>
+          <div class="w-bal">${balLine}</div>
         </div>
       </div>
+      <button type="button" class="btn btn-outline" style="font-size:0.58rem;padding:6px 8px" onclick="refreshWalletBalanceUi()" title="Re-fetch SOL from RPC">↻</button>
       <button class="btn btn-outline" style="font-size:0.65rem;padding:7px 10px" onclick="disconnectWallet()">✕</button>
     </div>`;
 }
 
 function disconnectWallet() {
   const type = localStorage.getItem('yabbai_wallet_type') || 'phantom';
+  clearWalletListenerCleanup();
   try {
     const p = getWalletProviderByType(type);
     if (p?.disconnect) p.disconnect();
@@ -1429,6 +1606,7 @@ function disconnectWallet() {
 
   walletAddr = null;
   solBalance = 0;
+  solBalanceFetchOk = false;
   localStorage.removeItem('yabbai_wallet');
   localStorage.removeItem('yabbai_wallet_type');
   document.getElementById('walletArea').innerHTML = `<button class="wallet-btn wallet-disconnected" onclick="openSIWS()"><div class="w-dot"></div>Connect Wallet</button>`;
@@ -1447,20 +1625,23 @@ async function restoreWalletSession() {
   try {
     if (provider) {
       if (provider.isConnected && provider.publicKey) {
-        walletAddr = provider.publicKey.toString();
+        walletAddr = readProviderPublicKeyString(provider, null);
       } else if (savedType === 'phantom' && typeof provider.connect === 'function') {
-        await provider.connect({ onlyIfTrusted: true });
-        walletAddr = provider.publicKey.toString();
+        const cr = await provider.connect({ onlyIfTrusted: true });
+        walletAddr = readProviderPublicKeyString(provider, cr);
       } else {
-        walletAddr = saved;
+        walletAddr = saved.trim();
       }
     } else {
-      walletAddr = saved;
+      walletAddr = saved.trim();
     }
-    localStorage.setItem('yabbai_wallet', walletAddr);
+    if (walletAddr) localStorage.setItem('yabbai_wallet', walletAddr);
   } catch (_) {
-    walletAddr = saved;
+    walletAddr = saved.trim();
+    if (walletAddr) localStorage.setItem('yabbai_wallet', walletAddr);
   }
+
+  if (provider && walletAddr) bindWalletProviderEvents(provider, savedType);
 
   await fetchSolPrice({ skipBalanceSync: true });
   resolveLiveWalletAddress();

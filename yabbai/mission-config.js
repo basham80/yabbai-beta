@@ -18,5 +18,9 @@ window.YABBAI_MISSION_API = '';
 /** Optional: treasury SOL payout Worker URL (HTTPS). Empty disables on-chain withdraw. */
 window.YABBAI_PAYOUT_API = '';
 
-/** Optional: dedicated Solana RPC for balance + deposits (recommended — public RPC rate-limits browsers). */
+/**
+ * Strongly recommended on IPFS / 4EVERLAND: public mainnet RPC often blocks or rate-limits browser `fetch`,
+ * so the wallet chip shows "—" until this is set. Use a free Helius / Alchemy / QuickNode mainnet HTTPS URL.
+ * Example: window.YABBAI_SOLANA_RPC = 'https://mainnet.helius-rpc.com/?api-key=YOUR_KEY';
+ */
 window.YABBAI_SOLANA_RPC = '';
