@@ -67,4 +67,5 @@ window.YABBAI_BALANCE_API = '';
 /**
  * Phantom / wallet note: SOL and SPL balances on this page use Solana JSON-RPC and/or YABBAI_BALANCE_API,
  * not the extension’s internal display. If the chip is wrong, set YABBAI_BALANCE_API (Worker) and/or YABBAI_SOLANA_RPC.
+ * Balance does not depend on Sign Message (SIWS): `connect()` exposes the pubkey; SIWS is optional off-chain proof only.
  */

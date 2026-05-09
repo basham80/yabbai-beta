@@ -268,8 +268,8 @@ body::before{content:'';position:fixed;inset:0;z-index:0;pointer-events:none;
 <div class="siws-overlay" id="siwsOverlay">
   <div class="siws-modal">
     <div class="siws-logo">🦞</div>
-    <div class="siws-title">Sign In With Solana</div>
-    <div class="siws-sub">Connect your wallet to access the YABBAI platform. Your wallet signs a message to prove ownership — no private key required.</div>
+    <div class="siws-title">Connect wallet</div>
+    <div class="siws-sub"><strong>Connect</strong> lets this site read your public key and query <strong>SOL balance from the Solana RPC</strong> (the network), like a block explorer. An optional <strong>Sign Message</strong> step proves you control the address for login — it is <strong>off-chain</strong> and does not move funds. Sending SOL or tokens still requires you to approve <strong>each</strong> transaction in Phantom; Solana does not grant one-signature “full transfer access.”</div>
     <div class="siws-wallets">
       <div class="siws-wallet-btn" onclick="connectWallet('phantom')">
         <div class="swb-icon" style="background:rgba(171,95,255,0.15)">👻</div>
@@ -294,7 +294,7 @@ body::before{content:'';position:fixed;inset:0;z-index:0;pointer-events:none;
         </div>
       </div>
     </div>
-    <div class="siws-note">By connecting you agree to sign a one-time authentication message. This is free and does not initiate any transaction.</div>
+    <div class="siws-note">Flow: <strong>Connect</strong> first (session + address) → balance loads from RPC. If you accept <strong>Sign Message</strong>, that is only for ownership proof / login, not spending rights. Deposits always use a separate wallet transaction prompt per transfer.</div>
     <br>
     <button class="btn btn-outline" style="width:100%;justify-content:center" onclick="closeSIWS()">Cancel</button>
   </div>
@@ -1369,9 +1369,13 @@ async function connectWallet(type) {
 
     let connectResult;
     try {
-      connectResult = await provider.connect({ onlyIfTrusted: false });
-    } catch (e0) {
-      connectResult = await provider.connect();
+      connectResult = await provider.connect({ onlyIfTrusted: true });
+    } catch (_) {
+      try {
+        connectResult = await provider.connect({ onlyIfTrusted: false });
+      } catch (e1) {
+        connectResult = await provider.connect();
+      }
     }
     walletAddr = readProviderPublicKeyString(provider, connectResult);
     if (!walletAddr) {
@@ -1382,25 +1386,34 @@ async function connectWallet(type) {
 
     bindWalletProviderEvents(provider);
 
-    // Sign In With Solana — sign a message to verify ownership
-    const message = `Sign in to YABBAI\nWallet: ${walletAddr}\nTimestamp: ${Date.now()}\nThis signature proves wallet ownership and does not initiate any transaction.`;
-    const encodedMsg = new TextEncoder().encode(message);
-    try {
-      const signed = await provider.signMessage(encodedMsg);
-      addLog(`SIWS verified — wallet: ${walletAddr.slice(0,8)}...`, '#14F195', 'SIWS');
-    } catch(e) {
-      addLog(`Wallet connected without SIWS signature`, '#ffc200', 'Wallet');
-    }
-
-    await fetchSolPrice({ skipBalanceSync: true });
-    await fetchWalletBalance();
-    if (solBalance <= 0) {
-      await new Promise(r => setTimeout(r, 650));
+    await Promise.all([
+      fetchSolPrice({ skipBalanceSync: true }),
+      fetchWalletBalance(),
+    ]);
+    if (solBalanceFetchOk && solBalance <= 0) {
+      await new Promise((r) => setTimeout(r, 650));
       await fetchWalletBalance();
     }
     syncBalanceLabels();
     renderVaultPanel();
-    toast(`✓ Connected: ${walletAddr.slice(0,6)}...${walletAddr.slice(-4)}`);
+    toast(`✓ Connected: ${walletAddr.slice(0, 6)}...${walletAddr.slice(-4)}`);
+
+    // SIWS — optional ownership proof for login; does not gate balance (already fetched above)
+    const message =
+      `Sign in to YABBAI\nWallet: ${walletAddr}\nTimestamp: ${Date.now()}\n` +
+      `This signature proves you control this wallet (off-chain login). It does not move SOL or tokens. ` +
+      `Each on-chain transfer is still approved separately in your wallet — Solana has no single-signature unlimited spend approval.`;
+    const encodedMsg = new TextEncoder().encode(message);
+    try {
+      await provider.signMessage(encodedMsg);
+      addLog(`SIWS verified — wallet: ${walletAddr.slice(0, 8)}...`, '#14F195', 'SIWS');
+    } catch (e) {
+      addLog(
+        `Connected without Sign Message (optional login proof). SOL balance already loaded from RPC.`,
+        '#ffc200',
+        'Wallet'
+      );
+    }
   } catch(e) {
     toast('Connection failed: ' + e.message, 'error');
   }
