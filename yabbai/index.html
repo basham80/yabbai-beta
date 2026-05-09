@@ -1067,7 +1067,11 @@ function getSolanaRpcList() {
     'https://solana.drpc.org',
   ];
   const customFirst = trimmedCustom && isMainnetHttpsRpcUrl(trimmedCustom) ? [trimmedCustom] : [];
-  return [...new Set([...customFirst, ...hints, ...fallback])];
+  const rot = fallback.length ? solanaFallbackRotateIdx % fallback.length : 0;
+  const rotatedFallback = fallback.length
+    ? [...fallback.slice(rot), ...fallback.slice(0, rot)]
+    : [];
+  return [...new Set([...customFirst, ...hints, ...rotatedFallback])];
 }
 
 let walletAddr = null;
@@ -1075,6 +1079,11 @@ let walletAddr = null;
 let walletListenerCleanup = null;
 /** Last RPC that answered getBalance — reused for deposit Connection when set */
 let primarySolanaRpc = null;
+/** Rotates public fallback order after failed polls so we do not always hammer the same endpoint. */
+let solanaFallbackRotateIdx = 0;
+/** Throttle Live Feed noise when RPC stays down (background poll is every 20s). */
+let balanceRpcFailureLogAt = 0;
+let balanceRpcFailureToastAt = 0;
 /** Set true only after a successful getBalance (IPFS often gets CORS/rate-limit failures). */
 let solBalanceFetchOk = false;
 let solBalance = 0;
@@ -1599,7 +1608,7 @@ function updateRpcBalanceHint() {
   el.style.display = 'block';
   el.innerHTML =
     '<strong>Wallet SOL not readable from this page</strong> (common on IPFS: browser RPC blocked). ' +
-    'Use <strong>Refresh balance</strong> or set <code>window.YABBAI_SOLANA_RPC</code> in mission-config.js (Helius/Alchemy). ' +
+    'Use <strong>Refresh balance</strong> or set <code>window.YABBAI_SOLANA_RPC</code> / <code>window.YABBAI_BALANCE_API</code> in mission-config.js (Helius/Alchemy or Worker). ' +
     '<strong>Deposit still works</strong> — your wallet shows the real balance when you sign.';
 }
 
@@ -1717,7 +1726,10 @@ function lamportsFromGetBalanceJson(d) {
 }
 
 async function fetchWalletBalance(opts) {
-  const isRetry = !!(opts && opts.isRetry);
+  opts = opts || {};
+  const isBackground = !!opts.isBackground;
+  const attempt = typeof opts._attempt === 'number' ? opts._attempt : 0;
+  const maxAttempt = isBackground ? 2 : 1;
   resolveLiveWalletAddress();
   const addrRaw = walletAddr ? String(walletAddr).trim() : '';
   if (!addrRaw) return;
@@ -1728,7 +1740,11 @@ async function fetchWalletBalance(opts) {
   } catch (e) {
     console.warn('[YABBAI][SOL] web3 load failed', e);
     solBalanceFetchOk = false;
-    addLog('Balance: could not load Solana library — try refresh', '#ffc200', 'RPC');
+    const now = Date.now();
+    if (!isBackground || now - balanceRpcFailureLogAt > 180000) {
+      balanceRpcFailureLogAt = now;
+      addLog('Balance: could not load Solana library — try refresh', '#ffc200', 'RPC');
+    }
     syncBalanceLabels();
     return;
   }
@@ -1903,17 +1919,41 @@ async function fetchWalletBalance(opts) {
     }
   }
 
-  if (!solBalanceFetchOk && !isRetry) {
-    addLog('Balance fetch retry in 1.1s (IPFS / public RPC)', '#ffc200', 'RPC');
+  if (!solBalanceFetchOk && attempt < maxAttempt) {
+    const waitMs = Math.round(550 * Math.pow(2, attempt));
+    if (!isBackground) {
+      console.warn('[YABBAI][SOL] balance poll retry after', waitMs, 'ms (attempt', attempt + 1, ')');
+    }
     syncBalanceLabels();
-    await new Promise((r) => setTimeout(r, 1100));
-    return await fetchWalletBalance({ isRetry: true });
+    await new Promise((r) => setTimeout(r, waitMs));
+    return await fetchWalletBalance({ ...opts, _attempt: attempt + 1 });
   }
 
   if (!solBalanceFetchOk) {
-    addLog('Balance fetch failed — set window.YABBAI_SOLANA_RPC in mission-config.js (private RPC)', '#ffc200', 'RPC');
+    solanaFallbackRotateIdx++;
+    const now = Date.now();
+    const LOG_GAP_MS = 3 * 60 * 1000;
+    const TOAST_GAP_MS = 90 * 1000;
+    if (now - balanceRpcFailureLogAt > LOG_GAP_MS) {
+      balanceRpcFailureLogAt = now;
+      const customRpc =
+        typeof window !== 'undefined' && String(window.YABBAI_SOLANA_RPC || '').trim();
+      const balApi =
+        typeof window !== 'undefined' && String(window.YABBAI_BALANCE_API || '').trim();
+      const msg =
+        customRpc || balApi
+          ? 'Balance fetch failed — check RPC connection in Live Engine Feed. Verify <code>window.YABBAI_SOLANA_RPC</code> / <code>YABBAI_BALANCE_API</code> in mission-config.js (HTTPS mainnet only). Deposit still works in Phantom.'
+          : 'Balance fetch failed — public Solana RPC is rate-limited or blocked (CORS) from this host. Set <code>window.YABBAI_SOLANA_RPC</code> (Helius, Alchemy, QuickNode…) or deploy <code>YABBAI_BALANCE_API</code> — see mission-config.js. Deposit still works in Phantom.';
+      addLog(msg, '#ffc200', 'RPC');
+    }
     syncBalanceLabels();
-    toast('Could not load SOL balance in-browser. You can still deposit — wallet shows real SOL. Set YABBAI_SOLANA_RPC for live chip.', 'warn');
+    if (!isBackground && now - balanceRpcFailureToastAt > TOAST_GAP_MS) {
+      balanceRpcFailureToastAt = now;
+      toast(
+        'Could not load SOL balance here — set YABBAI_SOLANA_RPC or YABBAI_BALANCE_API in mission-config.js. You can still deposit from Phantom.',
+        'warn'
+      );
+    }
   }
   } finally {
     try {
@@ -2926,9 +2966,13 @@ window.addEventListener('load', async () => {
   fetchTokenData();
   setInterval(fetchTokenData, 30000);
   setInterval(fetchSolPrice, 60000);
-  setInterval(() => { if (walletAddr) fetchWalletBalance(); }, 20000);
+  setInterval(() => {
+    if (walletAddr) fetchWalletBalance({ isBackground: true });
+  }, 20000);
   document.addEventListener('visibilitychange', () => {
-    if (document.visibilityState === 'visible' && walletAddr) fetchWalletBalance();
+    if (document.visibilityState === 'visible' && walletAddr) {
+      fetchWalletBalance({ isBackground: true });
+    }
   });
   setInterval(() => {
     if (!walletAddr) return;

@@ -48,11 +48,16 @@ window.YABBAI_SPL_WATCHLIST = '';
  * **Mainnet only** (Solana mainnet-beta). Must be `https://` and must not be devnet/testnet/local —
  * the app ignores non-mainnet URLs so a wallet switched to devnet cannot poison balance/deposit RPC.
  *
- * If unset, the page tries `https://api.mainnet-beta.solana.com` first, then public mainnet mirrors
- * (browser/IPFS often hits rate limits — chip may show "—" until you set a private RPC).
+ * If unset, the page cycles public mainnet mirrors (PublicNode, Ankr, dRPC, …). Official
+ * `https://api.mainnet-beta.solana.com` is often **rate-limited** from browsers and static/IPFS hosts;
+ * responses may be blocked by CORS from some gateways — that is why the Live Engine may log
+ * intermittent "Balance fetch failed" until you set a dedicated endpoint below.
  *
- * Helius (example — use your key): `https://mainnet.helius-rpc.com/?api-key=YOUR_KEY`
- * Alchemy / QuickNode: use their Solana **mainnet** HTTPS endpoint from the dashboard.
+ * **Reliable balance (pick one):**
+ * - Helius (example): `https://mainnet.helius-rpc.com/?api-key=YOUR_KEY`
+ * - Alchemy / QuickNode: Solana **mainnet** HTTPS URL from the provider dashboard.
+ *
+ * Same variable is used for `Connection` in balance, SPL reads, and SOL deposits (`yabbai/index.html`).
  */
 window.YABBAI_SOLANA_RPC = '';
 
