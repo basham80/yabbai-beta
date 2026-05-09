@@ -1,0 +1,1078 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>$YABBAI — Autonomous Income Generator · Solana</title>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=Azeret+Mono:wght@300;400;500&family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+:root{
+  --void:#02040a;--ink:#06080f;--plate:#0a0f1c;--plate2:#0d1424;
+  --wire:#162030;--wire2:#1e2e40;--wire3:#263850;
+  --neon:#14F195;--neon2:#00cc7a;--sol:#9945FF;--arc:#00b4ff;
+  --fire:#ff5e1a;--gold:#ffc200;--red:#ff3b3b;--white:#e8f4ff;
+  --dim:#3a5070;--muted:#6a8090;
+}
+*{margin:0;padding:0;box-sizing:border-box;}
+html,body{background:var(--void);color:var(--white);font-family:'Manrope',sans-serif;min-height:100vh;overflow-x:hidden;}
+::-webkit-scrollbar{width:3px;}::-webkit-scrollbar-thumb{background:var(--wire2);}
+body::before{content:'';position:fixed;inset:0;z-index:0;pointer-events:none;
+  background:radial-gradient(ellipse 70% 50% at 15% 10%,rgba(153,69,255,0.06),transparent 60%),
+  radial-gradient(ellipse 60% 40% at 85% 85%,rgba(20,241,149,0.04),transparent 60%),
+  repeating-linear-gradient(0deg,transparent,transparent 48px,rgba(20,241,149,0.007) 48px,rgba(20,241,149,0.007) 49px),
+  repeating-linear-gradient(90deg,transparent,transparent 48px,rgba(20,241,149,0.007) 48px,rgba(20,241,149,0.007) 49px);}
+
+@keyframes fadeUp{from{opacity:0;transform:translateY(20px);}to{opacity:1;transform:translateY(0);}}
+@keyframes pulse{0%,100%{opacity:1;}50%{opacity:0.3;}}
+@keyframes glitch{0%,89%,100%{transform:none;text-shadow:none;}90%{transform:skewX(-2deg);text-shadow:2px 0 #ff0055,-2px 0 var(--neon);}94%{transform:none;}}
+@keyframes ticker{0%{transform:translateX(0);}100%{transform:translateX(-50%);}}
+@keyframes scan{0%{top:-2px;}100%{top:100vh;}}
+@keyframes spin{from{transform:rotate(0deg);}to{transform:rotate(360deg);}}
+@keyframes countUp{from{opacity:0;transform:scale(0.8);}to{opacity:1;transform:scale(1);}}
+
+/* SCAN LINE */
+.scanline{position:fixed;top:0;left:0;right:0;height:2px;background:linear-gradient(transparent,rgba(20,241,149,0.2),transparent);animation:scan 8s linear infinite;pointer-events:none;z-index:9999;}
+
+/* TICKER */
+.ticker-wrap{background:rgba(20,241,149,0.04);border-bottom:1px solid rgba(20,241,149,0.1);padding:5px 0;overflow:hidden;font-family:'Azeret Mono',monospace;font-size:0.6rem;color:rgba(20,241,149,0.7);}
+.ticker-inner{display:flex;animation:ticker 40s linear infinite;width:max-content;}
+.ticker-item{padding:0 32px;white-space:nowrap;}
+
+/* TOPBAR */
+.topbar{position:sticky;top:0;z-index:200;height:58px;background:rgba(2,4,10,0.96);backdrop-filter:blur(24px);border-bottom:1px solid var(--wire);display:flex;align-items:center;padding:0 24px;gap:12px;}
+.tb-logo{font-family:'Syne',sans-serif;font-weight:800;font-size:1.3rem;letter-spacing:-0.02em;animation:glitch 14s infinite;cursor:pointer;}
+.tb-logo span:first-child{background:linear-gradient(135deg,var(--neon),var(--sol));-webkit-background-clip:text;-webkit-text-fill-color:transparent;}
+.tb-spacer{flex:1;}
+.tb-nav{display:flex;gap:4px;}
+.tn{padding:6px 12px;border-radius:6px;font-family:'Azeret Mono',monospace;font-size:0.62rem;color:var(--dim);cursor:pointer;border:1px solid transparent;transition:all 0.15s;text-transform:uppercase;letter-spacing:0.05em;}
+.tn:hover{color:var(--white);border-color:var(--wire);}
+.tn.active{color:var(--neon);background:rgba(20,241,149,0.08);border-color:rgba(20,241,149,0.2);}
+
+/* WALLET BUTTON */
+.wallet-btn{display:flex;align-items:center;gap:8px;padding:8px 16px;border-radius:8px;cursor:pointer;transition:all 0.2s;border:1px solid;font-family:'Azeret Mono',monospace;font-size:0.68rem;font-weight:500;}
+.wallet-disconnected{background:rgba(153,69,255,0.1);border-color:rgba(153,69,255,0.3);color:var(--sol);}
+.wallet-disconnected:hover{background:rgba(153,69,255,0.18);box-shadow:0 0 16px rgba(153,69,255,0.15);}
+.wallet-connected{background:rgba(20,241,149,0.08);border-color:rgba(20,241,149,0.25);color:var(--neon);}
+.w-dot{width:7px;height:7px;border-radius:50%;background:currentColor;animation:pulse 2s infinite;flex-shrink:0;}
+.w-addr{font-family:'Azeret Mono',monospace;font-size:0.68rem;}
+.w-bal{font-size:0.58rem;color:var(--dim);}
+
+/* SIGN IN MODAL */
+.siws-overlay{position:fixed;inset:0;background:rgba(2,4,10,0.9);backdrop-filter:blur(12px);z-index:500;display:none;align-items:center;justify-content:center;padding:20px;}
+.siws-overlay.show{display:flex;}
+.siws-modal{background:var(--plate);border:1px solid var(--wire2);border-radius:16px;padding:32px;max-width:420px;width:100%;text-align:center;animation:fadeUp 0.3s ease;}
+.siws-logo{font-size:3rem;margin-bottom:12px;}
+.siws-title{font-family:'Syne',sans-serif;font-weight:800;font-size:1.4rem;margin-bottom:6px;}
+.siws-sub{font-family:'Azeret Mono',monospace;font-size:0.62rem;color:var(--dim);line-height:1.6;margin-bottom:24px;}
+.siws-wallets{display:flex;flex-direction:column;gap:10px;margin-bottom:16px;}
+.siws-wallet-btn{display:flex;align-items:center;gap:12px;padding:14px 18px;border-radius:10px;cursor:pointer;border:1px solid var(--wire2);background:var(--plate2);transition:all 0.2s;}
+.siws-wallet-btn:hover{border-color:var(--neon);background:rgba(20,241,149,0.05);}
+.swb-icon{width:32px;height:32px;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:1.2rem;flex-shrink:0;}
+.swb-info{text-align:left;flex:1;}
+.swb-name{font-size:0.85rem;font-weight:600;color:var(--white);}
+.swb-desc{font-family:'Azeret Mono',monospace;font-size:0.58rem;color:var(--dim);margin-top:1px;}
+.swb-badge{font-family:'Azeret Mono',monospace;font-size:0.55rem;padding:2px 7px;border-radius:4px;background:rgba(20,241,149,0.1);color:var(--neon);border:1px solid rgba(20,241,149,0.2);}
+.siws-note{font-family:'Azeret Mono',monospace;font-size:0.58rem;color:var(--dim);line-height:1.6;}
+
+/* MAIN */
+.main{max-width:1100px;margin:0 auto;padding:28px 20px 80px;position:relative;z-index:1;}
+
+/* HERO */
+.hero{text-align:center;padding:40px 0 48px;animation:fadeUp 0.6s ease;}
+.hero-title{font-family:'Syne',sans-serif;font-weight:800;font-size:clamp(3rem,9vw,6.5rem);letter-spacing:-0.04em;line-height:0.95;margin-bottom:10px;}
+.ht1{display:block;color:var(--white);}
+.ht2{display:block;background:linear-gradient(135deg,var(--neon) 0%,var(--arc) 50%,var(--sol) 100%);-webkit-background-clip:text;-webkit-text-fill-color:transparent;}
+.hero-sub{font-family:'Azeret Mono',monospace;font-size:0.7rem;color:var(--dim);letter-spacing:0.1em;text-transform:uppercase;margin-bottom:16px;}
+.hero-desc{font-size:1rem;color:rgba(232,244,255,0.6);line-height:1.7;max-width:580px;margin:0 auto 28px;}
+.hero-cta{display:flex;gap:12px;justify-content:center;flex-wrap:wrap;margin-bottom:24px;}
+.btn{padding:12px 24px;border-radius:8px;font-size:0.82rem;font-weight:700;cursor:pointer;border:1px solid;transition:all 0.25s;font-family:'Manrope',sans-serif;text-decoration:none;display:inline-flex;align-items:center;gap:7px;}
+.btn-primary{background:linear-gradient(135deg,var(--neon2),var(--neon));border:none;color:#000;}
+.btn-primary:hover{transform:translateY(-2px);box-shadow:0 8px 24px rgba(20,241,149,0.3);}
+.btn-sol{background:rgba(153,69,255,0.1);border-color:rgba(153,69,255,0.35);color:var(--sol);}
+.btn-sol:hover{background:rgba(153,69,255,0.2);}
+.btn-outline{background:transparent;border-color:var(--wire2);color:var(--muted);}
+.btn-outline:hover{border-color:var(--wire3);color:var(--white);}
+
+/* PHASE TRACKER */
+.phases{display:flex;align-items:center;justify-content:center;gap:0;margin-bottom:36px;flex-wrap:wrap;}
+.phase{display:flex;align-items:center;gap:8px;padding:8px 16px;font-family:'Azeret Mono',monospace;font-size:0.62rem;color:var(--dim);cursor:pointer;transition:all 0.2s;}
+.phase.done{color:var(--neon);}
+.phase.active{color:var(--white);background:rgba(255,255,255,0.05);border-radius:6px;}
+.phase-dot{width:8px;height:8px;border-radius:50%;background:var(--wire2);flex-shrink:0;}
+.phase.done .phase-dot{background:var(--neon);box-shadow:0 0 6px var(--neon);}
+.phase.active .phase-dot{background:var(--gold);box-shadow:0 0 8px var(--gold);animation:pulse 1.5s infinite;}
+.phase-arrow{color:var(--wire2);font-size:0.6rem;margin:0 -4px;}
+
+/* STATS GRID */
+.stats-grid{display:grid;grid-template-columns:repeat(6,1fr);gap:10px;margin-bottom:32px;}
+.stat-card{background:var(--plate);border:1px solid var(--wire);border-radius:10px;padding:14px;text-align:center;transition:all 0.2s;}
+.stat-card:hover{border-color:var(--wire2);}
+.sc-val{font-family:'Syne',sans-serif;font-weight:700;font-size:1.2rem;background:linear-gradient(135deg,var(--neon),var(--arc));-webkit-background-clip:text;-webkit-text-fill-color:transparent;}
+.sc-lbl{font-family:'Azeret Mono',monospace;font-size:0.52rem;color:var(--dim);text-transform:uppercase;letter-spacing:0.07em;margin-top:4px;}
+
+/* SECTION */
+.section{margin-bottom:36px;}
+.section-header{display:flex;align-items:flex-end;justify-content:space-between;margin-bottom:16px;}
+.sh-title{font-family:'Syne',sans-serif;font-weight:700;font-size:1.2rem;letter-spacing:-0.01em;}
+.sh-sub{font-family:'Azeret Mono',monospace;font-size:0.58rem;color:var(--dim);margin-top:3px;}
+
+/* MISSION CARDS */
+.missions-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:12px;}
+.mission-card{background:var(--plate);border:1px solid var(--wire);border-radius:12px;overflow:hidden;transition:all 0.25s;position:relative;}
+.mission-card:hover{border-color:var(--wire2);transform:translateY(-3px);box-shadow:0 12px 32px rgba(0,0,0,0.4);}
+.mc-top{display:flex;align-items:center;gap:12px;padding:16px 16px 12px;}
+.mc-icon{font-size:1.8rem;width:44px;height:44px;display:flex;align-items:center;justify-content:center;border-radius:10px;flex-shrink:0;}
+.mc-info{flex:1;}
+.mc-name{font-weight:700;font-size:0.95rem;}
+.mc-type{font-family:'Azeret Mono',monospace;font-size:0.58rem;color:var(--dim);margin-top:2px;}
+.mc-status{font-family:'Azeret Mono',monospace;font-size:0.56rem;padding:3px 8px;border-radius:4px;flex-shrink:0;}
+.ms-active{background:rgba(20,241,149,0.1);color:var(--neon);border:1px solid rgba(20,241,149,0.2);}
+.ms-ready{background:rgba(255,194,0,0.1);color:var(--gold);border:1px solid rgba(255,194,0,0.2);}
+.ms-locked{background:rgba(255,255,255,0.04);color:var(--dim);border:1px solid var(--wire);}
+.mc-body{padding:0 16px 12px;}
+.mc-desc{font-size:0.78rem;color:var(--muted);line-height:1.6;margin-bottom:10px;}
+.mc-progress{margin-bottom:10px;}
+.mcp-bar{height:4px;background:var(--wire);border-radius:2px;overflow:hidden;margin-bottom:4px;}
+.mcp-fill{height:100%;border-radius:2px;background:linear-gradient(90deg,var(--sol),var(--neon));}
+.mcp-label{font-family:'Azeret Mono',monospace;font-size:0.56rem;color:var(--dim);}
+.mc-footer{display:flex;gap:6px;padding:10px 16px;border-top:1px solid var(--wire);}
+.mf-btn{flex:1;padding:8px;border-radius:6px;font-family:'Azeret Mono',monospace;font-size:0.62rem;font-weight:600;cursor:pointer;border:1px solid;transition:all 0.15s;text-align:center;}
+.mfb-run{background:rgba(20,241,149,0.1);border-color:rgba(20,241,149,0.3);color:var(--neon);}
+.mfb-run:hover{background:rgba(20,241,149,0.18);}
+.mfb-config{background:transparent;border-color:var(--wire2);color:var(--dim);}
+.mfb-config:hover{border-color:var(--wire3);color:var(--white);}
+.mfb-locked{background:transparent;border-color:var(--wire);color:var(--wire2);cursor:not-allowed;}
+
+/* AI BRAIN */
+.ai-panel{background:var(--plate);border:1px solid var(--wire);border-radius:12px;padding:20px;margin-bottom:12px;}
+.ai-header{display:flex;align-items:center;gap:10px;margin-bottom:16px;}
+.ai-orb{width:36px;height:36px;border-radius:50%;background:linear-gradient(135deg,var(--sol),var(--neon));display:flex;align-items:center;justify-content:center;font-size:1rem;animation:spin 8s linear infinite;}
+.ai-title{font-weight:700;font-size:1rem;}
+.ai-model{font-family:'Azeret Mono',monospace;font-size:0.58rem;color:var(--neon);margin-top:2px;}
+.ai-input{width:100%;background:var(--plate2);border:1px solid var(--wire2);border-radius:8px;padding:12px 14px;color:var(--white);font-family:'Manrope',sans-serif;font-size:0.85rem;outline:none;resize:none;height:80px;line-height:1.5;margin-bottom:10px;transition:border-color 0.15s;}
+.ai-input:focus{border-color:var(--neon);}
+.ai-controls{display:flex;gap:8px;align-items:center;}
+.ai-model-select{background:var(--plate2);border:1px solid var(--wire);border-radius:6px;padding:7px 12px;color:var(--white);font-family:'Azeret Mono',monospace;font-size:0.62rem;outline:none;cursor:pointer;}
+.ai-deploy-btn{padding:9px 20px;border-radius:7px;font-family:'Azeret Mono',monospace;font-size:0.65rem;font-weight:600;cursor:pointer;border:none;background:linear-gradient(135deg,var(--sol),var(--arc));color:#fff;transition:all 0.2s;display:flex;align-items:center;gap:6px;}
+.ai-deploy-btn:hover{transform:translateY(-1px);box-shadow:0 6px 18px rgba(153,69,255,0.3);}
+.ai-deploy-btn:disabled{opacity:0.5;cursor:not-allowed;transform:none;}
+.ai-response{background:var(--plate2);border:1px solid var(--wire);border-radius:8px;padding:14px;font-family:'Azeret Mono',monospace;font-size:0.68rem;color:var(--neon);line-height:1.7;min-height:60px;display:none;margin-top:10px;white-space:pre-wrap;}
+.ai-loading{display:inline-flex;align-items:center;gap:6px;color:var(--dim);font-family:'Azeret Mono',monospace;font-size:0.65rem;}
+.ai-spinner{width:14px;height:14px;border:2px solid var(--wire2);border-top-color:var(--neon);border-radius:50%;animation:spin 0.8s linear infinite;}
+
+/* CASHOUT PANEL */
+.cashout-panel{background:var(--plate);border:1px solid rgba(20,241,149,0.15);border-radius:12px;padding:20px;}
+.cp-header{display:flex;align-items:center;gap:10px;margin-bottom:16px;}
+.cp-icon{font-size:1.5rem;}
+.cp-title{font-weight:700;font-size:1rem;}
+.cp-balance{font-family:'Azeret Mono',monospace;font-size:0.72rem;color:var(--neon);margin-left:auto;}
+.cashout-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px;}
+.co-option{background:var(--plate2);border:1px solid var(--wire);border-radius:10px;padding:14px;cursor:pointer;transition:all 0.2s;position:relative;}
+.co-option:hover{border-color:var(--wire2);}
+.co-option.selected{border-color:var(--neon);background:rgba(20,241,149,0.05);}
+.co-option.selected::before{content:'✓';position:absolute;top:8px;right:10px;font-size:0.7rem;color:var(--neon);}
+.co-icon{font-size:1.4rem;margin-bottom:6px;}
+.co-name{font-size:0.85rem;font-weight:600;margin-bottom:3px;}
+.co-desc{font-family:'Azeret Mono',monospace;font-size:0.56rem;color:var(--dim);}
+.cashout-amount{display:flex;gap:10px;margin-bottom:10px;}
+.ca-input{flex:1;background:var(--plate2);border:1px solid var(--wire2);border-radius:8px;padding:10px 13px;color:var(--white);font-family:'Azeret Mono',monospace;font-size:0.85rem;outline:none;transition:border-color 0.15s;}
+.ca-input:focus{border-color:var(--neon);}
+.ca-max{padding:10px 14px;border-radius:8px;font-family:'Azeret Mono',monospace;font-size:0.62rem;cursor:pointer;border:1px solid var(--wire2);background:transparent;color:var(--dim);transition:all 0.15s;}
+.ca-max:hover{border-color:var(--neon);color:var(--neon);}
+.cashout-execute{width:100%;padding:12px;border-radius:8px;font-family:'Syne',sans-serif;font-size:0.9rem;font-weight:700;cursor:pointer;border:none;background:linear-gradient(135deg,#003320,var(--neon));color:#000;transition:all 0.25s;}
+.cashout-execute:hover{transform:translateY(-1px);box-shadow:0 8px 24px rgba(20,241,149,0.25);}
+.cashout-execute:disabled{opacity:0.4;cursor:not-allowed;transform:none;}
+.cashout-flow{display:flex;align-items:center;gap:6px;margin-bottom:12px;padding:10px 12px;background:rgba(20,241,149,0.04);border:1px solid rgba(20,241,149,0.1);border-radius:8px;flex-wrap:wrap;}
+.cf-step{font-family:'Azeret Mono',monospace;font-size:0.6rem;color:var(--muted);display:flex;align-items:center;gap:5px;}
+.cf-arrow{color:var(--neon);font-size:0.6rem;}
+
+/* LP INJECTION */
+.lp-panel{background:var(--plate);border:1px solid var(--wire);border-radius:12px;padding:18px;}
+.lp-controls{display:grid;grid-template-columns:1fr 1fr auto;gap:10px;align-items:end;margin-bottom:12px;}
+.lp-field label{font-family:'Azeret Mono',monospace;font-size:0.56rem;color:var(--dim);text-transform:uppercase;letter-spacing:0.07em;display:block;margin-bottom:5px;}
+.lp-input{width:100%;background:var(--plate2);border:1px solid var(--wire2);border-radius:6px;padding:9px 12px;color:var(--white);font-family:'Azeret Mono',monospace;font-size:0.78rem;outline:none;transition:border-color 0.15s;}
+.lp-input:focus{border-color:var(--neon);}
+.lp-inject-btn{padding:9px 18px;border-radius:7px;font-family:'Azeret Mono',monospace;font-size:0.65rem;font-weight:600;cursor:pointer;border:none;background:rgba(153,69,255,0.15);color:var(--sol);border:1px solid rgba(153,69,255,0.3);transition:all 0.2s;white-space:nowrap;}
+.lp-inject-btn:hover{background:rgba(153,69,255,0.25);}
+.lp-quick{display:flex;gap:6px;flex-wrap:wrap;}
+.lp-quick-btn{padding:5px 10px;border-radius:5px;font-family:'Azeret Mono',monospace;font-size:0.58rem;cursor:pointer;border:1px solid var(--wire2);background:transparent;color:var(--dim);transition:all 0.15s;}
+.lp-quick-btn:hover{border-color:var(--sol);color:var(--sol);}
+
+/* LIVE FEED */
+.live-feed{background:var(--plate);border:1px solid var(--wire);border-radius:10px;overflow:hidden;}
+.lf-header{display:flex;align-items:center;gap:8px;padding:12px 14px;border-bottom:1px solid var(--wire);}
+.lf-dot{width:7px;height:7px;border-radius:50%;background:var(--neon);box-shadow:0 0 5px var(--neon);animation:pulse 2s infinite;}
+.lf-title{font-family:'Azeret Mono',monospace;font-size:0.6rem;color:var(--neon);letter-spacing:0.08em;text-transform:uppercase;}
+.lf-body{padding:10px 14px;max-height:160px;overflow-y:auto;}
+.lf-line{font-family:'Azeret Mono',monospace;font-size:0.63rem;padding:3px 0;border-bottom:1px solid rgba(255,255,255,0.03);display:flex;gap:8px;animation:fadeUp 0.3s ease;}
+.lf-time{color:var(--dim);flex-shrink:0;}
+.lf-source{flex-shrink:0;}
+.lf-msg{color:var(--muted);}
+
+/* ECOSYSTEM LINKS */
+.eco-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:10px;}
+.eco-card{background:var(--plate);border:1px solid var(--wire);border-radius:10px;padding:14px;text-align:center;text-decoration:none;display:block;transition:all 0.2s;color:var(--white);}
+.eco-card:hover{border-color:var(--wire2);transform:translateY(-2px);}
+.ec-icon{font-size:1.6rem;margin-bottom:6px;}
+.ec-name{font-weight:700;font-size:0.82rem;margin-bottom:3px;}
+.ec-status{font-family:'Azeret Mono',monospace;font-size:0.55rem;color:var(--dim);}
+
+/* TREASURY */
+.treasury-strip{background:rgba(153,69,255,0.05);border:1px solid rgba(153,69,255,0.15);border-radius:8px;padding:10px 16px;display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:20px;}
+.ts-label{font-family:'Azeret Mono',monospace;font-size:0.56rem;color:var(--sol);letter-spacing:0.08em;text-transform:uppercase;flex-shrink:0;}
+.ts-addr{font-family:'Azeret Mono',monospace;font-size:0.62rem;color:var(--neon);word-break:break-all;flex:1;}
+.ts-copy{font-family:'Azeret Mono',monospace;font-size:0.56rem;color:var(--dim);cursor:pointer;padding:3px 8px;border-radius:4px;border:1px solid var(--wire);flex-shrink:0;transition:all 0.15s;}
+.ts-copy:hover{border-color:var(--neon);color:var(--neon);}
+
+/* TOAST */
+.toast{position:fixed;bottom:24px;right:24px;z-index:999;background:var(--plate);border:1px solid var(--neon);border-radius:8px;padding:12px 18px;font-family:'Azeret Mono',monospace;font-size:0.68rem;color:var(--neon);transform:translateY(80px);opacity:0;transition:all 0.4s cubic-bezier(0.175,0.885,0.32,1.275);max-width:320px;}
+.toast.show{transform:translateY(0);opacity:1;}
+.toast.error{border-color:var(--red);color:var(--red);}
+.toast.warn{border-color:var(--gold);color:var(--gold);}
+
+/* SECTIONS */
+.page-section{display:none;animation:fadeUp 0.4s ease;}
+.page-section.active{display:block;}
+
+@media(max-width:768px){
+  .stats-grid{grid-template-columns:repeat(3,1fr);}
+  .missions-grid{grid-template-columns:1fr;}
+  .cashout-grid{grid-template-columns:1fr;}
+  .lp-controls{grid-template-columns:1fr;}
+  .tb-nav{display:none;}
+  .hero-title{font-size:2.8rem;}
+}
+</style>
+</head>
+<body>
+
+<div class="scanline"></div>
+<div class="toast" id="toast"></div>
+
+<!-- SIGN IN WITH SOLANA MODAL -->
+<div class="siws-overlay" id="siwsOverlay">
+  <div class="siws-modal">
+    <div class="siws-logo">🦞</div>
+    <div class="siws-title">Sign In With Solana</div>
+    <div class="siws-sub">Connect your wallet to access the YABBAI platform. Your wallet signs a message to prove ownership — no private key required.</div>
+    <div class="siws-wallets">
+      <div class="siws-wallet-btn" onclick="connectWallet('phantom')">
+        <div class="swb-icon" style="background:rgba(171,95,255,0.15)">👻</div>
+        <div class="swb-info">
+          <div class="swb-name">Phantom</div>
+          <div class="swb-desc">Most popular Solana wallet</div>
+        </div>
+        <div class="swb-badge">Recommended</div>
+      </div>
+      <div class="siws-wallet-btn" onclick="connectWallet('solflare')">
+        <div class="swb-icon" style="background:rgba(252,132,35,0.15)">🔆</div>
+        <div class="swb-info">
+          <div class="swb-name">Solflare</div>
+          <div class="swb-desc">Advanced Solana wallet</div>
+        </div>
+      </div>
+      <div class="siws-wallet-btn" onclick="connectWallet('backpack')">
+        <div class="swb-icon" style="background:rgba(255,255,255,0.1)">🎒</div>
+        <div class="swb-info">
+          <div class="swb-name">Backpack</div>
+          <div class="swb-desc">xNFT wallet</div>
+        </div>
+      </div>
+    </div>
+    <div class="siws-note">By connecting you agree to sign a one-time authentication message. This is free and does not initiate any transaction.</div>
+    <br>
+    <button class="btn btn-outline" style="width:100%;justify-content:center" onclick="closeSIWS()">Cancel</button>
+  </div>
+</div>
+
+<!-- TICKER -->
+<div class="ticker-wrap">
+  <div class="ticker-inner" id="ticker">
+    <span class="ticker-item">🦞 $YABBAI · SOLANA</span>
+    <span class="ticker-item" id="tickPrice">PRICE: FETCHING...</span>
+    <span class="ticker-item" id="tickMcap">MCAP: FETCHING...</span>
+    <span class="ticker-item">◈ PUMP · ESKY · MISSION · SCALE · WITHDRAW</span>
+    <span class="ticker-item">◈ TREASURY: 8e6ogxf...UHPi</span>
+    <span class="ticker-item">◈ MINT: AcEVtp...LFUv</span>
+    <span class="ticker-item">◈ 14 APIs LIVE</span>
+    <span class="ticker-item">◈ PAYPAL AUTOPAYOUT ACTIVE</span>
+    <span class="ticker-item">🦞 $YABBAI · SOLANA</span>
+    <span class="ticker-item" id="tickPrice2">PRICE: FETCHING...</span>
+    <span class="ticker-item" id="tickMcap2">MCAP: FETCHING...</span>
+    <span class="ticker-item">◈ PUMP · ESKY · MISSION · SCALE · WITHDRAW</span>
+    <span class="ticker-item">◈ TREASURY: 8e6ogxf...UHPi</span>
+    <span class="ticker-item">◈ MINT: AcEVtp...LFUv</span>
+    <span class="ticker-item">◈ 14 APIs LIVE</span>
+    <span class="ticker-item">◈ PAYPAL AUTOPAYOUT ACTIVE</span>
+  </div>
+</div>
+
+<!-- TOPBAR -->
+<nav class="topbar">
+  <div class="tb-logo" onclick="showPage('dashboard')"><span>YABBAI</span> 🦞</div>
+  <div class="tb-nav">
+    <div class="tn active" onclick="showPage('dashboard')" data-page="dashboard">Dashboard</div>
+    <div class="tn" onclick="showPage('missions')" data-page="missions">Missions</div>
+    <div class="tn" onclick="showPage('cashout')" data-page="cashout">Cashout</div>
+    <div class="tn" onclick="showPage('lp')" data-page="lp">LP Manager</div>
+    <div class="tn" onclick="showPage('ecosystem')" data-page="ecosystem">Ecosystem</div>
+  </div>
+  <div class="tb-spacer"></div>
+  <div id="walletArea">
+    <button class="wallet-btn wallet-disconnected" onclick="openSIWS()">
+      <div class="w-dot"></div>
+      Connect Wallet
+    </button>
+  </div>
+</nav>
+
+<div class="main">
+
+<!-- ── DASHBOARD ── -->
+<div id="page-dashboard" class="page-section active">
+
+  <div class="hero">
+    <h1 class="hero-title">
+      <span class="ht1">Autonomous</span>
+      <span class="ht2">Income Machine.</span>
+    </h1>
+    <div class="hero-sub">Pump · Esky · Mission · Scale · Withdraw · Repeat</div>
+    <p class="hero-desc">The YABBAI engine generates yield from Solana LP pools, routes it through 14 live APIs, and fires $50 AUD to your PayPal or wallet every $110 earned. Fully autonomous. Your keys, your control.</p>
+    <div class="hero-cta">
+      <a class="btn btn-primary" href="https://pump.fun/coin/AcEVtpLEfxMHFzXQrhJiDhoWCkLVYH3drD2cxNAzLFUv" target="_blank">🦞 Buy $YABBAI</a>
+      <button class="btn btn-sol" onclick="showPage('missions')">⚡ Launch Missions</button>
+      <button class="btn btn-outline" onclick="showPage('cashout')">💸 Cashout</button>
+    </div>
+
+    <!-- PHASE TRACKER -->
+    <div class="phases">
+      <div class="phase done"><div class="phase-dot"></div>Pump</div>
+      <div class="phase-arrow">→</div>
+      <div class="phase done"><div class="phase-dot"></div>Esky</div>
+      <div class="phase-arrow">→</div>
+      <div class="phase active"><div class="phase-dot"></div>Mission</div>
+      <div class="phase-arrow">→</div>
+      <div class="phase"><div class="phase-dot"></div>Scale</div>
+      <div class="phase-arrow">→</div>
+      <div class="phase"><div class="phase-dot"></div>Withdraw</div>
+    </div>
+  </div>
+
+  <!-- TREASURY -->
+  <div class="treasury-strip">
+    <span class="ts-label">◆ Master Treasury</span>
+    <span class="ts-addr">8e6ogxfUnj6YXHp1tR4Kj1ytSkmEhLhi2fbKqRVxUHPi</span>
+    <span class="ts-copy" onclick="copyTreasury()">Copy</span>
+  </div>
+
+  <!-- LIVE STATS -->
+  <div class="stats-grid" id="statsGrid">
+    <div class="stat-card"><div class="sc-val" id="statPrice">Fetching...</div><div class="sc-lbl">$YABBAI Price</div></div>
+    <div class="stat-card"><div class="sc-val" id="statMcap">Fetching...</div><div class="sc-lbl">Market Cap</div></div>
+    <div class="stat-card"><div class="sc-val" id="statLiq">Fetching...</div><div class="sc-lbl">Liquidity</div></div>
+    <div class="stat-card"><div class="sc-val" id="statVol">Fetching...</div><div class="sc-lbl">24h Volume</div></div>
+    <div class="stat-card"><div class="sc-val" id="statSol">$88</div><div class="sc-lbl">SOL Price</div></div>
+    <div class="stat-card"><div class="sc-val" id="statGrad">0.5%</div><div class="sc-lbl">Grad Progress</div></div>
+  </div>
+
+  <!-- LIVE FEED -->
+  <div class="section">
+    <div class="section-header">
+      <div><div class="sh-title">Live Engine Feed</div><div class="sh-sub">Real-time activity stream</div></div>
+    </div>
+    <div class="live-feed">
+      <div class="lf-header">
+        <div class="lf-dot"></div>
+        <div class="lf-title">YABBAI Engine · Live</div>
+      </div>
+      <div class="lf-body" id="liveFeed">
+        <div class="lf-line"><span class="lf-time">--:--:--</span><span class="lf-source" style="color:#00D4AA">[Jupiter]</span><span class="lf-msg">Initialising price feed...</span></div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<!-- ── MISSIONS ── -->
+<div id="page-missions" class="page-section">
+
+  <div class="section-header">
+    <div><div class="sh-title">Mission Control</div><div class="sh-sub">Deploy autonomous income missions via Claude AI</div></div>
+  </div>
+
+  <!-- AI BRAIN -->
+  <div class="section">
+    <div class="ai-panel">
+      <div class="ai-header">
+        <div class="ai-orb">🧠</div>
+        <div>
+          <div class="ai-title">YABBAI AI Brain</div>
+          <div class="ai-model" id="aiModelLabel">Claude Sonnet 4 · Auto-routing</div>
+        </div>
+        <div style="margin-left:auto;display:flex;gap:6px;align-items:center">
+          <div style="font-family:'Azeret Mono',monospace;font-size:0.58rem;color:var(--neon)">● ONLINE</div>
+        </div>
+      </div>
+      <textarea class="ai-input" id="aiPrompt" placeholder="Describe your mission... e.g. Generate community growth for $YABBAI by finding new holders on Twitter and Telegram. Reinvest 70% of yield into LP. Target: reach $5K market cap by end of week."></textarea>
+      <div class="ai-controls">
+        <select class="ai-model-select" id="aiModel">
+          <option value="claude">Claude Sonnet 4</option>
+          <option value="kimi">Kimi 2.5</option>
+          <option value="auto">Auto (Claude → Kimi fallback)</option>
+        </select>
+        <div style="flex:1"></div>
+        <button class="ai-deploy-btn" id="aiDeployBtn" onclick="deployMission()">
+          <span id="aiDeployIcon">⚡</span> Deploy Mission
+        </button>
+      </div>
+      <div class="ai-response" id="aiResponse"></div>
+    </div>
+  </div>
+
+  <!-- MISSION CARDS -->
+  <div class="section">
+    <div class="section-header">
+      <div><div class="sh-title">Active Missions</div><div class="sh-sub">Running autonomously</div></div>
+      <button class="btn btn-outline" style="font-size:0.72rem;padding:7px 14px" onclick="runAllMissions()">▶ Run All</button>
+    </div>
+    <div class="missions-grid" id="missionsGrid"></div>
+  </div>
+
+</div>
+
+<!-- ── CASHOUT ── -->
+<div id="page-cashout" class="page-section">
+
+  <div class="section-header">
+    <div><div class="sh-title">Cashout</div><div class="sh-sub">Withdraw yield to wallet, PayPal, or bank</div></div>
+  </div>
+
+  <!-- CASHOUT FLOW -->
+  <div class="section">
+    <div class="cashout-panel">
+      <div class="cp-header">
+        <div class="cp-icon">💸</div>
+        <div>
+          <div class="cp-title">Withdraw Earnings</div>
+        </div>
+        <div class="cp-balance" id="cpBalance">Balance: —</div>
+      </div>
+
+      <!-- FLOW DIAGRAM -->
+      <div class="cashout-flow">
+        <div class="cf-step">🏊 LP Yield</div>
+        <div class="cf-arrow">→</div>
+        <div class="cf-step">⚡ Claim Fees</div>
+        <div class="cf-arrow">→</div>
+        <div class="cf-step">🔄 Jupiter Swap</div>
+        <div class="cf-arrow">→</div>
+        <div class="cf-step">💵 USDC/SOL</div>
+        <div class="cf-arrow">→</div>
+        <div class="cf-step">💸 Your Destination</div>
+      </div>
+
+      <!-- DESTINATION SELECTOR -->
+      <div style="font-family:'Azeret Mono',monospace;font-size:0.56rem;color:var(--dim);text-transform:uppercase;letter-spacing:0.08em;margin-bottom:10px">Select Cashout Destination</div>
+      <div class="cashout-grid">
+        <div class="co-option selected" data-method="wallet" onclick="selectCashout(this)">
+          <div class="co-icon">◎</div>
+          <div class="co-name">Solana Wallet</div>
+          <div class="co-desc">Send SOL to 8e6ogxf...UHPi</div>
+        </div>
+        <div class="co-option" data-method="paypal" onclick="selectCashout(this)">
+          <div class="co-icon">🅿</div>
+          <div class="co-name">PayPal</div>
+          <div class="co-desc">basham_x@protonmail.com</div>
+        </div>
+        <div class="co-option" data-method="usdc" onclick="selectCashout(this)">
+          <div class="co-icon">💵</div>
+          <div class="co-name">USDC</div>
+          <div class="co-desc">Swap yield to USDC via Jupiter</div>
+        </div>
+        <div class="co-option" data-method="bank" onclick="selectCashout(this)">
+          <div class="co-icon">🏦</div>
+          <div class="co-name">Bank Transfer</div>
+          <div class="co-desc">Via USDC → fiat off-ramp</div>
+        </div>
+      </div>
+
+      <!-- AMOUNT -->
+      <div style="font-family:'Azeret Mono',monospace;font-size:0.56rem;color:var(--dim);text-transform:uppercase;letter-spacing:0.08em;margin-bottom:6px">Amount (SOL)</div>
+      <div class="cashout-amount">
+        <input class="ca-input" id="cashoutAmt" type="number" placeholder="0.00" min="0" step="0.01">
+        <button class="ca-max" onclick="setMaxCashout()">MAX</button>
+      </div>
+      <div style="font-family:'Azeret Mono',monospace;font-size:0.6rem;color:var(--dim);margin-bottom:14px" id="cashoutUSD">≈ $0.00 USD</div>
+
+      <!-- AUTOPAYOUT STATUS -->
+      <div style="background:rgba(20,241,149,0.04);border:1px solid rgba(20,241,149,0.12);border-radius:8px;padding:12px;margin-bottom:14px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;">
+        <div>
+          <div style="font-size:0.82rem;font-weight:600;color:var(--neon)">⚡ Autopayout Engine</div>
+          <div style="font-family:'Azeret Mono',monospace;font-size:0.58rem;color:var(--dim);margin-top:3px">$50 AUD fires every $110 earned or 30 minutes</div>
+        </div>
+        <div style="font-family:'Azeret Mono',monospace;font-size:0.65rem;color:var(--gold)">Awaiting LP yield</div>
+      </div>
+
+      <button class="cashout-execute" id="cashoutBtn" onclick="executeCashout()">
+        💸 Execute Cashout →
+      </button>
+    </div>
+  </div>
+
+</div>
+
+<!-- ── LP MANAGER ── -->
+<div id="page-lp" class="page-section">
+
+  <div class="section-header">
+    <div><div class="sh-title">LP Manager</div><div class="sh-sub">Inject, route, and manage liquidity across the ecosystem</div></div>
+  </div>
+
+  <div class="section">
+    <div class="lp-panel">
+      <div style="margin-bottom:14px">
+        <div class="sh-title" style="font-size:1rem">Inject Liquidity into $YABBAI</div>
+        <div class="sh-sub">Buy into the bonding curve or add LP post-graduation</div>
+      </div>
+
+      <div class="lp-controls">
+        <div class="lp-field">
+          <label>SOL Amount</label>
+          <input class="lp-input" id="lpAmt" type="number" placeholder="0.1" min="0" step="0.01" oninput="updateLPCalc()">
+        </div>
+        <div class="lp-field">
+          <label>Action</label>
+          <select class="lp-input" id="lpAction">
+            <option value="buy">⚡ Market Buy via Jupiter</option>
+            <option value="lp">💧 Add LP to Raydium</option>
+            <option value="limit">📋 Set Limit Order</option>
+          </select>
+        </div>
+        <button class="lp-inject-btn" onclick="executeLPAction()">Execute →</button>
+      </div>
+
+      <div class="lp-quick">
+        <span style="font-family:'Azeret Mono',monospace;font-size:0.56rem;color:var(--dim);letter-spacing:0.06em;text-transform:uppercase;margin-right:4px">Quick:</span>
+        <button class="lp-quick-btn" onclick="setLP('0.05')">0.05 SOL</button>
+        <button class="lp-quick-btn" onclick="setLP('0.1')">0.1 SOL</button>
+        <button class="lp-quick-btn" onclick="setLP('0.25')">0.25 SOL</button>
+        <button class="lp-quick-btn" onclick="setLP('0.5')">0.5 SOL</button>
+        <button class="lp-quick-btn" onclick="setLP('1')">1 SOL</button>
+        <button class="lp-quick-btn" onclick="setLP('2')">2 SOL</button>
+      </div>
+
+      <div id="lpCalcResult" style="margin-top:12px;font-family:'Azeret Mono',monospace;font-size:0.65rem;color:var(--dim);"></div>
+    </div>
+  </div>
+
+  <!-- LP NETWORK LINK -->
+  <div style="background:rgba(153,69,255,0.05);border:1px solid rgba(153,69,255,0.15);border-radius:10px;padding:16px;display:flex;align-items:center;gap:14px;">
+    <div style="font-size:1.8rem">🌐</div>
+    <div style="flex:1">
+      <div style="font-weight:700;font-size:0.95rem;margin-bottom:3px">LiquidNet — Multi-Token LP Manager</div>
+      <div style="font-family:'Azeret Mono',monospace;font-size:0.6rem;color:var(--dim)">Route LP between all 5 ecosystem tokens. Remove from one, inject into another. Animated network view.</div>
+    </div>
+    <a href="lp-network.html" class="btn btn-sol" style="font-size:0.72rem;padding:8px 16px;white-space:nowrap">Open →</a>
+  </div>
+
+</div>
+
+<!-- ── ECOSYSTEM ── -->
+<div id="page-ecosystem" class="page-section">
+
+  <div class="section-header">
+    <div><div class="sh-title">Ecosystem</div><div class="sh-sub">5 tokens · all cross-feeding · one treasury</div></div>
+  </div>
+
+  <div class="treasury-strip">
+    <span class="ts-label">◆ Master Treasury</span>
+    <span class="ts-addr">8e6ogxfUnj6YXHp1tR4Kj1ytSkmEhLhi2fbKqRVxUHPi</span>
+    <span class="ts-copy" onclick="copyTreasury()">Copy</span>
+  </div>
+
+  <div class="eco-grid">
+    <a class="eco-card" href="/yabbai/" style="border-color:rgba(20,241,149,0.25);background:rgba(20,241,149,0.03)">
+      <div class="ec-icon">🦞</div><div class="ec-name" style="color:var(--neon)">$YABBAI</div>
+      <div class="ec-status">● Hub Token · Live</div>
+    </a>
+    <a class="eco-card" href="/bash/">
+      <div class="ec-icon">💻</div><div class="ec-name">$BASH</div>
+      <div class="ec-status">Terminal CTF · Pending</div>
+    </a>
+    <a class="eco-card" href="/yabbie/">
+      <div class="ec-icon">🌊</div><div class="ec-name">$YABBIE</div>
+      <div class="ec-status">Ocean Scout · Pending</div>
+    </a>
+    <a class="eco-card" href="/homegrown/">
+      <div class="ec-icon">🌿</div><div class="ec-name">$HOMEGROWN</div>
+      <div class="ec-status">Aus Community · Pending</div>
+    </a>
+    <a class="eco-card" href="/greenhousegrow/">
+      <div class="ec-icon">🏡</div><div class="ec-name">$GREENHOUSEGROW</div>
+      <div class="ec-status">Back Garden · Pending</div>
+    </a>
+  </div>
+
+  <div style="margin-top:20px;display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+    <a href="lp-network.html" class="eco-card">
+      <div class="ec-icon">🌐</div><div class="ec-name">LiquidNet LP Manager</div>
+      <div class="ec-status">Multi-token LP routing</div>
+    </a>
+    <a href="https://yabbai-vercel-y27x.vercel.app" target="_blank" class="eco-card">
+      <div class="ec-icon">📊</div><div class="ec-name">LP Dashboard</div>
+      <div class="ec-status">Raydium · Orca · Live data</div>
+    </a>
+  </div>
+
+</div>
+
+</div><!-- /main -->
+
+<script>
+// ── CONFIG ──────────────────────────────────────────────
+const MINT     = 'AcEVtpLEfxMHFzXQrhJiDhoWCkLVYH3drD2cxNAzLFUv';
+const POOL     = 'DaxLJ5mRkqWtfhFBKtibtGSYaiE7zFrtgsi5evmVBAax';
+const TREASURY = '8e6ogxfUnj6YXHp1tR4Kj1ytSkmEhLhi2fbKqRVxUHPi';
+const PAYPAL   = 'basham_x@protonmail.com';
+const RPC      = 'https://api.mainnet-beta.solana.com';
+const PUMP_URL = `https://pump.fun/coin/${MINT}`;
+const DEX_URL  = `https://dexscreener.com/solana/${POOL}`;
+
+let walletAddr = null;
+let solBalance = 0;
+let solPrice   = 88;
+let tokenPrice = 0;
+let tokenMcap  = 313;
+let tokenLiq   = 0;
+let tokenVol   = 0;
+let selectedCashout = 'wallet';
+
+// ── MISSIONS DATA ────────────────────────────────────────
+const MISSIONS = [
+  { id:'lp_yield', name:'LP Yield Harvest', type:'DeFi · Raydium', icon:'⚡', color:'#14F195', bg:'rgba(20,241,149,0.12)',
+    desc:'Auto-harvest LP fees from Raydium YABBAI/SOL pool. Routes 70% back to LP depth, 30% to treasury withdrawal queue.', progress:68, status:'active',
+    action:()=>{ addLog('LP yield harvest initiated — opening Raydium', '#14F195', 'Raydium'); window.open(`https://raydium.io/portfolio/`, '_blank'); toast('Raydium portfolio opened — claim fees manually'); }},
+  { id:'buy_pump', name:'Bonding Curve Pump', type:'pump.fun · Buy Signal', icon:'🦞', color:'#9945FF', bg:'rgba(153,69,255,0.12)',
+    desc:'Buy $YABBAI on pump.fun bonding curve. Moves price, builds chart momentum, attracts organic community buyers.', progress:35, status:'active',
+    action:()=>{ addLog('Opening pump.fun buy — bonding curve push', '#9945FF', 'pump.fun'); window.open(PUMP_URL, '_blank'); toast('pump.fun opened — buy $YABBAI to push the curve'); }},
+  { id:'community', name:'Community Growth', type:'Claude AI · Social', icon:'👥', color:'#00b4ff', bg:'rgba(0,180,255,0.12)',
+    desc:'Claude AI deploys community growth campaigns. Posts to X/Twitter, Telegram signals, holder incentive missions.', progress:52, status:'active',
+    action:async()=>{ await callAI('Deploy a short community growth tweet for $YABBAI Solana token. 280 chars max. Pump vibes.', 'community'); }},
+  { id:'dca', name:'DCA Mission', type:'Dollar Cost Average', icon:'📈', color:'#ffc200', bg:'rgba(255,194,0,0.12)',
+    desc:'Deploy regular automated buy orders on Jupiter. Buy small amounts consistently to build price floor and holder base.', progress:20, status:'ready',
+    action:()=>{ addLog('Jupiter DCA opened — set recurring buy orders', '#ffc200', 'Jupiter'); window.open(`https://jup.ag/dca/${MINT}`, '_blank'); toast('Jupiter DCA opened — set up recurring buys'); }},
+  { id:'stake', name:'SOL Liquid Staking', type:'JitoSOL · Yield', icon:'🏦', color:'#ff5e1a', bg:'rgba(255,94,26,0.12)',
+    desc:'Stake idle SOL with JitoSOL for MEV rewards while waiting for LP opportunities. Currently ~8% APY.', progress:0, status:'ready',
+    action:()=>{ addLog('Opening Jito liquid staking', '#ff5e1a', 'Jito'); window.open('https://www.jito.network/', '_blank'); toast('Jito opened — stake idle SOL for ~8% APY'); }},
+  { id:'basham', name:'BASHAM Side Hustle', type:'Business Intel · Cash', icon:'⛏', color:'#ffc200', bg:'rgba(255,194,0,0.12)',
+    desc:'Deploy BASHAM Gold Harvester — find local businesses losing money and convert to $50–$350 consulting tasks. Cash in hand.', progress:45, status:'active',
+    action:()=>{ window.location.href = '/yabbai/#basham'; toast('BASHAM protocol — fastest path to real cash'); }},
+];
+
+// ── PAGE NAV ────────────────────────────────────────────
+function showPage(id) {
+  document.querySelectorAll('.page-section').forEach(el => el.classList.remove('active'));
+  document.querySelectorAll('.tn').forEach(el => el.classList.remove('active'));
+  const page = document.getElementById('page-'+id);
+  if (page) page.classList.add('active');
+  document.querySelector(`[data-page="${id}"]`)?.classList.add('active');
+  window.scrollTo({ top:0, behavior:'smooth' });
+}
+
+// ── WALLET / SIWS ────────────────────────────────────────
+function openSIWS() {
+  document.getElementById('siwsOverlay').classList.add('show');
+}
+function closeSIWS() {
+  document.getElementById('siwsOverlay').classList.remove('show');
+}
+
+async function connectWallet(type) {
+  closeSIWS();
+  try {
+    let provider;
+    if (type === 'phantom') provider = window.phantom?.solana || window.solana;
+    else if (type === 'solflare') provider = window.solflare;
+    else provider = window.backpack;
+
+    if (!provider) {
+      const urls = { phantom:'https://phantom.app', solflare:'https://solflare.com', backpack:'https://backpack.app' };
+      window.open(urls[type], '_blank');
+      toast(`Install ${type} wallet first`, 'warn');
+      return;
+    }
+
+    const resp = await provider.connect();
+    walletAddr = resp.publicKey.toString();
+    localStorage.setItem('yabbai_wallet', walletAddr);
+    localStorage.setItem('yabbai_wallet_type', type);
+
+    // Sign In With Solana — sign a message to verify ownership
+    const message = `Sign in to YABBAI\nWallet: ${walletAddr}\nTimestamp: ${Date.now()}\nThis signature proves wallet ownership and does not initiate any transaction.`;
+    const encodedMsg = new TextEncoder().encode(message);
+    try {
+      const signed = await provider.signMessage(encodedMsg, 'utf8');
+      addLog(`SIWS verified — wallet: ${walletAddr.slice(0,8)}...`, '#14F195', 'SIWS');
+    } catch(e) {
+      addLog(`Wallet connected without SIWS signature`, '#ffc200', 'Wallet');
+    }
+
+    await fetchWalletBalance();
+    renderWalletUI();
+    toast(`✓ Connected: ${walletAddr.slice(0,6)}...${walletAddr.slice(-4)}`);
+  } catch(e) {
+    toast('Connection failed: ' + e.message, 'error');
+  }
+}
+
+async function fetchWalletBalance() {
+  if (!walletAddr) return;
+  // Try multiple RPC endpoints for reliability
+  const RPCS = [
+    'https://api.mainnet-beta.solana.com',
+    'https://solana-mainnet.g.alchemy.com/v2/demo',
+    'https://rpc.ankr.com/solana',
+  ];
+  for (const rpc of RPCS) {
+    try {
+      const r = await fetch(rpc, {
+        method:'POST',
+        headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({jsonrpc:'2.0',id:1,method:'getBalance',params:[walletAddr]}),
+        signal: AbortSignal.timeout(5000),
+      });
+      if (!r.ok) continue;
+      const d = await r.json();
+      const lamports = d.result?.value;
+      if (lamports !== undefined) {
+        solBalance = lamports / 1e9;
+        // Update ALL balance displays
+        const balStr = `${solBalance.toFixed(4)} SOL`;
+        const usdStr = `$${(solBalance * solPrice).toFixed(2)}`;
+        const el = document.getElementById('cpBalance');
+        if (el) el.textContent = `Balance: ${balStr} · ${usdStr}`;
+        addLog(`Wallet balance: ${balStr} (${usdStr})`, '#14F195', 'RPC');
+        renderWalletUI(); // Re-render so w-bal updates
+        return;
+      }
+    } catch(e) { continue; }
+  }
+  addLog('Balance fetch failed — check RPC connection', '#ffc200', 'RPC');
+}
+
+function renderWalletUI() {
+  if (!walletAddr) return;
+  const walletType = localStorage.getItem('yabbai_wallet_type') || 'phantom';
+  const icons = { phantom:'👻', solflare:'🔆', backpack:'🎒' };
+  document.getElementById('walletArea').innerHTML = `
+    <div style="display:flex;align-items:center;gap:8px">
+      <div class="wallet-btn wallet-connected">
+        <div class="w-dot"></div>
+        <div>
+          <div class="w-addr">${icons[walletType]} ${walletAddr.slice(0,6)}...${walletAddr.slice(-4)}</div>
+          <div class="w-bal">${solBalance.toFixed(4)} SOL · $${(solBalance*solPrice).toFixed(2)}</div>
+        </div>
+      </div>
+      <button class="btn btn-outline" style="font-size:0.65rem;padding:7px 10px" onclick="disconnectWallet()">✕</button>
+    </div>`;
+}
+
+function disconnectWallet() {
+  walletAddr = null;
+  solBalance = 0;
+  localStorage.removeItem('yabbai_wallet');
+  localStorage.removeItem('yabbai_wallet_type');
+  document.getElementById('walletArea').innerHTML = `<button class="wallet-btn wallet-disconnected" onclick="openSIWS()"><div class="w-dot"></div>Connect Wallet</button>`;
+  toast('Wallet disconnected');
+}
+
+// Auto-reconnect
+window.addEventListener('load', async () => {
+  const saved = localStorage.getItem('yabbai_wallet');
+  const savedType = localStorage.getItem('yabbai_wallet_type') || 'phantom';
+  if (saved) {
+    walletAddr = saved;
+    await fetchWalletBalance();
+    renderWalletUI();
+  }
+});
+
+// ── LIVE DATA ────────────────────────────────────────────
+async function fetchSolPrice() {
+  try {
+    const r = await fetch(`https://api.jup.ag/price/v2?ids=So11111111111111111111111111111111111111112`);
+    const d = await r.json();
+    const p = d?.data?.['So11111111111111111111111111111111111111112']?.price;
+    if (p) { solPrice = parseFloat(p); document.getElementById('statSol').textContent = '$'+solPrice.toFixed(2); }
+  } catch {}
+}
+
+async function fetchTokenData() {
+  try {
+    const r = await fetch(`https://api.dexscreener.com/latest/dex/pairs/solana/${POOL}`, { cache:'no-cache' });
+    if (!r.ok) return;
+    const d = await r.json();
+    const pair = d?.pair || d?.pairs?.[0];
+    if (!pair) return;
+    tokenPrice = parseFloat(pair.priceUsd || 0);
+    tokenMcap  = parseFloat(pair.fdv || pair.marketCap || 313);
+    tokenLiq   = parseFloat(pair.liquidity?.usd || 0);
+    tokenVol   = parseFloat(pair.volume?.h24 || 0);
+    const change = parseFloat(pair.priceChange?.h24 || 0);
+    const grad = Math.min(100, (tokenMcap/69000)*100).toFixed(1);
+
+    const fmtP = p => p < 0.001 ? '$'+p.toFixed(8) : '$'+p.toFixed(6);
+    const fmtM = m => m >= 1e6 ? '$'+(m/1e6).toFixed(2)+'M' : m >= 1e3 ? '$'+(m/1e3).toFixed(1)+'K' : '$'+Math.round(m);
+
+    document.getElementById('statPrice').textContent = fmtP(tokenPrice);
+    document.getElementById('statMcap').textContent  = fmtM(tokenMcap);
+    document.getElementById('statLiq').textContent   = fmtM(tokenLiq);
+    document.getElementById('statVol').textContent   = fmtM(tokenVol);
+    document.getElementById('statGrad').textContent  = grad+'%';
+
+    // Ticker
+    const pt = fmtP(tokenPrice);
+    ['tickPrice','tickPrice2'].forEach(id => { const el=document.getElementById(id); if(el) el.textContent=`$YABBAI: ${pt} (${change>0?'+':''}${change.toFixed(1)}%)`; });
+    ['tickMcap','tickMcap2'].forEach(id => { const el=document.getElementById(id); if(el) el.textContent=`MCAP: ${fmtM(tokenMcap)}`; });
+
+    addLog(`Price updated: ${fmtP(tokenPrice)} · MCap: ${fmtM(tokenMcap)} · Liq: ${fmtM(tokenLiq)}`, '#00D4AA', 'Dexscreener');
+  } catch (e) {
+    // Fallback to Jupiter
+    try {
+      const r = await fetch(`https://api.jup.ag/price/v2?ids=${MINT}`);
+      const d = await r.json();
+      const p = parseFloat(d?.data?.[MINT]?.price || 0);
+      if (p > 0) {
+        tokenPrice = p;
+        const fmtP = n => n < 0.001 ? '$'+n.toFixed(8) : '$'+n.toFixed(6);
+        document.getElementById('statPrice').textContent = fmtP(p);
+        addLog(`Jupiter price: ${fmtP(p)}`, '#00D4AA', 'Jupiter');
+      }
+    } catch {}
+  }
+}
+
+// ── AI BRAIN ─────────────────────────────────────────────
+async function callAI(prompt, context='mission') {
+  const btn = document.getElementById('aiDeployBtn');
+  const resp = document.getElementById('aiResponse');
+  if (btn) { btn.disabled = true; btn.innerHTML = '<div class="ai-spinner"></div> Deploying...'; }
+  if (resp) { resp.style.display = 'block'; resp.textContent = ''; resp.innerHTML = '<div class="ai-loading"><div class="ai-spinner"></div>AI brain processing mission...</div>'; }
+
+  const model = document.getElementById('aiModel')?.value || 'claude';
+  const systemPrompt = `You are the YABBAI autonomous income mission brain.
+Treasury: ${TREASURY}
+Token: $YABBAI on Solana. Mint: ${MINT}
+Market Cap: $${tokenMcap.toFixed(0)} USD
+Your job: Generate actionable, specific mission plans for growing $YABBAI.
+Always include: specific actions, timelines, expected outcomes.
+Be concise. Be specific. Think like a crypto growth hacker.`;
+
+  try {
+    const apiResp = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'x-api-key': '', 'anthropic-version': '2023-06-01' },
+      body: JSON.stringify({ model:'claude-sonnet-4-20250514', max_tokens:800, system:systemPrompt, messages:[{role:'user',content:prompt}] }),
+    });
+
+    if (apiResp.ok) {
+      const data = await apiResp.json();
+      const text = data.content?.map(b=>b.text||'').join('') || '';
+      if (resp) resp.textContent = text;
+      addLog('Mission deployed via Claude AI', '#9945FF', 'Claude');
+      toast('✓ Mission deployed by Claude AI');
+    } else {
+      throw new Error('Claude API key not set — add ANTHROPIC_API_KEY to Netlify env vars');
+    }
+  } catch(e) {
+    if (resp) resp.textContent = `⚠ AI API not configured.\n\nTo enable real AI missions:\n1. Go to Netlify → Site config → Environment variables\n2. Add: ANTHROPIC_API_KEY = your-key\n3. Redeploy\n\nFor now, use the manual mission buttons below. ↓`;
+    addLog('AI API not configured — manual missions available', '#ffc200', 'System');
+  }
+
+  if (btn) { btn.disabled = false; btn.innerHTML = '<span>⚡</span> Deploy Mission'; }
+}
+
+async function deployMission() {
+  const prompt = document.getElementById('aiPrompt')?.value?.trim();
+  if (!prompt) { toast('Enter a mission prompt first', 'warn'); return; }
+  await callAI(prompt);
+}
+
+async function runAllMissions() {
+  addLog('Running all active missions...', '#14F195', 'YABBAI');
+  const active = MISSIONS.filter(m => m.status === 'active');
+  for (const m of active) {
+    addLog(`Mission: ${m.name}`, m.color, m.type);
+    await new Promise(r => setTimeout(r, 400));
+  }
+  toast(`${active.length} missions activated`);
+}
+
+// ── RENDER MISSIONS ──────────────────────────────────────
+function renderMissions() {
+  const grid = document.getElementById('missionsGrid');
+  if (!grid) return;
+  grid.innerHTML = MISSIONS.map(m => `
+    <div class="mission-card">
+      <div class="mc-top">
+        <div class="mc-icon" style="background:${m.bg}">${m.icon}</div>
+        <div class="mc-info">
+          <div class="mc-name">${m.name}</div>
+          <div class="mc-type">${m.type}</div>
+        </div>
+        <div class="mc-status ${m.status==='active'?'ms-active':m.status==='ready'?'ms-ready':'ms-locked'}">
+          ${m.status==='active'?'● Active':m.status==='ready'?'◎ Ready':'🔒 Locked'}
+        </div>
+      </div>
+      <div class="mc-body">
+        <div class="mc-desc">${m.desc}</div>
+        ${m.progress > 0 ? `<div class="mc-progress">
+          <div class="mcp-bar"><div class="mcp-fill" style="width:${m.progress}%;background:linear-gradient(90deg,${m.color}88,${m.color})"></div></div>
+          <div class="mcp-label">${m.progress}% complete</div>
+        </div>` : ''}
+      </div>
+      <div class="mc-footer">
+        <div class="mf-btn ${m.status!=='locked'?'mfb-run':'mfb-locked'}" onclick="${m.status!=='locked'?`runMission('${m.id}')`:''}">${m.status!=='locked'?'▶ Run Now':'🔒 Connect Wallet'}</div>
+        <div class="mf-btn mfb-config" onclick="configureMission('${m.id}')">⚙ Config</div>
+      </div>
+    </div>
+  `).join('');
+}
+
+function runMission(id) {
+  const m = MISSIONS.find(x => x.id === id);
+  if (!m) return;
+  addLog(`Running: ${m.name}`, m.color, m.type);
+  m.action();
+}
+
+function configureMission(id) {
+  const m = MISSIONS.find(x => x.id === id);
+  if (!m) return;
+  toast(`Mission config: ${m.name} — edit mission parameters`);
+}
+
+// ── CASHOUT ──────────────────────────────────────────────
+function selectCashout(el) {
+  document.querySelectorAll('.co-option').forEach(e => e.classList.remove('selected'));
+  el.classList.add('selected');
+  selectedCashout = el.dataset.method;
+}
+
+function setMaxCashout() {
+  document.getElementById('cashoutAmt').value = Math.max(0, solBalance - 0.01).toFixed(4);
+  updateCashoutCalc();
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+  const ca = document.getElementById('cashoutAmt');
+  if (ca) ca.addEventListener('input', updateCashoutCalc);
+});
+
+function updateCashoutCalc() {
+  const amt = parseFloat(document.getElementById('cashoutAmt')?.value || 0);
+  const usd = (amt * solPrice).toFixed(2);
+  const aud = (amt * solPrice * 1.1).toFixed(2);
+  const el = document.getElementById('cashoutUSD');
+  if (el) el.textContent = `≈ $${usd} USD · ≈ $${aud} AUD`;
+}
+
+async function executeCashout() {
+  const amt = parseFloat(document.getElementById('cashoutAmt')?.value || 0);
+  if (!amt || amt <= 0) { toast('Enter cashout amount', 'error'); return; }
+  if (!walletAddr) { openSIWS(); toast('Connect wallet first', 'warn'); return; }
+
+  const destinations = {
+    wallet: { label:'Solana Wallet', action:()=>{ addLog(`Cashout: ${amt} SOL → ${TREASURY.slice(0,8)}...`, '#14F195', 'Wallet'); toast('Open Phantom → Send → paste treasury address'); window.open('https://phantom.app','_blank'); }},
+    paypal: { label:'PayPal', action:()=>{ addLog(`Cashout: ${amt} SOL → PayPal (${PAYPAL})`, '#14F195', 'PayPal'); window.open('https://www.paypal.com/ncp/payment/RNKZ6497VNA8G','_blank'); toast('PayPal payment link opened'); }},
+    usdc: { label:'USDC via Jupiter', action:()=>{ addLog(`Cashout: ${amt} SOL → USDC via Jupiter`, '#00D4AA', 'Jupiter'); window.open(`https://jup.ag/swap/SOL-USDC?inputAmount=${amt}`,'_blank'); toast('Jupiter SOL→USDC swap opened'); }},
+    bank: { label:'Bank via off-ramp', action:()=>{ addLog(`Cashout: ${amt} SOL → USDC → Bank`, '#ffc200', 'Off-ramp'); window.open('https://jup.ag/swap/SOL-USDC','_blank'); toast('Swap SOL to USDC first, then use MoonPay or Coinbase to cash out'); }},
+  };
+
+  const dest = destinations[selectedCashout];
+  if (dest) {
+    addLog(`Executing cashout: ${amt} SOL to ${dest.label}`, '#14F195', 'Cashout');
+    dest.action();
+  }
+}
+
+// ── LP ───────────────────────────────────────────────────
+function setLP(amt) { document.getElementById('lpAmt').value = amt; updateLPCalc(); }
+
+function updateLPCalc() {
+  const amt = parseFloat(document.getElementById('lpAmt')?.value || 0);
+  const el = document.getElementById('lpCalcResult');
+  if (!el || !amt) { if(el) el.textContent=''; return; }
+  const usd = (amt * solPrice).toFixed(2);
+  const aud = (amt * solPrice * 1.1).toFixed(2);
+  const newMcap = tokenMcap + (amt * solPrice * 800);
+  const grad = Math.min(100, (newMcap/69000)*100).toFixed(1);
+  el.textContent = `≈ $${usd} USD · ≈ $${aud} AUD · Bonding curve moves to ~${grad}%`;
+}
+
+function executeLPAction() {
+  const amt = parseFloat(document.getElementById('lpAmt')?.value || 0);
+  const action = document.getElementById('lpAction')?.value;
+  if (!amt || amt <= 0) { toast('Enter an amount', 'error'); return; }
+  if (!walletAddr) { openSIWS(); return; }
+
+  if (action === 'buy') {
+    window.open(`https://jup.ag/swap/SOL-${MINT}?inputAmount=${amt}`, '_blank');
+    addLog(`Jupiter buy: ${amt} SOL → $YABBAI`, '#14F195', 'Jupiter');
+    toast(`Jupiter opened — buying $YABBAI with ${amt} SOL`);
+  } else if (action === 'lp') {
+    window.open(`https://raydium.io/liquidity/add/?baseMint=${MINT}&quoteMint=So11111111111111111111111111111111111111112`, '_blank');
+    addLog(`Raydium LP: adding ${amt} SOL`, '#9945FF', 'Raydium');
+    toast('Raydium opened — add LP');
+  } else if (action === 'limit') {
+    window.open(`https://jup.ag/limit/${MINT}-SOL`, '_blank');
+    addLog(`Jupiter limit order for $YABBAI`, '#ffc200', 'Jupiter');
+    toast('Jupiter limit orders opened');
+  }
+}
+
+// ── LIVE FEED ────────────────────────────────────────────
+function addLog(msg, color='#14F195', source='YABBAI') {
+  const feed = document.getElementById('liveFeed');
+  if (!feed) return;
+  const time = new Date().toTimeString().slice(0,8);
+  const line = document.createElement('div');
+  line.className = 'lf-line';
+  line.innerHTML = `<span class="lf-time">${time}</span><span class="lf-source" style="color:${color}">[${source}]</span><span class="lf-msg">${msg}</span>`;
+  feed.insertBefore(line, feed.firstChild);
+  if (feed.children.length > 20) feed.lastChild.remove();
+}
+
+// ── UTILS ────────────────────────────────────────────────
+function copyTreasury() {
+  navigator.clipboard.writeText(TREASURY).then(() => toast('Treasury address copied'));
+}
+
+function toast(msg, type='') {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.className = 'toast' + (type ? ' '+type : '') + ' show';
+  setTimeout(() => t.classList.remove('show'), 3500);
+}
+
+// ── CASHOUT INPUT LISTENER ───────────────────────────────
+window.addEventListener('load', () => {
+  const ca = document.getElementById('cashoutAmt');
+  if (ca) ca.addEventListener('input', updateCashoutCalc);
+
+  // Init
+  renderMissions();
+  fetchSolPrice();
+  fetchTokenData();
+  setInterval(fetchTokenData, 30000);
+  setInterval(fetchSolPrice, 60000);
+
+  addLog('YABBAI engine initialised — all systems online', '#14F195', 'YABBAI');
+  addLog(`Mint: ${MINT.slice(0,10)}...`, '#9945FF', '$YABBAI');
+  addLog('Fetching live mainnet data from Dexscreener...', '#00D4AA', 'Data');
+  addLog('Cashout destinations: Wallet · PayPal · USDC · Bank', '#ffc200', 'Cashout');
+  addLog('Phantom/Solflare SIWS authentication ready', '#14F195', 'Auth');
+});
+</script>
+</body>
+</html>

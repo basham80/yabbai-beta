@@ -1,0 +1,38 @@
+[build]
+  publish = "."
+  command = ""
+
+[build.environment]
+  NODE_VERSION = "18"
+
+[[headers]]
+  for = "/*"
+  [headers.values]
+    X-Frame-Options = "SAMEORIGIN"
+    X-Content-Type-Options = "nosniff"
+    Access-Control-Allow-Origin = "*"
+
+[[redirects]]
+  from = "/yabbai"
+  to = "/yabbai/"
+  status = 301
+
+[[redirects]]
+  from = "/bash"
+  to = "/bash/"
+  status = 301
+
+[[redirects]]
+  from = "/yabbie"
+  to = "/yabbie/"
+  status = 301
+
+[[redirects]]
+  from = "/homegrown"
+  to = "/homegrown/"
+  status = 301
+
+[[redirects]]
+  from = "/greenhousegrow"
+  to = "/greenhousegrow/"
+  status = 301

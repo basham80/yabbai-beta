@@ -1,0 +1,1030 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>YABBAI LiquidNet — Multi-Token LP Management</title>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=Azeret+Mono:wght@300;400;500;600&family=Cabinet+Grotesk:wght@400;500;700;800&display=swap" rel="stylesheet">
+<style>
+:root {
+  --void:#02040a;--ink:#060b14;--plate:#0a1020;--plate2:#0f1828;
+  --wire:#162038;--wire2:#1e2e48;--wire3:#2a4060;
+  --neon:#14F195;--neon2:#00cc7a;--sol:#9945FF;--arc:#00b4ff;
+  --fire:#ff5e1a;--gold:#ffc200;--red:#ff3b3b;
+  --text:#e0eeff;--dim:#3a5070;--ghost:rgba(255,255,255,0.04);
+}
+*{margin:0;padding:0;box-sizing:border-box;}
+html,body{background:var(--void);color:var(--text);font-family:'Cabinet Grotesk',sans-serif;min-height:100vh;overflow-x:hidden;}
+::-webkit-scrollbar{width:3px;background:transparent;}
+::-webkit-scrollbar-thumb{background:var(--wire2);}
+
+/* ── ATMOSPHERIC BG ── */
+body::before{content:'';position:fixed;inset:0;pointer-events:none;z-index:0;
+  background:radial-gradient(ellipse 80% 50% at 20% 10%,rgba(153,69,255,0.06) 0%,transparent 60%),
+    radial-gradient(ellipse 60% 40% at 80% 80%,rgba(20,241,149,0.04) 0%,transparent 60%),
+    repeating-linear-gradient(0deg,transparent,transparent 40px,rgba(20,241,149,0.008) 40px,rgba(20,241,149,0.008) 41px),
+    repeating-linear-gradient(90deg,transparent,transparent 40px,rgba(20,241,149,0.008) 40px,rgba(20,241,149,0.008) 41px);}
+
+/* ── TOPBAR ── */
+.topbar{position:sticky;top:0;z-index:200;height:60px;background:rgba(2,4,10,0.92);backdrop-filter:blur(24px);
+  border-bottom:1px solid var(--wire);display:flex;align-items:center;padding:0 28px;gap:16px;}
+.tb-logo{font-family:'Syne',sans-serif;font-weight:800;font-size:1.2rem;letter-spacing:-0.02em;
+  background:linear-gradient(135deg,var(--neon),var(--sol));-webkit-background-clip:text;-webkit-text-fill-color:transparent;}
+.tb-badge{font-family:'Azeret Mono',monospace;font-size:0.58rem;color:var(--dim);
+  background:var(--wire);border-radius:4px;padding:3px 8px;letter-spacing:0.06em;text-transform:uppercase;}
+.tb-spacer{flex:1;}
+.tb-stats{display:flex;gap:24px;}
+.tb-stat{text-align:right;}
+.ts-val{font-family:'Azeret Mono',monospace;font-size:0.85rem;font-weight:600;color:var(--neon);}
+.ts-lbl{font-family:'Azeret Mono',monospace;font-size:0.52rem;color:var(--dim);letter-spacing:0.06em;text-transform:uppercase;}
+.tb-connect{background:linear-gradient(135deg,rgba(20,241,149,0.12),rgba(20,241,149,0.06));
+  border:1px solid rgba(20,241,149,0.25);border-radius:8px;padding:8px 18px;
+  color:var(--neon);font-size:0.78rem;font-weight:600;cursor:pointer;transition:all 0.2s;
+  font-family:'Azeret Mono',monospace;}
+.tb-connect:hover{background:rgba(20,241,149,0.18);box-shadow:0 0 20px rgba(20,241,149,0.1);}
+.tb-connected{background:rgba(20,241,149,0.08);border:1px solid rgba(20,241,149,0.2);
+  border-radius:8px;padding:6px 14px;display:flex;flex-direction:column;gap:1px;}
+.tc-addr{font-family:'Azeret Mono',monospace;font-size:0.7rem;color:var(--neon);}
+.tc-bal{font-family:'Azeret Mono',monospace;font-size:0.6rem;color:var(--dim);}
+
+/* ── LAYOUT ── */
+.layout{display:grid;grid-template-columns:280px 1fr;gap:0;min-height:calc(100vh - 60px);position:relative;z-index:1;}
+
+/* ── SIDEBAR ── */
+.sidebar{border-right:1px solid var(--wire);padding:20px;display:flex;flex-direction:column;gap:12px;background:rgba(6,11,20,0.6);}
+.sb-section{font-family:'Azeret Mono',monospace;font-size:0.55rem;color:var(--dim);
+  letter-spacing:0.1em;text-transform:uppercase;margin-bottom:6px;padding:0 4px;}
+
+.nav-item{display:flex;align-items:center;gap:10px;padding:9px 12px;border-radius:8px;
+  cursor:pointer;transition:all 0.15s;border:1px solid transparent;}
+.nav-item:hover{background:var(--ghost);border-color:var(--wire);}
+.nav-item.active{background:rgba(20,241,149,0.06);border-color:rgba(20,241,149,0.2);}
+.ni-icon{font-size:1.1rem;width:24px;text-align:center;}
+.ni-text{font-size:0.82rem;font-weight:500;color:var(--text);}
+.ni-count{margin-left:auto;font-family:'Azeret Mono',monospace;font-size:0.6rem;
+  background:var(--wire);border-radius:10px;padding:2px 7px;color:var(--dim);}
+
+.sb-divider{height:1px;background:var(--wire);margin:4px 0;}
+
+.quick-actions{margin-top:auto;}
+.qa-btn{width:100%;padding:10px;border-radius:8px;font-size:0.78rem;font-weight:600;
+  cursor:pointer;border:1px solid;transition:all 0.2s;margin-bottom:6px;
+  font-family:'Cabinet Grotesk',sans-serif;}
+.qa-primary{background:linear-gradient(135deg,var(--neon2),var(--neon));border:none;color:#000;}
+.qa-primary:hover{box-shadow:0 4px 16px rgba(20,241,149,0.3);transform:translateY(-1px);}
+.qa-secondary{background:transparent;border-color:var(--wire2);color:var(--dim);}
+.qa-secondary:hover{border-color:var(--wire3);color:var(--text);}
+
+/* ── MAIN ── */
+.main{padding:24px;overflow-y:auto;}
+
+/* ── SECTION HEADER ── */
+.section-header{display:flex;align-items:flex-end;justify-content:space-between;margin-bottom:20px;}
+.sh-title{font-family:'Syne',sans-serif;font-weight:800;font-size:1.6rem;letter-spacing:-0.02em;}
+.sh-sub{font-family:'Azeret Mono',monospace;font-size:0.62rem;color:var(--dim);margin-top:3px;}
+.sh-actions{display:flex;gap:8px;}
+.sh-btn{padding:7px 14px;border-radius:6px;font-size:0.72rem;font-weight:600;cursor:pointer;
+  border:1px solid var(--wire2);background:transparent;color:var(--dim);transition:all 0.2s;}
+.sh-btn:hover{border-color:var(--neon);color:var(--neon);}
+.sh-btn.primary{background:rgba(20,241,149,0.1);border-color:rgba(20,241,149,0.3);color:var(--neon);}
+
+/* ── NETWORK OVERVIEW CARDS ── */
+.overview-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:24px;}
+.ov-card{background:var(--plate);border:1px solid var(--wire);border-radius:10px;padding:16px;position:relative;overflow:hidden;}
+.ov-card::before{content:'';position:absolute;top:0;left:0;right:0;height:2px;background:var(--accent,var(--neon));}
+.ov-label{font-family:'Azeret Mono',monospace;font-size:0.56rem;color:var(--dim);
+  letter-spacing:0.08em;text-transform:uppercase;margin-bottom:8px;}
+.ov-val{font-family:'Syne',sans-serif;font-weight:700;font-size:1.5rem;letter-spacing:-0.02em;
+  background:linear-gradient(135deg,var(--neon),var(--arc));-webkit-background-clip:text;-webkit-text-fill-color:transparent;}
+.ov-sub{font-family:'Azeret Mono',monospace;font-size:0.58rem;color:var(--dim);margin-top:4px;}
+
+/* ── TOKEN NETWORK ── */
+.network-canvas{background:var(--plate);border:1px solid var(--wire);border-radius:12px;
+  height:280px;margin-bottom:20px;position:relative;overflow:hidden;}
+.nc-label{position:absolute;top:14px;left:16px;font-family:'Azeret Mono',monospace;
+  font-size:0.56rem;color:var(--dim);letter-spacing:0.1em;text-transform:uppercase;}
+canvas#netCanvas{width:100%;height:100%;}
+
+/* ── TOKEN CARDS ── */
+.token-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:14px;margin-bottom:24px;}
+.token-card{background:var(--plate);border:1px solid var(--wire);border-radius:12px;
+  overflow:hidden;transition:all 0.25s;}
+.token-card:hover{border-color:var(--wire2);transform:translateY(-3px);
+  box-shadow:0 12px 32px rgba(0,0,0,0.4);}
+.tc-header{padding:16px 18px 12px;border-bottom:1px solid var(--wire);
+  display:flex;align-items:center;gap:12px;}
+.tc-avatar{width:40px;height:40px;border-radius:10px;display:flex;align-items:center;
+  justify-content:center;font-size:1.4rem;flex-shrink:0;}
+.tc-info{flex:1;}
+.tc-symbol{font-family:'Syne',sans-serif;font-weight:700;font-size:1rem;letter-spacing:-0.01em;}
+.tc-name{font-family:'Azeret Mono',monospace;font-size:0.58rem;color:var(--dim);margin-top:2px;}
+.tc-status{font-family:'Azeret Mono',monospace;font-size:0.58rem;padding:3px 8px;border-radius:4px;}
+.status-live{background:rgba(20,241,149,0.1);color:var(--neon);border:1px solid rgba(20,241,149,0.2);}
+.status-grad{background:rgba(0,180,255,0.1);color:var(--arc);border:1px solid rgba(0,180,255,0.2);}
+.status-new{background:rgba(255,194,0,0.1);color:var(--gold);border:1px solid rgba(255,194,0,0.2);}
+
+.tc-body{padding:14px 18px;}
+.tc-stats{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:12px;}
+.tcs{text-align:center;padding:8px;background:var(--plate2);border-radius:6px;}
+.tcs-val{font-family:'Azeret Mono',monospace;font-size:0.8rem;font-weight:600;color:var(--text);}
+.tcs-lbl{font-family:'Azeret Mono',monospace;font-size:0.5rem;color:var(--dim);
+  text-transform:uppercase;letter-spacing:0.06em;margin-top:2px;}
+
+.tc-lp{padding:10px 12px;background:rgba(153,69,255,0.06);border:1px solid rgba(153,69,255,0.15);
+  border-radius:8px;margin-bottom:10px;}
+.tc-lp-label{font-family:'Azeret Mono',monospace;font-size:0.55rem;color:var(--sol);
+  letter-spacing:0.06em;text-transform:uppercase;margin-bottom:5px;}
+.tc-lp-bar{height:4px;background:var(--wire);border-radius:2px;margin-bottom:5px;overflow:hidden;}
+.tc-lp-fill{height:100%;border-radius:2px;background:linear-gradient(90deg,var(--sol),var(--arc));}
+.tc-lp-stats{display:flex;justify-content:space-between;font-family:'Azeret Mono',monospace;
+  font-size:0.6rem;color:var(--dim);}
+
+.tc-actions{display:flex;gap:6px;}
+.tca{flex:1;padding:8px 6px;border-radius:6px;font-family:'Azeret Mono',monospace;
+  font-size:0.62rem;cursor:pointer;border:1px solid;transition:all 0.15s;text-align:center;font-weight:500;}
+.tca-buy{background:rgba(20,241,149,0.08);border-color:rgba(20,241,149,0.25);color:var(--neon);}
+.tca-buy:hover{background:rgba(20,241,149,0.16);}
+.tca-lp{background:rgba(153,69,255,0.08);border-color:rgba(153,69,255,0.25);color:var(--sol);}
+.tca-lp:hover{background:rgba(153,69,255,0.16);}
+.tca-remove{background:rgba(255,59,59,0.06);border-color:rgba(255,59,59,0.2);color:var(--red);}
+.tca-remove:hover{background:rgba(255,59,59,0.12);}
+.tca-inject{background:rgba(0,180,255,0.08);border-color:rgba(0,180,255,0.25);color:var(--arc);}
+.tca-inject:hover{background:rgba(0,180,255,0.16);}
+
+/* ── LP ROUTER PANEL ── */
+.lp-router{background:var(--plate);border:1px solid var(--wire);border-radius:12px;
+  padding:22px;margin-bottom:20px;}
+.lpr-title{font-family:'Syne',sans-serif;font-weight:700;font-size:1.1rem;
+  letter-spacing:-0.01em;margin-bottom:5px;}
+.lpr-sub{font-family:'Azeret Mono',monospace;font-size:0.62rem;color:var(--dim);
+  line-height:1.6;margin-bottom:20px;}
+.lpr-flow{display:grid;grid-template-columns:1fr auto 1fr;gap:16px;align-items:start;margin-bottom:20px;}
+.lpr-panel{background:var(--plate2);border:1px solid var(--wire);border-radius:10px;padding:16px;}
+.lprp-label{font-family:'Azeret Mono',monospace;font-size:0.56rem;color:var(--dim);
+  letter-spacing:0.08em;text-transform:uppercase;margin-bottom:10px;display:flex;align-items:center;gap:6px;}
+.lprp-label-dot{width:6px;height:6px;border-radius:50%;flex-shrink:0;}
+.lpr-select{width:100%;background:var(--plate);border:1px solid var(--wire2);border-radius:6px;
+  padding:9px 12px;color:var(--text);font-family:'Azeret Mono',monospace;font-size:0.72rem;
+  outline:none;cursor:pointer;margin-bottom:10px;}
+.lpr-select:focus{border-color:var(--neon);}
+.lpr-input{width:100%;background:var(--plate);border:1px solid var(--wire2);border-radius:6px;
+  padding:9px 12px;color:var(--text);font-family:'Azeret Mono',monospace;font-size:0.82rem;
+  outline:none;transition:border-color 0.15s;}
+.lpr-input:focus{border-color:var(--neon);}
+.lpr-input-label{font-family:'Azeret Mono',monospace;font-size:0.56rem;color:var(--dim);
+  letter-spacing:0.06em;text-transform:uppercase;margin-bottom:5px;display:block;}
+.lpr-arrow{display:flex;align-items:center;justify-content:center;flex-direction:column;gap:4px;}
+.lpr-arrow-icon{font-size:1.4rem;color:var(--neon);animation:pulse 2s ease-in-out infinite;}
+@keyframes pulse{0%,100%{opacity:1;}50%{opacity:0.4;}}
+.lpr-arrow-label{font-family:'Azeret Mono',monospace;font-size:0.52rem;color:var(--dim);
+  letter-spacing:0.06em;text-transform:uppercase;}
+
+.lpr-announce{background:rgba(255,59,59,0.05);border:1px solid rgba(255,59,59,0.2);
+  border-radius:8px;padding:14px;margin-bottom:16px;}
+.lpr-announce-label{font-family:'Azeret Mono',monospace;font-size:0.56rem;color:var(--red);
+  letter-spacing:0.08em;text-transform:uppercase;margin-bottom:6px;
+  display:flex;align-items:center;gap:6px;}
+.lpr-announce-input{width:100%;background:transparent;border:none;color:var(--text);
+  font-family:'Cabinet Grotesk',sans-serif;font-size:0.82rem;outline:none;
+  line-height:1.5;resize:none;height:52px;}
+.lpr-announce-note{font-family:'Azeret Mono',monospace;font-size:0.58rem;color:var(--dim);
+  margin-top:6px;line-height:1.5;}
+
+.lpr-execute{width:100%;padding:13px;border-radius:8px;font-family:'Syne',sans-serif;
+  font-size:0.9rem;font-weight:700;cursor:pointer;border:none;transition:all 0.25s;
+  background:linear-gradient(135deg,#001a08,var(--neon));color:#000;}
+.lpr-execute:hover{transform:translateY(-2px);box-shadow:0 8px 24px rgba(20,241,149,0.25);}
+.lpr-execute:disabled{opacity:0.4;transform:none;cursor:not-allowed;}
+
+/* ── CREATE TOKEN ── */
+.create-form{background:var(--plate);border:1px solid var(--wire);border-radius:12px;padding:22px;}
+.cf-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:16px;}
+.cf-field{display:flex;flex-direction:column;gap:6px;}
+.cf-full{grid-column:1/-1;}
+.cf-label{font-family:'Azeret Mono',monospace;font-size:0.56rem;color:var(--dim);
+  letter-spacing:0.08em;text-transform:uppercase;}
+.cf-input{background:var(--plate2);border:1px solid var(--wire);border-radius:6px;
+  padding:10px 13px;color:var(--text);font-family:'Azeret Mono',monospace;font-size:0.78rem;
+  outline:none;transition:border-color 0.15s;}
+.cf-input:focus{border-color:var(--neon);}
+.cf-select{background:var(--plate2);border:1px solid var(--wire);border-radius:6px;
+  padding:10px 13px;color:var(--text);font-family:'Azeret Mono',monospace;font-size:0.78rem;
+  outline:none;cursor:pointer;}
+.cf-textarea{background:var(--plate2);border:1px solid var(--wire);border-radius:6px;
+  padding:10px 13px;color:var(--text);font-family:'Cabinet Grotesk',sans-serif;font-size:0.82rem;
+  outline:none;resize:none;height:72px;line-height:1.5;}
+
+.cf-routes{display:flex;flex-direction:column;gap:6px;margin-bottom:16px;}
+.cf-route{display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:8px;
+  cursor:pointer;transition:all 0.15s;border:1px solid var(--wire);}
+.cf-route:hover{border-color:var(--wire2);}
+.cf-route.selected{background:rgba(20,241,149,0.06);border-color:rgba(20,241,149,0.25);}
+.cfr-icon{font-size:1.2rem;}
+.cfr-info{flex:1;}
+.cfr-name{font-size:0.85rem;font-weight:600;color:var(--text);}
+.cfr-desc{font-family:'Azeret Mono',monospace;font-size:0.58rem;color:var(--dim);margin-top:2px;}
+.cfr-cost{font-family:'Azeret Mono',monospace;font-size:0.65rem;color:var(--gold);}
+
+.cf-submit{width:100%;padding:13px;border-radius:8px;font-family:'Syne',sans-serif;
+  font-size:0.9rem;font-weight:700;cursor:pointer;border:none;
+  background:linear-gradient(135deg,#280050,var(--sol));color:#fff;transition:all 0.25s;}
+.cf-submit:hover{box-shadow:0 8px 24px rgba(153,69,255,0.3);transform:translateY(-1px);}
+
+/* ── HISTORY ── */
+.history-list{display:flex;flex-direction:column;gap:8px;}
+.hist-item{display:flex;align-items:center;gap:12px;padding:12px 16px;
+  background:var(--plate);border:1px solid var(--wire);border-radius:8px;font-size:0.8rem;}
+.hist-icon{font-size:1.1rem;width:28px;text-align:center;flex-shrink:0;}
+.hist-info{flex:1;}
+.hist-title{color:var(--text);font-weight:500;}
+.hist-meta{font-family:'Azeret Mono',monospace;font-size:0.58rem;color:var(--dim);margin-top:2px;}
+.hist-amount{font-family:'Azeret Mono',monospace;font-size:0.78rem;font-weight:600;}
+.hist-amount.pos{color:var(--neon);}
+.hist-amount.neg{color:var(--red);}
+.hist-time{font-family:'Azeret Mono',monospace;font-size:0.56rem;color:var(--dim);}
+
+/* ── MODAL ── */
+.modal-overlay{position:fixed;inset:0;background:rgba(2,4,10,0.85);backdrop-filter:blur(8px);
+  z-index:500;display:flex;align-items:center;justify-content:center;padding:20px;}
+.modal{background:var(--plate);border:1px solid var(--wire2);border-radius:14px;
+  padding:28px;max-width:520px;width:100%;max-height:90vh;overflow-y:auto;position:relative;}
+.modal-title{font-family:'Syne',sans-serif;font-weight:700;font-size:1.2rem;
+  letter-spacing:-0.01em;margin-bottom:4px;}
+.modal-sub{font-family:'Azeret Mono',monospace;font-size:0.62rem;color:var(--dim);
+  line-height:1.6;margin-bottom:20px;}
+.modal-close{position:absolute;top:16px;right:16px;background:var(--plate2);border:1px solid var(--wire);
+  border-radius:6px;width:28px;height:28px;display:flex;align-items:center;justify-content:center;
+  cursor:pointer;color:var(--dim);font-size:0.8rem;transition:all 0.15s;}
+.modal-close:hover{color:var(--text);border-color:var(--wire2);}
+
+.modal-field{margin-bottom:14px;}
+.mf-label{font-family:'Azeret Mono',monospace;font-size:0.56rem;color:var(--dim);
+  letter-spacing:0.08em;text-transform:uppercase;margin-bottom:5px;display:block;}
+.mf-input{width:100%;background:var(--plate2);border:1px solid var(--wire);border-radius:6px;
+  padding:10px 13px;color:var(--text);font-family:'Azeret Mono',monospace;font-size:0.78rem;outline:none;}
+.mf-input:focus{border-color:var(--neon);}
+
+.modal-actions{display:flex;gap:8px;margin-top:20px;}
+.ma-btn{flex:1;padding:11px;border-radius:8px;font-size:0.82rem;font-weight:600;cursor:pointer;transition:all 0.2s;}
+.ma-primary{background:linear-gradient(135deg,var(--neon2),var(--neon));border:none;color:#000;}
+.ma-secondary{background:transparent;border:1px solid var(--wire2);color:var(--dim);}
+.ma-secondary:hover{border-color:var(--wire3);color:var(--text);}
+
+/* ── TOAST ── */
+.toast{position:fixed;bottom:24px;right:24px;z-index:999;background:var(--plate);
+  border:1px solid var(--neon);border-radius:8px;padding:12px 18px;
+  font-family:'Azeret Mono',monospace;font-size:0.68rem;color:var(--neon);
+  transform:translateY(80px);opacity:0;transition:all 0.4s cubic-bezier(0.175,0.885,0.32,1.275);
+  max-width:320px;}
+.toast.show{transform:translateY(0);opacity:1;}
+.toast.error{border-color:var(--red);color:var(--red);}
+.toast.warn{border-color:var(--gold);color:var(--gold);}
+
+@keyframes fadeUp{from{opacity:0;transform:translateY(16px);}to{opacity:1;transform:translateY(0);}}
+.fade-up{animation:fadeUp 0.4s ease both;}
+
+@media(max-width:1000px){.layout{grid-template-columns:1fr;}.sidebar{display:none;}}
+@media(max-width:640px){.overview-grid{grid-template-columns:1fr 1fr;}.lpr-flow{grid-template-columns:1fr;}.lpr-arrow{display:none;}}
+</style>
+</head>
+<body>
+
+<div class="toast" id="toast"></div>
+
+<!-- MODAL -->
+<div class="modal-overlay" id="modalOverlay" style="display:none">
+  <div class="modal" id="modal">
+    <div class="modal-close" onclick="closeModal()">✕</div>
+    <div id="modalContent"></div>
+  </div>
+</div>
+
+<!-- TOPBAR -->
+<nav class="topbar">
+  <div class="tb-logo">LiquidNet</div>
+  <div class="tb-badge">by YABBAI</div>
+  <div class="tb-spacer"></div>
+  <div class="tb-stats" id="tbStats">
+    <div class="tb-stat"><div class="ts-val" id="tbTotalLiq">$0</div><div class="ts-lbl">Total LP</div></div>
+    <div class="tb-stat"><div class="ts-val" id="tbTokenCount">5</div><div class="ts-lbl">Tokens</div></div>
+    <div class="tb-stat"><div class="ts-val" id="tbSolPrice">$88</div><div class="ts-lbl">SOL</div></div>
+  </div>
+  <div id="walletArea">
+    <button class="tb-connect" onclick="connectWallet()">Connect Wallet</button>
+  </div>
+</nav>
+
+<div class="layout">
+
+  <!-- SIDEBAR -->
+  <aside class="sidebar">
+    <div class="sb-section">Navigation</div>
+
+    <div class="nav-item active" onclick="showSection('network')" data-section="network">
+      <div class="ni-icon">🌐</div>
+      <div class="ni-text">Network Overview</div>
+    </div>
+    <div class="nav-item" onclick="showSection('tokens')" data-section="tokens">
+      <div class="ni-icon">🪙</div>
+      <div class="ni-text">My Tokens</div>
+      <div class="ni-count" id="tokenCount">5</div>
+    </div>
+    <div class="nav-item" onclick="showSection('router')" data-section="router">
+      <div class="ni-icon">⚡</div>
+      <div class="ni-text">LP Router</div>
+    </div>
+    <div class="nav-item" onclick="showSection('create')" data-section="create">
+      <div class="ni-icon">✦</div>
+      <div class="ni-text">Create Token</div>
+    </div>
+    <div class="nav-item" onclick="showSection('history')" data-section="history">
+      <div class="ni-icon">📋</div>
+      <div class="ni-text">LP History</div>
+    </div>
+
+    <div class="sb-divider"></div>
+    <div class="sb-section">Quick Actions</div>
+
+    <div class="quick-actions">
+      <button class="qa-btn qa-primary" onclick="showSection('router')">⚡ Route LP Now</button>
+      <button class="qa-btn qa-secondary" onclick="showSection('create')">✦ Create New Token</button>
+    </div>
+  </aside>
+
+  <!-- MAIN CONTENT -->
+  <main class="main">
+
+    <!-- ── NETWORK OVERVIEW ── -->
+    <div id="sec-network" class="fade-up">
+      <div class="section-header">
+        <div>
+          <div class="sh-title">Network Overview</div>
+          <div class="sh-sub">All tokens · Live LP positions · Ecosystem flow</div>
+        </div>
+        <div class="sh-actions">
+          <button class="sh-btn" onclick="refreshAll()">↻ Refresh</button>
+          <button class="sh-btn primary" onclick="showSection('router')">Route LP →</button>
+        </div>
+      </div>
+
+      <div class="overview-grid">
+        <div class="ov-card" style="--accent:#14F195">
+          <div class="ov-label">Total LP Value</div>
+          <div class="ov-val" id="ovTotalLiq">$0.00</div>
+          <div class="ov-sub">across all tokens</div>
+        </div>
+        <div class="ov-card" style="--accent:#9945FF">
+          <div class="ov-label">Available SOL</div>
+          <div class="ov-val" id="ovSolBal">—</div>
+          <div class="ov-sub">wallet balance</div>
+        </div>
+        <div class="ov-card" style="--accent:#00b4ff">
+          <div class="ov-label">Network Tokens</div>
+          <div class="ov-val">5</div>
+          <div class="ov-sub">YABBAI ecosystem</div>
+        </div>
+        <div class="ov-card" style="--accent:#ffc200">
+          <div class="ov-label">LP Routing Ready</div>
+          <div class="ov-val" id="ovReady">3</div>
+          <div class="ov-sub">tokens with pools</div>
+        </div>
+      </div>
+
+      <!-- NETWORK CANVAS -->
+      <div class="network-canvas">
+        <div class="nc-label">Liquidity Network · Live</div>
+        <canvas id="netCanvas"></canvas>
+      </div>
+
+      <!-- TOKEN GRID PREVIEW -->
+      <div id="tokenGridPreview"></div>
+    </div>
+
+    <!-- ── MY TOKENS ── -->
+    <div id="sec-tokens" style="display:none" class="fade-up">
+      <div class="section-header">
+        <div>
+          <div class="sh-title">My Tokens</div>
+          <div class="sh-sub">Full LP positions and token management</div>
+        </div>
+        <div class="sh-actions">
+          <button class="sh-btn primary" onclick="showSection('create')">✦ Create New</button>
+        </div>
+      </div>
+      <div id="fullTokenGrid"></div>
+    </div>
+
+    <!-- ── LP ROUTER ── -->
+    <div id="sec-router" style="display:none" class="fade-up">
+      <div class="section-header">
+        <div>
+          <div class="sh-title">LP Router</div>
+          <div class="sh-sub">Remove liquidity from one token · Re-inject into another · Bulk operations</div>
+        </div>
+      </div>
+
+      <div class="lp-router">
+        <div class="lpr-title">Liquidity Flow Manager</div>
+        <div class="lpr-sub">
+          Remove LP from Token A → Hold SOL in your wallet → Inject as bulk LP into Token B or back into Token A.
+          All transactions require your wallet signature. Nothing moves without your approval.
+        </div>
+
+        <div class="lpr-flow">
+          <!-- FROM -->
+          <div class="lpr-panel">
+            <div class="lprp-label">
+              <div class="lprp-label-dot" style="background:#ff3b3b"></div>
+              Remove LP From
+            </div>
+            <select class="lpr-select" id="routerFrom">
+              <option value="">Select token to pull from</option>
+              <option value="yabbai">🦞 $YABBAI</option>
+              <option value="bash">💻 $BASH</option>
+              <option value="yabbie">🌊 $YABBIE</option>
+              <option value="homegrown">🌿 $HOMEGROWN</option>
+              <option value="greenhousegrow">🏡 $GREENHOUSEGROW</option>
+            </select>
+            <label class="lpr-input-label">SOL Amount to Remove</label>
+            <input class="lpr-input" type="number" id="routerFromAmt" placeholder="0.00" min="0" step="0.1" oninput="updateRouter()"/>
+          </div>
+
+          <!-- ARROW -->
+          <div class="lpr-arrow">
+            <div class="lpr-arrow-icon">→</div>
+            <div class="lpr-arrow-label">Flow</div>
+          </div>
+
+          <!-- TO -->
+          <div class="lpr-panel">
+            <div class="lprp-label">
+              <div class="lprp-label-dot" style="background:#14F195"></div>
+              Inject LP Into
+            </div>
+            <select class="lpr-select" id="routerTo">
+              <option value="">Select destination token</option>
+              <option value="yabbai">🦞 $YABBAI</option>
+              <option value="bash">💻 $BASH</option>
+              <option value="yabbie">🌊 $YABBIE</option>
+              <option value="homegrown">🌿 $HOMEGROWN</option>
+              <option value="greenhousegrow">🏡 $GREENHOUSEGROW</option>
+              <option value="new">✦ Create New Pool</option>
+            </select>
+            <label class="lpr-input-label">SOL to Inject (auto-fills from above)</label>
+            <input class="lpr-input" type="number" id="routerToAmt" placeholder="0.00" min="0" step="0.1"/>
+          </div>
+        </div>
+
+        <!-- ANNOUNCEMENT REQUIRED -->
+        <div class="lpr-announce">
+          <div class="lpr-announce-label">
+            ⚠ Required: Community Announcement Message
+          </div>
+          <textarea class="lpr-announce-input" id="announceMsg"
+            placeholder="e.g. YABBAI team is migrating LP from $YABBIE to $YABBAI for the v2 launch on [date]. LP will be removed on [date] and re-injected within 48 hours. All holders notified in advance."></textarea>
+          <div class="lpr-announce-note">
+            Post this in Telegram and Twitter BEFORE executing. Builds trust. Protects you legally. Required to proceed.
+          </div>
+        </div>
+
+        <!-- SUMMARY -->
+        <div id="routerSummary" style="display:none;background:rgba(20,241,149,0.04);border:1px solid rgba(20,241,149,0.15);border-radius:8px;padding:14px;margin-bottom:16px;font-family:'Azeret Mono',monospace;font-size:0.68rem;line-height:1.8;color:var(--dim);">
+        </div>
+
+        <button class="lpr-execute" id="routerExec" onclick="executeRouter()" disabled>
+          Execute LP Route →
+        </button>
+      </div>
+    </div>
+
+    <!-- ── CREATE TOKEN ── -->
+    <div id="sec-create" style="display:none" class="fade-up">
+      <div class="section-header">
+        <div>
+          <div class="sh-title">Create Token</div>
+          <div class="sh-sub">Launch a new Solana token and add it to your network</div>
+        </div>
+      </div>
+      <div class="create-form">
+        <div class="cf-grid">
+          <div class="cf-field">
+            <label class="cf-label">Token Name</label>
+            <input class="cf-input" id="cfName" type="text" placeholder="e.g. YABBAI">
+          </div>
+          <div class="cf-field">
+            <label class="cf-label">Symbol</label>
+            <input class="cf-input" id="cfSymbol" type="text" placeholder="e.g. $YABBAI">
+          </div>
+          <div class="cf-field cf-full">
+            <label class="cf-label">Description</label>
+            <textarea class="cf-textarea" id="cfDesc" placeholder="Describe your token's purpose and community..."></textarea>
+          </div>
+          <div class="cf-field">
+            <label class="cf-label">Total Supply</label>
+            <input class="cf-input" id="cfSupply" type="number" placeholder="1000000000">
+          </div>
+          <div class="cf-field">
+            <label class="cf-label">Initial LP (SOL)</label>
+            <input class="cf-input" id="cfLP" type="number" placeholder="0.5">
+          </div>
+          <div class="cf-field cf-full">
+            <label class="cf-label">Token Emoji / Icon</label>
+            <input class="cf-input" id="cfEmoji" type="text" placeholder="🦞" maxlength="4">
+          </div>
+        </div>
+
+        <div style="font-family:'Azeret Mono',monospace;font-size:0.56rem;color:var(--dim);letter-spacing:0.08em;text-transform:uppercase;margin-bottom:10px">Launch Platform</div>
+        <div class="cf-routes">
+          <div class="cf-route selected" data-platform="pumpfun" onclick="selectPlatform(this)">
+            <div class="cfr-icon">🚀</div>
+            <div class="cfr-info">
+              <div class="cfr-name">Pump.fun</div>
+              <div class="cfr-desc">Bonding curve → auto-graduates to Raydium at $69K. Best for community meme tokens.</div>
+            </div>
+            <div class="cfr-cost">~0.02 SOL</div>
+          </div>
+          <div class="cf-route" data-platform="raydium" onclick="selectPlatform(this)">
+            <div class="cfr-icon">⚡</div>
+            <div class="cfr-info">
+              <div class="cfr-name">Raydium LaunchLab</div>
+              <div class="cfr-desc">Direct Raydium pool. Full LP control from day one. Better for utility tokens.</div>
+            </div>
+            <div class="cfr-cost">~0.5 SOL</div>
+          </div>
+          <div class="cf-route" data-platform="spl" onclick="selectPlatform(this)">
+            <div class="cfr-icon">🔧</div>
+            <div class="cfr-info">
+              <div class="cfr-name">SPL Token (Custom)</div>
+              <div class="cfr-desc">Full custom deployment. Set decimals, supply, mint authority. Create pool manually.</div>
+            </div>
+            <div class="cfr-cost">~0.1 SOL</div>
+          </div>
+        </div>
+
+        <button class="cf-submit" onclick="launchToken()">✦ Launch Token →</button>
+      </div>
+    </div>
+
+    <!-- ── HISTORY ── -->
+    <div id="sec-history" style="display:none" class="fade-up">
+      <div class="section-header">
+        <div>
+          <div class="sh-title">LP History</div>
+          <div class="sh-sub">All liquidity operations across your token network</div>
+        </div>
+      </div>
+      <div class="history-list" id="historyList"></div>
+    </div>
+
+  </main>
+</div>
+
+<script>
+// ── DATA ─────────────────────────────────────────────────
+const TREASURY = '8e6ogxfUnj6YXHp1tR4Kj1ytSkmEhLhi2fbKqRVxUHPi';
+const YABBAI_MINT = 'AcEVtpLEfxMHFzXQrhJiDhoWCkLVYH3drD2cxNAzLFUv';
+const YABBAI_POOL = 'DaxLJ5mRkqWtfhFBKtibtGSYaiE7zFrtgsi5evmVBAax';
+const RPC = 'https://api.mainnet-beta.solana.com';
+
+let walletAddr = null;
+let solBalance = 0;
+let solPrice   = 88;
+
+const TOKENS = [
+  { id:'yabbai', symbol:'$YABBAI', name:'YABBAI', icon:'🦞', color:'#14F195', status:'live',
+    mint:YABBAI_MINT, pool:YABBAI_POOL, mcap:313, liq:0, vol:0, lp:0, lpPct:0.5, change:0 },
+  { id:'bash', symbol:'$BASH', name:'BASH Terminal', icon:'💻', color:'#00ff41', status:'new',
+    mint:'', pool:'', mcap:0, liq:0, vol:0, lp:0, lpPct:0, change:0 },
+  { id:'yabbie', symbol:'$YABBIE', name:'YABBIE Ocean', icon:'🌊', color:'#00e5d4', status:'new',
+    mint:'', pool:'', mcap:0, liq:0, vol:0, lp:0, lpPct:0, change:0 },
+  { id:'homegrown', symbol:'$HOMEGROWN', name:'HOMEGROWN', icon:'🌿', color:'#4ade80', status:'new',
+    mint:'', pool:'', mcap:0, liq:0, vol:0, lp:0, lpPct:0, change:0 },
+  { id:'greenhouse', symbol:'$GREENHOUSE', name:'GREENHOUSEGROW', icon:'🏡', color:'#fbbf24', status:'new',
+    mint:'', pool:'', mcap:0, liq:0, vol:0, lp:0, lpPct:0, change:0 },
+];
+
+const HISTORY = [
+  { icon:'⚡', title:'LP injected — $YABBAI pool', meta:'pool: DaxLJ5m...', amount:'+0.5 SOL', type:'pos', time:'2h ago' },
+  { icon:'🌐', title:'Token network initialized', meta:'5 tokens registered', amount:'Setup', type:'pos', time:'3h ago' },
+];
+
+// ── INIT ─────────────────────────────────────────────────
+window.addEventListener('load', () => {
+  fetchSolPrice();
+  renderTokenGrid('tokenGridPreview');
+  renderTokenGrid('fullTokenGrid');
+  renderHistory();
+  initCanvas();
+  setInterval(fetchSolPrice, 30000);
+  setInterval(() => { fetchYabbaiPrice(); }, 30000);
+  fetchYabbaiPrice();
+});
+
+async function fetchSolPrice() {
+  try {
+    const r = await fetch('https://api.jup.ag/price/v2?ids=So11111111111111111111111111111111111111112');
+    const d = await r.json();
+    const p = d?.data?.['So11111111111111111111111111111111111111112']?.price;
+    if (p) {
+      solPrice = parseFloat(p);
+      document.getElementById('tbSolPrice').textContent = '$'+solPrice.toFixed(2);
+    }
+  } catch {}
+}
+
+async function fetchYabbaiPrice() {
+  try {
+    const r = await fetch('https://api.dexscreener.com/latest/dex/pairs/solana/'+YABBAI_POOL, { cache:'no-cache' });
+    if (r.ok) {
+      const d = await r.json();
+      const pair = d?.pair || d?.pairs?.[0];
+      if (pair) {
+        const t = TOKENS[0];
+        t.mcap   = parseFloat(pair.fdv || pair.marketCap || 313);
+        t.liq    = parseFloat(pair.liquidity?.usd || 0);
+        t.vol    = parseFloat(pair.volume?.h24 || 0);
+        t.change = parseFloat(pair.priceChange?.h24 || 0);
+        t.price  = parseFloat(pair.priceUsd || 0);
+        renderTokenGrid('tokenGridPreview');
+        renderTokenGrid('fullTokenGrid');
+        updateOverview();
+      }
+    }
+  } catch {}
+}
+
+function updateOverview() {
+  const totalLiq = TOKENS.reduce((s,t) => s+t.liq, 0);
+  const fmtM = n => n >= 1e6 ? '$'+(n/1e6).toFixed(2)+'M' : n >= 1e3 ? '$'+(n/1e3).toFixed(1)+'K' : '$'+n.toFixed(0);
+  document.getElementById('ovTotalLiq').textContent = fmtM(totalLiq);
+  document.getElementById('tbTotalLiq').textContent = fmtM(totalLiq);
+  document.getElementById('ovSolBal').textContent = solBalance ? solBalance.toFixed(4)+' SOL' : '—';
+}
+
+// ── TOKEN GRID ───────────────────────────────────────────
+function fmtP(p) {
+  if (!p) return '$—';
+  if (p < 0.000001) return '$'+p.toExponential(2);
+  if (p < 0.001) return '$'+p.toFixed(8);
+  return '$'+p.toFixed(6);
+}
+function fmtM(n) {
+  if (!n || n === 0) return '$—';
+  if (n >= 1e6) return '$'+(n/1e6).toFixed(2)+'M';
+  if (n >= 1e3) return '$'+(n/1e3).toFixed(1)+'K';
+  return '$'+Math.round(n);
+}
+
+function renderTokenGrid(containerId) {
+  const container = document.getElementById(containerId);
+  if (!container) return;
+  container.className = 'token-grid';
+  container.innerHTML = TOKENS.map(t => `
+    <div class="token-card">
+      <div class="tc-header">
+        <div class="tc-avatar" style="background:${t.color}20;border:1px solid ${t.color}30">${t.icon}</div>
+        <div class="tc-info">
+          <div class="tc-symbol" style="color:${t.color}">${t.symbol}</div>
+          <div class="tc-name">${t.name}</div>
+        </div>
+        <div class="tc-status ${t.status === 'live' ? 'status-live' : t.status === 'grad' ? 'status-grad' : 'status-new'}">
+          ${t.status === 'live' ? '● Live' : t.status === 'grad' ? '🎓 Raydium' : '◎ Pending'}
+        </div>
+      </div>
+      <div class="tc-body">
+        <div class="tc-stats">
+          <div class="tcs"><div class="tcs-val">${t.price ? fmtP(t.price) : '$—'}</div><div class="tcs-lbl">Price</div></div>
+          <div class="tcs"><div class="tcs-val">${fmtM(t.mcap)}</div><div class="tcs-lbl">MCap</div></div>
+          <div class="tcs"><div class="tcs-val">${fmtM(t.liq)}</div><div class="tcs-lbl">Liquidity</div></div>
+        </div>
+        <div class="tc-lp">
+          <div class="tc-lp-label">LP Position</div>
+          <div class="tc-lp-bar"><div class="tc-lp-fill" style="width:${t.lpPct*100}%"></div></div>
+          <div class="tc-lp-stats">
+            <span>${t.lp > 0 ? fmtM(t.lp)+' in pool' : 'No LP yet'}</span>
+            <span>${t.vol > 0 ? 'Vol: '+fmtM(t.vol) : '—'}</span>
+          </div>
+        </div>
+        <div class="tc-actions">
+          ${t.mint ? `<div class="tca tca-buy" onclick="openBuy('${t.mint}')">Buy</div>` : ''}
+          ${t.pool ? `<div class="tca tca-lp" onclick="openLP('${t.pool}')">Add LP</div>` : ''}
+          ${t.lp > 0 || t.pool ? `<div class="tca tca-remove" onclick="openRemoveLP('${t.id}')">Remove LP</div>` : ''}
+          ${!t.mint ? `<div class="tca tca-inject" onclick="openMint('${t.id}')">Mint →</div>` : ''}
+        </div>
+      </div>
+    </div>
+  `).join('');
+}
+
+// ── ACTIONS ──────────────────────────────────────────────
+function openBuy(mint) {
+  window.open(`https://jup.ag/swap/SOL-${mint}`, '_blank');
+  toast('Jupiter opened — confirm swap in wallet');
+}
+
+function openLP(pool) {
+  window.open(`https://raydium.io/liquidity/add/?mode=add&pool_id=${pool}`, '_blank');
+  toast('Raydium LP opened — add liquidity in wallet');
+}
+
+function openRemoveLP(tokenId) {
+  const t = TOKENS.find(x => x.id === tokenId);
+  if (!t) return;
+  openModal(`
+    <div class="modal-title">Remove LP — ${t.symbol}</div>
+    <div class="modal-sub">
+      This opens Raydium to remove your liquidity position.
+      You will receive SOL + ${t.symbol} back to your wallet.
+      You can then re-inject into any token via the LP Router.
+    </div>
+    <div class="modal-field">
+      <label class="mf-label">Announcement (required before removing)</label>
+      <textarea class="mf-input" id="removeAnnounce" style="height:80px;resize:none;line-height:1.5"
+        placeholder="Post this to your community before proceeding: 'We are removing LP from ${t.symbol} to [reason]. Will be reinjected within [timeframe].'"></textarea>
+    </div>
+    <div class="modal-actions">
+      <button class="ma-btn ma-secondary" onclick="closeModal()">Cancel</button>
+      <button class="ma-btn ma-primary" onclick="confirmRemoveLP('${t.id}','${t.pool}')">Open Raydium to Remove →</button>
+    </div>
+  `);
+}
+
+function confirmRemoveLP(tokenId, pool) {
+  const msg = document.getElementById('removeAnnounce')?.value?.trim();
+  if (!msg || msg.length < 20) {
+    toast('Write an announcement message first', 'error'); return;
+  }
+  addToHistory('🔴', `LP removal initiated — ${TOKENS.find(t=>t.id===tokenId)?.symbol}`, 'Community announced', '−LP', 'neg');
+  closeModal();
+  if (pool) {
+    window.open(`https://raydium.io/liquidity/remove/?pool_id=${pool}`, '_blank');
+  } else {
+    window.open('https://raydium.io/liquidity/', '_blank');
+  }
+  toast('Raydium opened — remove LP and return here to inject');
+}
+
+function openMint(tokenId) {
+  window.open('https://pump.fun', '_blank');
+  toast('Mint your token on pump.fun then paste the CA here');
+}
+
+// ── LP ROUTER ───────────────────────────────────────────
+function updateRouter() {
+  const fromAmt = parseFloat(document.getElementById('routerFromAmt')?.value || 0);
+  const toInput = document.getElementById('routerToAmt');
+  if (toInput && fromAmt > 0) toInput.value = fromAmt.toFixed(2);
+
+  const from = document.getElementById('routerFrom')?.value;
+  const to   = document.getElementById('routerTo')?.value;
+  const msg  = document.getElementById('announceMsg')?.value?.trim();
+  const exec = document.getElementById('routerExec');
+  const summary = document.getElementById('routerSummary');
+
+  if (from && to && fromAmt > 0 && msg && msg.length > 20) {
+    exec.disabled = false;
+    const fromToken = TOKENS.find(t => t.id === from);
+    const toToken   = TOKENS.find(t => t.id === to);
+    summary.style.display = 'block';
+    summary.innerHTML = `
+      <strong style="color:var(--text)">Route Summary</strong><br>
+      Remove: ${fromAmt} SOL of LP from ${fromToken?.symbol || from}<br>
+      Inject: ${fromAmt} SOL of LP into ${toToken?.symbol || to}<br>
+      Est. AUD value: ~$${(fromAmt * solPrice * 1.1).toFixed(2)}<br>
+      <span style="color:var(--neon)">✓ Announcement written · Ready to execute</span>
+    `;
+  } else {
+    exec.disabled = true;
+    summary.style.display = 'none';
+  }
+}
+
+// Attach router update listeners
+document.addEventListener('DOMContentLoaded', () => {
+  ['routerFrom','routerTo','routerFromAmt','announceMsg'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.addEventListener('input', updateRouter);
+  });
+});
+
+function executeRouter() {
+  const from    = document.getElementById('routerFrom')?.value;
+  const to      = document.getElementById('routerTo')?.value;
+  const fromAmt = parseFloat(document.getElementById('routerFromAmt')?.value || 0);
+  if (!from || !to || !fromAmt) return;
+
+  const fromToken = TOKENS.find(t => t.id === from);
+  const toToken   = TOKENS.find(t => t.id === to);
+
+  // Step 1: Remove LP
+  if (fromToken?.pool) {
+    window.open(`https://raydium.io/liquidity/remove/?pool_id=${fromToken.pool}`, '_blank');
+  } else {
+    window.open('https://raydium.io/liquidity/', '_blank');
+  }
+
+  setTimeout(() => {
+    // Step 2: Inject into destination
+    if (toToken?.pool) {
+      window.open(`https://raydium.io/liquidity/add/?mode=add&pool_id=${toToken.pool}`, '_blank');
+    } else if (toToken?.mint) {
+      window.open(`https://raydium.io/liquidity/add/?baseMint=${toToken.mint}&quoteMint=So11111111111111111111111111111111111111112`, '_blank');
+    } else {
+      window.open('https://pump.fun', '_blank');
+    }
+  }, 2000);
+
+  addToHistory('⚡', `LP routed: ${fromToken?.symbol} → ${toToken?.symbol}`, `${fromAmt} SOL`, '+LP', 'pos');
+  toast(`LP route executing — sign both transactions in wallet`);
+}
+
+// ── CREATE TOKEN ─────────────────────────────────────────
+function selectPlatform(el) {
+  document.querySelectorAll('.cf-route').forEach(e => e.classList.remove('selected'));
+  el.classList.add('selected');
+}
+
+function launchToken() {
+  const name   = document.getElementById('cfName')?.value?.trim();
+  const symbol = document.getElementById('cfSymbol')?.value?.trim();
+  const platform = document.querySelector('.cf-route.selected')?.dataset?.platform;
+
+  if (!name || !symbol) { toast('Enter token name and symbol', 'error'); return; }
+
+  let url;
+  if (platform === 'pumpfun') url = 'https://pump.fun';
+  else if (platform === 'raydium') url = 'https://raydium.io/launchpad/';
+  else url = 'https://solana-token-creator.com';
+
+  window.open(url, '_blank');
+  addToHistory('✦', `Token creation initiated — ${symbol}`, `via ${platform}`, 'New', 'pos');
+  toast(`${url.split('/')[2]} opened — complete setup in your wallet`);
+}
+
+// ── HISTORY ──────────────────────────────────────────────
+function addToHistory(icon, title, meta, amount, type) {
+  HISTORY.unshift({ icon, title, meta, amount, type, time:'just now' });
+  renderHistory();
+}
+
+function renderHistory() {
+  const list = document.getElementById('historyList');
+  if (!list) return;
+  list.innerHTML = HISTORY.map(h => `
+    <div class="hist-item">
+      <div class="hist-icon">${h.icon}</div>
+      <div class="hist-info">
+        <div class="hist-title">${h.title}</div>
+        <div class="hist-meta">${h.meta}</div>
+      </div>
+      <div class="hist-amount ${h.type}">${h.amount}</div>
+      <div class="hist-time">${h.time}</div>
+    </div>
+  `).join('');
+}
+
+// ── NETWORK CANVAS ───────────────────────────────────────
+function initCanvas() {
+  const canvas = document.getElementById('netCanvas');
+  if (!canvas) return;
+  const ctx = canvas.getContext('2d');
+
+  function resize() {
+    canvas.width  = canvas.offsetWidth;
+    canvas.height = canvas.offsetHeight;
+  }
+  resize();
+  window.addEventListener('resize', resize);
+
+  const nodes = [
+    { x:0.5, y:0.5, label:'$YABBAI', color:'#14F195', r:28, main:true },
+    { x:0.2, y:0.25, label:'$BASH',  color:'#00ff41', r:18 },
+    { x:0.8, y:0.25, label:'$YABBIE', color:'#00e5d4', r:18 },
+    { x:0.2, y:0.75, label:'$HOMEGROWN', color:'#4ade80', r:18 },
+    { x:0.8, y:0.75, label:'$GREENHOUSE', color:'#fbbf24', r:18 },
+  ];
+
+  let t = 0;
+  function draw() {
+    const w = canvas.width, h = canvas.height;
+    ctx.clearRect(0,0,w,h);
+    t += 0.01;
+
+    // Draw connections
+    nodes.slice(1).forEach((n,i) => {
+      const main = nodes[0];
+      const mx = main.x*w, my = main.y*h;
+      const nx = n.x*w, ny = n.y*h;
+      const pulse = (Math.sin(t + i*1.2) + 1)/2;
+
+      // Flow line
+      const grad = ctx.createLinearGradient(mx,my,nx,ny);
+      grad.addColorStop(0, main.color+'40');
+      grad.addColorStop(1, n.color+'40');
+      ctx.beginPath();
+      ctx.moveTo(mx,my);
+      ctx.lineTo(nx,ny);
+      ctx.strokeStyle = grad;
+      ctx.lineWidth = 1.5;
+      ctx.setLineDash([4,6]);
+      ctx.stroke();
+      ctx.setLineDash([]);
+
+      // Travelling particle
+      const px = mx + (nx-mx)*((t*0.3 + i*0.2) % 1);
+      const py = my + (ny-my)*((t*0.3 + i*0.2) % 1);
+      ctx.beginPath();
+      ctx.arc(px,py,3,0,Math.PI*2);
+      ctx.fillStyle = n.color;
+      ctx.fill();
+    });
+
+    // Draw nodes
+    nodes.forEach(n => {
+      const x=n.x*w, y=n.y*h;
+      const glow = ctx.createRadialGradient(x,y,0,x,y,n.r*2);
+      glow.addColorStop(0, n.color+'22');
+      glow.addColorStop(1, 'transparent');
+      ctx.beginPath();
+      ctx.arc(x,y,n.r*2,0,Math.PI*2);
+      ctx.fillStyle = glow;
+      ctx.fill();
+
+      ctx.beginPath();
+      ctx.arc(x,y,n.r,0,Math.PI*2);
+      ctx.fillStyle = '#060b14';
+      ctx.fill();
+      ctx.strokeStyle = n.color;
+      ctx.lineWidth = n.main ? 2.5 : 1.5;
+      ctx.stroke();
+
+      ctx.fillStyle = n.color;
+      ctx.font = `${n.main?'14':'11'}px Syne`;
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText(n.label.replace('$',''), x, y);
+    });
+
+    requestAnimationFrame(draw);
+  }
+  draw();
+}
+
+// ── SECTION NAV ──────────────────────────────────────────
+function showSection(id) {
+  ['network','tokens','router','history','create'].forEach(s => {
+    const el = document.getElementById('sec-'+s);
+    if (el) el.style.display = s === id ? '' : 'none';
+  });
+  document.querySelectorAll('.nav-item').forEach(el => {
+    el.classList.toggle('active', el.dataset.section === id);
+  });
+}
+
+// ── WALLET ───────────────────────────────────────────────
+async function connectWallet() {
+  try {
+    const provider = window.phantom?.solana || window.solana;
+    if (!provider) { window.open('https://phantom.app','_blank'); return; }
+    const resp = await provider.connect();
+    walletAddr = resp.publicKey.toString();
+    const balRes = await fetch(RPC, { method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({jsonrpc:'2.0',id:1,method:'getBalance',params:[walletAddr]}) });
+    const balData = await balRes.json();
+    solBalance = (balData.result?.value || 0) / 1e9;
+
+    document.getElementById('walletArea').innerHTML = `
+      <div class="tb-connected">
+        <div class="tc-addr">${walletAddr.slice(0,6)}...${walletAddr.slice(-4)}</div>
+        <div class="tc-bal">${solBalance.toFixed(4)} SOL · $${(solBalance*solPrice).toFixed(2)}</div>
+      </div>`;
+    document.getElementById('ovSolBal').textContent = solBalance.toFixed(4)+' SOL';
+    toast('Wallet connected — '+solBalance.toFixed(4)+' SOL');
+  } catch(e) {
+    toast('Connect failed: '+e.message, 'error');
+  }
+}
+
+function refreshAll() {
+  fetchSolPrice();
+  fetchYabbaiPrice();
+  toast('Refreshing live data...');
+}
+
+// ── MODAL ─────────────────────────────────────────────────
+function openModal(html) {
+  document.getElementById('modalContent').innerHTML = html;
+  document.getElementById('modalOverlay').style.display = 'flex';
+}
+function closeModal() { document.getElementById('modalOverlay').style.display = 'none'; }
+
+// ── TOAST ─────────────────────────────────────────────────
+function toast(msg, type='') {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.className = 'toast' + (type ? ' '+type : '') + ' show';
+  setTimeout(() => t.classList.remove('show'), 3500);
+}
+</script>
+</body>
+</html>

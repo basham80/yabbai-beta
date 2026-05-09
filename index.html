@@ -1,0 +1,233 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>YABBAI Beta — Full Ecosystem</title>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@700;800&family=Azeret+Mono:wght@400;500&family=Manrope:wght@500;600;700&display=swap" rel="stylesheet">
+<style>
+:root{--void:#02040a;--plate:#0a0f1c;--wire:#162030;--neon:#14F195;--sol:#9945FF;--gold:#ffc200;--text:#e8f4ff;--dim:#3a5070;}
+*{margin:0;padding:0;box-sizing:border-box;}
+html,body{background:var(--void);color:var(--text);font-family:'Manrope',sans-serif;min-height:100vh;}
+body::before{content:'';position:fixed;inset:0;z-index:0;pointer-events:none;
+  background:radial-gradient(ellipse 70% 50% at 15% 10%,rgba(153,69,255,0.06),transparent 60%),
+  radial-gradient(ellipse 60% 40% at 85% 85%,rgba(20,241,149,0.04),transparent 60%),
+  repeating-linear-gradient(0deg,transparent,transparent 48px,rgba(20,241,149,0.007) 48px,rgba(20,241,149,0.007) 49px),
+  repeating-linear-gradient(90deg,transparent,transparent 48px,rgba(20,241,149,0.007) 48px,rgba(20,241,149,0.007) 49px);}
+@keyframes fadeUp{from{opacity:0;transform:translateY(20px);}to{opacity:1;transform:translateY(0);}}
+@keyframes pulse{0%,100%{opacity:1;}50%{opacity:0.3;}}
+@keyframes ticker{0%{transform:translateX(0);}100%{transform:translateX(-50%);}}
+
+.ticker-wrap{background:rgba(20,241,149,0.04);border-bottom:1px solid rgba(20,241,149,0.1);padding:5px 0;overflow:hidden;font-family:'Azeret Mono',monospace;font-size:0.6rem;color:rgba(20,241,149,0.7);}
+.ticker-inner{display:flex;animation:ticker 40s linear infinite;width:max-content;}
+.ti{padding:0 32px;}
+
+.wrap{max-width:1100px;margin:0 auto;padding:48px 24px 80px;position:relative;z-index:1;}
+
+.hero{text-align:center;margin-bottom:56px;animation:fadeUp 0.6s ease;}
+.beta-badge{display:inline-flex;align-items:center;gap:6px;font-family:'Azeret Mono',monospace;font-size:0.62rem;color:var(--gold);background:rgba(255,194,0,0.08);border:1px solid rgba(255,194,0,0.2);padding:4px 12px;border-radius:20px;margin-bottom:16px;}
+.beta-dot{width:6px;height:6px;border-radius:50%;background:var(--gold);animation:pulse 2s infinite;}
+.hero-title{font-family:'Syne',sans-serif;font-weight:800;font-size:clamp(3rem,8vw,5.5rem);letter-spacing:-0.04em;line-height:0.95;margin-bottom:10px;}
+.ht1{display:block;color:var(--text);}
+.ht2{display:block;background:linear-gradient(135deg,var(--neon),var(--sol));-webkit-background-clip:text;-webkit-text-fill-color:transparent;}
+.hero-sub{font-family:'Azeret Mono',monospace;font-size:0.68rem;color:var(--dim);letter-spacing:0.1em;text-transform:uppercase;margin-bottom:14px;}
+.hero-desc{font-size:0.95rem;color:rgba(232,244,255,0.55);line-height:1.7;max-width:580px;margin:0 auto;}
+
+.treasury{background:rgba(153,69,255,0.05);border:1px solid rgba(153,69,255,0.15);border-radius:8px;padding:10px 18px;display:flex;align-items:center;gap:10px;max-width:700px;margin:0 auto 40px;flex-wrap:wrap;}
+.tl{font-family:'Azeret Mono',monospace;font-size:0.56rem;color:var(--sol);letter-spacing:0.08em;text-transform:uppercase;flex-shrink:0;}
+.ta{font-family:'Azeret Mono',monospace;font-size:0.62rem;color:var(--neon);word-break:break-all;flex:1;}
+
+.invest-card{background:var(--plate);border:2px solid rgba(20,241,149,0.25);border-radius:14px;padding:24px;margin-bottom:32px;animation:fadeUp 0.5s ease 0.1s both;}
+.ic-title{font-family:'Syne',sans-serif;font-weight:700;font-size:1.2rem;margin-bottom:4px;color:var(--neon);}
+.ic-sub{font-family:'Azeret Mono',monospace;font-size:0.62rem;color:var(--dim);margin-bottom:20px;}
+.ic-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px;margin-bottom:16px;}
+.ic-item{background:rgba(20,241,149,0.04);border:1px solid rgba(20,241,149,0.12);border-radius:8px;padding:14px;}
+.ici-action{font-size:0.82rem;font-weight:600;color:var(--text);margin-bottom:4px;}
+.ici-cost{font-family:'Azeret Mono',monospace;font-size:0.7rem;color:var(--gold);}
+.ici-why{font-family:'Azeret Mono',monospace;font-size:0.58rem;color:var(--dim);margin-top:4px;line-height:1.5;}
+.ic-total{background:rgba(255,194,0,0.06);border:1px solid rgba(255,194,0,0.2);border-radius:8px;padding:12px 16px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;}
+.ict-label{font-family:'Azeret Mono',monospace;font-size:0.62rem;color:var(--dim);}
+.ict-val{font-family:'Syne',sans-serif;font-weight:700;font-size:1.1rem;color:var(--gold);}
+
+.section-label{font-family:'Azeret Mono',monospace;font-size:0.58rem;color:var(--dim);letter-spacing:0.1em;text-transform:uppercase;margin-bottom:14px;display:flex;align-items:center;gap:10px;}
+.section-label::after{content:'';flex:1;height:1px;background:var(--wire);}
+
+.token-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:12px;margin-bottom:32px;}
+.token-card{background:var(--plate);border:1px solid var(--wire);border-radius:12px;padding:18px;text-decoration:none;color:var(--text);display:block;transition:all 0.2s;position:relative;overflow:hidden;}
+.token-card::before{content:'';position:absolute;top:0;left:0;right:0;height:2px;opacity:0;transition:opacity 0.3s;}
+.token-card:hover{transform:translateY(-4px);box-shadow:0 12px 32px rgba(0,0,0,0.4);}
+.token-card:hover::before{opacity:1;}
+.tc-icon{font-size:2rem;margin-bottom:10px;display:block;}
+.tc-symbol{font-family:'Syne',sans-serif;font-weight:700;font-size:1rem;margin-bottom:3px;}
+.tc-name{font-family:'Azeret Mono',monospace;font-size:0.58rem;color:var(--dim);margin-bottom:8px;}
+.tc-status{font-family:'Azeret Mono',monospace;font-size:0.56rem;padding:2px 8px;border-radius:4px;display:inline-block;}
+.ts-live{background:rgba(20,241,149,0.1);color:var(--neon);border:1px solid rgba(20,241,149,0.2);}
+.ts-pending{background:rgba(255,194,0,0.08);color:var(--gold);border:1px solid rgba(255,194,0,0.2);}
+.tc-arrow{position:absolute;bottom:14px;right:14px;font-size:0.65rem;color:var(--dim);transition:all 0.2s;}
+.token-card:hover .tc-arrow{color:var(--neon);}
+
+.tools-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:12px;margin-bottom:32px;}
+.tool-card{background:var(--plate);border:1px solid var(--wire);border-radius:10px;padding:16px;text-decoration:none;color:var(--text);display:block;transition:all 0.2s;}
+.tool-card:hover{border-color:var(--wire2);transform:translateY(-2px);}
+.tool-icon{font-size:1.5rem;margin-bottom:8px;}
+.tool-name{font-size:0.88rem;font-weight:600;margin-bottom:4px;}
+.tool-desc{font-family:'Azeret Mono',monospace;font-size:0.58rem;color:var(--dim);line-height:1.5;}
+
+footer{border-top:1px solid var(--wire);padding:20px 24px;text-align:center;font-family:'Azeret Mono',monospace;font-size:0.58rem;color:var(--dim);position:relative;z-index:1;}
+</style>
+</head>
+<body>
+
+<div class="ticker-wrap">
+  <div class="ticker-inner">
+    <span class="ti">🦞 $YABBAI BETA · FULL ECOSYSTEM</span>
+    <span class="ti">◈ TREASURY: 8e6ogxf...UHPi</span>
+    <span class="ti">◈ MINT: AcEVtp...LFUv</span>
+    <span class="ti">◈ SOL: $119.84 AUD</span>
+    <span class="ti">◈ $325 AUD = 2.71 SOL = NEAR GRADUATION</span>
+    <span class="ti">◈ 5 TOKENS · 14 APIs · PAYPAL AUTOPAYOUT</span>
+    <span class="ti">🦞 $YABBAI BETA · FULL ECOSYSTEM</span>
+    <span class="ti">◈ TREASURY: 8e6ogxf...UHPi</span>
+    <span class="ti">◈ MINT: AcEVtp...LFUv</span>
+    <span class="ti">◈ SOL: $119.84 AUD</span>
+    <span class="ti">◈ $325 AUD = 2.71 SOL = NEAR GRADUATION</span>
+    <span class="ti">◈ 5 TOKENS · 14 APIs · PAYPAL AUTOPAYOUT</span>
+  </div>
+</div>
+
+<div class="wrap">
+
+  <div class="hero">
+    <div class="beta-badge"><div class="beta-dot"></div>Beta v1.0 · Private Testing</div>
+    <h1 class="hero-title">
+      <span class="ht1">YABBAI</span>
+      <span class="ht2">Beta Ecosystem.</span>
+    </h1>
+    <div class="hero-sub">5 Tokens · LP Manager · AI Brain · Phantom Wallet · Live Data</div>
+    <p class="hero-desc">Full YABBAI ecosystem beta. All 5 tokens, LP management, autonomous missions, SIWS wallet connect, and real cashout wired up. Test everything before the public launch.</p>
+  </div>
+
+  <div class="treasury">
+    <span class="tl">◆ Treasury</span>
+    <span class="ta">8e6ogxfUnj6YXHp1tR4Kj1ytSkmEhLhi2fbKqRVxUHPi</span>
+  </div>
+
+  <!-- INVESTMENT PLAN -->
+  <div class="invest-card">
+    <div class="ic-title">💸 Your $325 AUD Deployment Plan</div>
+    <div class="ic-sub">SOL at $119.84 AUD · 2.71 SOL total · Deploy in order</div>
+    <div class="ic-grid">
+      <div class="ic-item">
+        <div class="ici-action">1. Mint 4 Tokens</div>
+        <div class="ici-cost">0.08 SOL · ~$10 AUD</div>
+        <div class="ici-why">$BASH, $YABBIE, $HOMEGROWN, $GREENHOUSEGROW all live on pump.fun</div>
+      </div>
+      <div class="ic-item">
+        <div class="ici-action">2. Buy $YABBAI</div>
+        <div class="ici-cost">2.0 SOL · ~$240 AUD</div>
+        <div class="ici-why">Pushes bonding curve from $313 → ~$60K+ mcap. Near graduation threshold of $69K.</div>
+      </div>
+      <div class="ic-item">
+        <div class="ici-action">3. Gas Reserve</div>
+        <div class="ici-cost">0.13 SOL · ~$15 AUD</div>
+        <div class="ici-why">Transaction fees, RPC calls, future operations</div>
+      </div>
+      <div class="ic-item">
+        <div class="ici-action">4. Community Push</div>
+        <div class="ici-cost">FREE</div>
+        <div class="ici-why">Share pump.fun link. Small community buys after your 2 SOL injection tips it over $69K → Raydium graduation</div>
+      </div>
+    </div>
+    <div class="ic-total">
+      <div>
+        <div class="ict-label">Total deployment</div>
+        <div style="font-family:'Azeret Mono',monospace;font-size:0.65rem;color:var(--dim);margin-top:3px">Near-graduation + all 5 tokens live + gas reserve</div>
+      </div>
+      <div class="ict-val">2.71 SOL · ~$325 AUD</div>
+    </div>
+  </div>
+
+  <!-- TOKEN SITES -->
+  <div class="section-label">Token Ecosystem</div>
+  <div class="token-grid">
+    <a class="token-card" href="yabbai/" style="--c:var(--neon)">
+      <div class="token-card::before" style="background:linear-gradient(90deg,var(--neon),var(--sol))"></div>
+      <span class="tc-icon">🦞</span>
+      <div class="tc-symbol" style="color:var(--neon)">$YABBAI</div>
+      <div class="tc-name">The Original Hub</div>
+      <div class="tc-status ts-live">● Live · $313 mcap</div>
+      <div class="tc-arrow">Open →</div>
+    </a>
+    <a class="token-card" href="bash/">
+      <span class="tc-icon">💻</span>
+      <div class="tc-symbol" style="color:#00ff41">$BASH</div>
+      <div class="tc-name">Terminal CTF Token</div>
+      <div class="tc-status ts-pending">◎ Mint on pump.fun</div>
+      <div class="tc-arrow">Open →</div>
+    </a>
+    <a class="token-card" href="yabbie/">
+      <span class="tc-icon">🌊</span>
+      <div class="tc-symbol" style="color:#00e5d4">$YABBIE</div>
+      <div class="tc-name">Ocean Scout Token</div>
+      <div class="tc-status ts-pending">◎ Mint on pump.fun</div>
+      <div class="tc-arrow">Open →</div>
+    </a>
+    <a class="token-card" href="homegrown/">
+      <span class="tc-icon">🌿</span>
+      <div class="tc-symbol" style="color:#4ade80">$HOMEGROWN</div>
+      <div class="tc-name">Australian Community</div>
+      <div class="tc-status ts-pending">◎ Mint on pump.fun</div>
+      <div class="tc-arrow">Open →</div>
+    </a>
+    <a class="token-card" href="greenhousegrow/">
+      <span class="tc-icon">🏡</span>
+      <div class="tc-symbol" style="color:#fbbf24">$GREENHOUSEGROW</div>
+      <div class="tc-name">Back Garden Token</div>
+      <div class="tc-status ts-pending">◎ Mint on pump.fun</div>
+      <div class="tc-arrow">Open →</div>
+    </a>
+  </div>
+
+  <!-- TOOLS -->
+  <div class="section-label">Platform Tools</div>
+  <div class="tools-grid">
+    <a class="tool-card" href="yabbai/">
+      <div class="tool-icon">⚡</div>
+      <div class="tool-name">YABBAI Main App</div>
+      <div class="tool-desc">Dashboard · Missions · Cashout · LP Manager · AI Brain · Phantom SIWS</div>
+    </a>
+    <a class="tool-card" href="yabbai/lp-network.html">
+      <div class="tool-icon">🌐</div>
+      <div class="tool-name">LiquidNet LP Manager</div>
+      <div class="tool-desc">Route LP between all 5 tokens. Remove + reinject. Animated network view.</div>
+    </a>
+    <a class="tool-card" href="https://yabbai-vercel-y27x.vercel.app/lp-raiser" target="_blank">
+      <div class="tool-icon">🔭</div>
+      <div class="tool-name">Ultimate LP Raiser</div>
+      <div class="tool-desc">Any CA · Whale tracker · Launch sniffer · Rug radar · Portfolio · Alerts</div>
+    </a>
+    <a class="tool-card" href="https://pump.fun/coin/AcEVtpLEfxMHFzXQrhJiDhoWCkLVYH3drD2cxNAzLFUv" target="_blank">
+      <div class="tool-icon">🦞</div>
+      <div class="tool-name">Buy $YABBAI</div>
+      <div class="tool-desc">pump.fun bonding curve · Deploy your 2 SOL here to push toward graduation</div>
+    </a>
+    <a class="tool-card" href="https://dexscreener.com/solana/DaxLJ5mRkqWtfhFBKtibtGSYaiE7zFrtgsi5evmVBAax" target="_blank">
+      <div class="tool-icon">📊</div>
+      <div class="tool-name">$YABBAI Chart</div>
+      <div class="tool-desc">Live price · Volume · Holders · Dexscreener</div>
+    </a>
+    <a class="tool-card" href="https://axiom.trade/meme/DaxLJ5mRkqWtfhFBKtibtGSYaiE7zFrtgsi5evmVBAax?chain=sol" target="_blank">
+      <div class="tool-icon">⚡</div>
+      <div class="tool-name">Trade on Axiom</div>
+      <div class="tool-desc">Fast trading terminal · $YABBAI live</div>
+    </a>
+  </div>
+
+  <footer>
+    YABBAI Beta · 5 Tokens · Solana Mainnet · All community tokens · Always DYOR<br>
+    Treasury: 8e6ogxfUnj6YXHp1tR4Kj1ytSkmEhLhi2fbKqRVxUHPi · PayPal: basham_x@protonmail.com
+  </footer>
+
+</div>
+</body>
+</html>
