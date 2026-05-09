@@ -776,7 +776,7 @@ body::before{content:'';position:fixed;inset:0;z-index:0;pointer-events:none;
 const MINT     = 'AcEVtpLEfxMHFzXQrhJiDhoWCkLVYH3drD2cxNAzLFUv';
 const POOL     = 'DaxLJ5mRkqWtfhFBKtibtGSYaiE7zFrtgsi5evmVBAax';
 const DEFAULT_TREASURY = '8e6ogxfUnj6YXHp1tR4Kj1ytSkmEhLhi2fbKqRVxUHPi';
-/** Mainnet-beta genesis — used to block deposits on devnet/testnet wallets. */
+/** Mainnet-beta genesis hash — `assertMainnetRpc` rejects any RPC whose `getGenesisHash()` does not match. */
 const MAINNET_GENESIS_HASH = 'EtWTRABZaYq6iMfeYKouRu166VU2xqa1wcaWoxeehBOw';
 const MIN_DEPOSIT_SOL = 1e-6;
 /** SOL deposit = SystemProgram.transfer(lamports); no app-side fee reserve — wallet/RPC enforce spendable SOL. */
@@ -889,6 +889,36 @@ function addTrackedMintFromInput() {
 
 let splWalletLines = [];
 
+/**
+ * Only https URLs that are clearly Solana **mainnet** (never devnet/testnet/local).
+ * Phantom/Solflare on devnet report a devnet `rpcEndpoint` — using it here would show 0 SOL
+ * for a mainnet-funded wallet and confuse deposits.
+ */
+function isMainnetHttpsRpcUrl(raw) {
+  if (!raw || typeof raw !== 'string') return false;
+  const t = raw.trim();
+  if (!/^https:\/\//i.test(t)) return false;
+  let u;
+  try {
+    u = new URL(t);
+  } catch (_) {
+    return false;
+  }
+  const host = (u.hostname || '').toLowerCase();
+  const qs = `${u.pathname || ''} ${u.search || ''}`.toLowerCase();
+  if (
+    host.includes('devnet') ||
+    host.includes('testnet') ||
+    host.includes('localhost') ||
+    host === '127.0.0.1' ||
+    qs.includes('devnet') ||
+    qs.includes('testnet')
+  ) {
+    return false;
+  }
+  return true;
+}
+
 /** Some wallets expose the RPC they use — often more reliable from the browser than our public list. */
 function collectWalletRpcHints() {
   const out = [];
@@ -915,11 +945,17 @@ function collectWalletRpcHints() {
 }
 
 function getSolanaRpcList() {
-  const custom =
-    typeof window !== 'undefined' &&
-    window.YABBAI_SOLANA_RPC &&
-    String(window.YABBAI_SOLANA_RPC).trim();
-  const hints = collectWalletRpcHints();
+  const trimmedCustom =
+    typeof window !== 'undefined' && window.YABBAI_SOLANA_RPC
+      ? String(window.YABBAI_SOLANA_RPC).trim()
+      : '';
+  if (trimmedCustom && !isMainnetHttpsRpcUrl(trimmedCustom)) {
+    console.warn('[YABBAI] YABBAI_SOLANA_RPC must be mainnet HTTPS — ignoring:', trimmedCustom);
+    try {
+      addLog('YABBAI_SOLANA_RPC ignored — not mainnet HTTPS (see mission-config.js)', '#ffc200', 'RPC');
+    } catch (_) {}
+  }
+  const hints = collectWalletRpcHints().filter(isMainnetHttpsRpcUrl);
   const fallback = [
     'https://api.mainnet-beta.solana.com',
     'https://solana-mainnet.rpc.extrnode.com',
@@ -929,7 +965,7 @@ function getSolanaRpcList() {
     'https://mainnet.rpcpool.com',
     'https://solana.drpc.org',
   ];
-  const customFirst = custom ? [custom.trim()] : [];
+  const customFirst = trimmedCustom && isMainnetHttpsRpcUrl(trimmedCustom) ? [trimmedCustom] : [];
   return [...new Set([...customFirst, ...hints, ...fallback])];
 }
 
@@ -1620,6 +1656,12 @@ async function fetchWalletBalance() {
   for (const rpc of endpoints) {
     try {
       const conn = new Connection(rpc, 'confirmed');
+      try {
+        await assertMainnetRpc(conn);
+      } catch (ce) {
+        console.warn('[YABBAI][SOL] skipped non-mainnet RPC', rpc, ce?.message || ce);
+        continue;
+      }
       const lamports = await conn.getBalance(pk, 'confirmed');
       if (applyPositiveLamports(lamports, rpc, '(rpc)')) return;
     } catch (e) {
@@ -1715,7 +1757,9 @@ async function fetchWalletBalance() {
 async function assertMainnetRpc(connection) {
   const gh = await connection.getGenesisHash();
   if (gh !== MAINNET_GENESIS_HASH) {
-    throw new Error(`Wrong Solana cluster — use Mainnet (expected genesis, got ${(gh || '').slice(0, 12)}…)`);
+    throw new Error(
+      `Wrong Solana cluster — this app is mainnet-beta only (genesis mismatch; RPC reports ${(gh || '').slice(0, 12)}…)`
+    );
   }
 }
 
@@ -1863,9 +1907,10 @@ async function depositSolToTreasury() {
     await fetchWalletBalance();
   }
 
-  // RPC "0 SOL" / untrusted: do not block (wallet enforces).
+  // Only block when RPC reported a **positive** spendable balance and amount exceeds it.
+  // Zero / unknown in-page balance never blocks (no fee-reserve messaging; wallet enforces real SOL).
   if (solBalanceFetchOk && solBalance > 0 && amt > solBalance) {
-    toast(`Insufficient SOL · need ${amt.toFixed(4)} · balance ${solBalance.toFixed(4)}`, 'error');
+    toast(`Insufficient SOL for this amount (RPC shows ${solBalance.toFixed(4)} SOL, sending ${amt.toFixed(4)}).`, 'error');
     return;
   }
 

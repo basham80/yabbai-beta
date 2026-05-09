@@ -43,9 +43,14 @@ window.YABBAI_SPL_WATCHLIST = '';
  */
 
 /**
- * Strongly recommended on IPFS / 4EVERLAND: public mainnet RPC often blocks or rate-limits browser `fetch`,
- * so the wallet chip shows "—" until this is set. Use a free Helius / Alchemy / QuickNode mainnet HTTPS URL.
- * Example: window.YABBAI_SOLANA_RPC = 'https://mainnet.helius-rpc.com/?api-key=YOUR_KEY';
+ * **Mainnet only** (Solana mainnet-beta). Must be `https://` and must not be devnet/testnet/local —
+ * the app ignores non-mainnet URLs so a wallet switched to devnet cannot poison balance/deposit RPC.
+ *
+ * If unset, the page tries `https://api.mainnet-beta.solana.com` first, then public mainnet mirrors
+ * (browser/IPFS often hits rate limits — chip may show "—" until you set a private RPC).
+ *
+ * Helius (example — use your key): `https://mainnet.helius-rpc.com/?api-key=YOUR_KEY`
+ * Alchemy / QuickNode: use their Solana **mainnet** HTTPS endpoint from the dashboard.
  */
 window.YABBAI_SOLANA_RPC = '';
 
