@@ -728,6 +728,184 @@ let tokenLiq   = 0;
 let tokenVol   = 0;
 let selectedCashout = 'wallet';
 
+/** Platform vault: per-wallet ledger (local) + illustrative compound yield. Deposits credit after on-chain tx. */
+const VAULT_APY_ANNUAL = 0.15;
+
+function vaultStorageKey() {
+  return 'yabbai_vault_v1_' + (walletAddr || '');
+}
+
+function loadVaultState() {
+  try {
+    const raw = localStorage.getItem(vaultStorageKey());
+    if (!raw) return { totalSol: 0, lastYieldTs: Date.now(), depositedCumulative: 0 };
+    const o = JSON.parse(raw);
+    return {
+      totalSol: Math.max(0, Number(o.totalSol) || 0),
+      lastYieldTs: Number(o.lastYieldTs) || Date.now(),
+      depositedCumulative: Math.max(0, Number(o.depositedCumulative) || 0),
+    };
+  } catch (_) {
+    return { totalSol: 0, lastYieldTs: Date.now(), depositedCumulative: 0 };
+  }
+}
+
+function saveVaultState(v) {
+  if (!walletAddr) return;
+  try {
+    localStorage.setItem(vaultStorageKey(), JSON.stringify(v));
+  } catch (_) {}
+}
+
+function accrueVaultYield() {
+  if (!walletAddr) return;
+  const v = loadVaultState();
+  if (v.totalSol <= 0) {
+    v.lastYieldTs = Date.now();
+    saveVaultState(v);
+    return;
+  }
+  const now = Date.now();
+  const elapsedSec = Math.max(0, (now - v.lastYieldTs) / 1000);
+  if (elapsedSec < 0.5) return;
+  const years = elapsedSec / (365 * 24 * 3600);
+  v.totalSol *= Math.pow(1 + VAULT_APY_ANNUAL, years);
+  v.lastYieldTs = now;
+  saveVaultState(v);
+}
+
+function vaultCreditDeposit(solAmt) {
+  if (!walletAddr || !Number.isFinite(solAmt) || solAmt <= 0) return;
+  accrueVaultYield();
+  const v = loadVaultState();
+  v.totalSol += solAmt;
+  v.depositedCumulative += solAmt;
+  v.lastYieldTs = Date.now();
+  saveVaultState(v);
+  renderVaultPanel();
+  addLog(`Vault +${solAmt.toFixed(4)} SOL credited (matches treasury deposit)`, '#14F195', 'Vault');
+}
+
+function renderVaultPanel() {
+  const solEl = document.getElementById('vaultCircSol');
+  const usdEl = document.getElementById('vaultCircUsd');
+  const pulseEl = document.getElementById('vaultYieldPulse');
+  if (!solEl || !usdEl || !pulseEl) return;
+
+  if (!walletAddr) {
+    solEl.textContent = '—';
+    usdEl.textContent = '—';
+    pulseEl.textContent = 'Connect wallet';
+    return;
+  }
+
+  accrueVaultYield();
+  const v = loadVaultState();
+  const px = effectiveSolUsd();
+  solEl.textContent = v.totalSol.toFixed(4);
+  usdEl.textContent = '$' + (v.totalSol * px).toFixed(2);
+
+  const gainVsDep = v.totalSol - v.depositedCumulative;
+  if (v.totalSol <= 0) {
+    pulseEl.textContent = 'Deposit to start circulating balance';
+  } else if (v.depositedCumulative > 0 && gainVsDep > 1e-8) {
+    pulseEl.textContent = `Accruing +${gainVsDep.toFixed(4)} SOL vs. deposits (simulated yield)`;
+  } else {
+    pulseEl.textContent = 'Yield engine active · ~' + Math.round(VAULT_APY_ANNUAL * 100) + '% APY (illustrative)';
+  }
+}
+
+function setMaxVaultWithdraw() {
+  accrueVaultYield();
+  const v = loadVaultState();
+  const input = document.getElementById('vaultWithdrawAmt');
+  if (input) input.value = v.totalSol > 0 ? v.totalSol.toFixed(6) : '';
+  updateVaultWithdrawUsd();
+}
+
+function updateVaultWithdrawUsd() {
+  const amt = parseFloat(document.getElementById('vaultWithdrawAmt')?.value || 0);
+  const el = document.getElementById('vaultWithdrawUsd');
+  const px = effectiveSolUsd();
+  if (el) el.textContent = `≈ $${(amt * px).toFixed(2)} USD`;
+}
+
+function enqueuePayoutRequest(amountSol) {
+  try {
+    const q = JSON.parse(localStorage.getItem('yabbai_payout_queue') || '[]');
+    q.push({ wallet: walletAddr, amountSol, ts: Date.now() });
+    localStorage.setItem('yabbai_payout_queue', JSON.stringify(q.slice(-80)));
+  } catch (_) {}
+}
+
+async function withdrawVaultToWallet() {
+  const amt = parseFloat(document.getElementById('vaultWithdrawAmt')?.value || 0);
+  if (!walletAddr) {
+    openSIWS();
+    toast('Connect wallet first', 'warn');
+    return;
+  }
+  if (!amt || amt <= 0) {
+    toast('Enter withdrawal amount', 'warn');
+    return;
+  }
+
+  accrueVaultYield();
+  const v = loadVaultState();
+  if (amt > v.totalSol + 1e-9) {
+    toast('Amount exceeds vault balance', 'error');
+    return;
+  }
+
+  const btn = document.getElementById('vaultWithdrawBtn');
+  if (btn) {
+    btn.disabled = true;
+    btn.textContent = 'Working…';
+  }
+
+  try {
+    let backendOk = false;
+    const payoutUrl =
+      typeof window.YABBAI_PAYOUT_API === 'string' ? window.YABBAI_PAYOUT_API.trim() : '';
+    if (payoutUrl) {
+      try {
+        const r = await fetch(payoutUrl, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ wallet: walletAddr, amountSol: amt }),
+        });
+        backendOk = r.ok;
+      } catch (_) {}
+    }
+
+    v.totalSol -= amt;
+    v.lastYieldTs = Date.now();
+    saveVaultState(v);
+    enqueuePayoutRequest(amt);
+
+    if (backendOk) {
+      toast('Payout route confirmed — check your wallet');
+      addLog(`Vault −${amt.toFixed(4)} SOL (payout API ok)`, '#14F195', 'Vault');
+    } else {
+      toast('Vault allocation reduced — SOL return from treasury uses settlement / backend in beta');
+      addLog(
+        `Vault −${amt.toFixed(4)} SOL off allocation (settle on-chain via ops or YABBAI_PAYOUT_API)`,
+        '#ffc200',
+        'Vault'
+      );
+    }
+
+    document.getElementById('vaultWithdrawAmt').value = '';
+    updateVaultWithdrawUsd();
+    renderVaultPanel();
+  } finally {
+    if (btn) {
+      btn.disabled = false;
+      btn.textContent = 'Withdraw to connected wallet';
+    }
+  }
+}
+
 // ── MISSIONS DATA ────────────────────────────────────────
 const MISSIONS = [
   { id:'lp_yield', name:'LP Yield Harvest', type:'DeFi · Raydium', icon:'⚡', color:'#14F195', bg:'rgba(20,241,149,0.12)',
@@ -809,6 +987,7 @@ async function connectWallet(type) {
     await fetchSolPrice({ skipBalanceSync: true });
     await fetchWalletBalance();
     syncBalanceLabels();
+    renderVaultPanel();
     toast(`✓ Connected: ${walletAddr.slice(0,6)}...${walletAddr.slice(-4)}`);
   } catch(e) {
     toast('Connection failed: ' + e.message, 'error');
@@ -856,6 +1035,7 @@ function syncBalanceLabels() {
   if (cp) cp.textContent = `Balance: ${solBalance.toFixed(4)} SOL · $${usdTxt}`;
   renderWalletUI();
   updateDepositUsd();
+  renderVaultPanel();
 }
 
 async function fetchWalletBalance() {
@@ -995,7 +1175,8 @@ async function depositSolToTreasury() {
     );
 
     addLog(`Deposit confirmed · ${sigStr.slice(0, 10)}…`, '#14F195', 'Solana');
-    toast('Deposit confirmed');
+    toast('Deposit confirmed — vault credited');
+    vaultCreditDeposit(amt);
     document.getElementById('depositAmt').value = '';
     updateDepositUsd();
     await fetchWalletBalance();
@@ -1050,6 +1231,7 @@ function disconnectWallet() {
   document.getElementById('walletArea').innerHTML = `<button class="wallet-btn wallet-disconnected" onclick="openSIWS()"><div class="w-dot"></div>Connect Wallet</button>`;
   const cp = document.getElementById('cpBalance');
   if (cp) cp.textContent = 'Balance: —';
+  renderVaultPanel();
   toast('Wallet disconnected');
 }
 
@@ -1080,6 +1262,7 @@ async function restoreWalletSession() {
   await fetchSolPrice({ skipBalanceSync: true });
   await fetchWalletBalance();
   syncBalanceLabels();
+  renderVaultPanel();
 }
 
 // ── LIVE DATA ────────────────────────────────────────────
@@ -1494,6 +1677,8 @@ window.addEventListener('load', async () => {
   if (ca) ca.addEventListener('input', updateCashoutCalc);
   const da = document.getElementById('depositAmt');
   if (da) da.addEventListener('input', updateDepositUsd);
+  const vw = document.getElementById('vaultWithdrawAmt');
+  if (vw) vw.addEventListener('input', updateVaultWithdrawUsd);
 
   await restoreWalletSession();
 
@@ -1506,6 +1691,11 @@ window.addEventListener('load', async () => {
   setInterval(fetchTokenData, 30000);
   setInterval(fetchSolPrice, 60000);
   setInterval(() => { if (walletAddr) fetchWalletBalance(); }, 45000);
+  setInterval(() => {
+    if (!walletAddr) return;
+    accrueVaultYield();
+    renderVaultPanel();
+  }, 12000);
 
   addLog('YABBAI engine initialised — all systems online', '#14F195', 'YABBAI');
   addLog(`Mint: ${MINT.slice(0,10)}...`, '#9945FF', '$YABBAI');
