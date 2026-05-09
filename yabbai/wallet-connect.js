@@ -3,8 +3,35 @@
 
 const YABBAI_MINT = 'AcEVtpLEfxMHFzXQrhJiDhoWCkLVYH3drD2cxNAzLFUv';
 const YABBAI_POOL = 'DaxLJ5mRkqWtfhFBKtibtGSYaiE7zFrtgsi5evmVBAax';
-const TREASURY   = '8e6ogxfUnj6YXHp1tR4Kj1ytSkmEhLhi2fbKqRVxUHPi';
-const RPC        = 'https://api.mainnet-beta.solana.com';
+/** Same mainnet HTTPS sources as yabbai/index.html — custom `window.YABBAI_SOLANA_RPC` wins when set. */
+const YABBAI_PUBLIC_SOLANA_RPC_FALLBACKS = [
+  'https://api.mainnet-beta.solana.com',
+  'https://solana-mainnet.rpc.extrnode.com',
+  'https://solana-mainnet.publicnode.com',
+  'https://solana-rpc.publicnode.com',
+  'https://rpc.ankr.com/solana',
+  'https://mainnet.rpcpool.com',
+  'https://solana.drpc.org',
+];
+
+function getYabbaiSolanaRpcList() {
+  const raw =
+    typeof window !== 'undefined' && window.YABBAI_SOLANA_RPC
+      ? String(window.YABBAI_SOLANA_RPC).trim()
+      : '';
+  const isMainnetHttps = (u) => {
+    if (!u || !/^https:\/\//i.test(u)) return false;
+    const low = u.toLowerCase();
+    return (
+      !low.includes('devnet') &&
+      !low.includes('testnet') &&
+      !low.includes('localhost') &&
+      !low.includes('127.0.0.1')
+    );
+  };
+  const custom = raw && isMainnetHttps(raw) ? [raw] : [];
+  return [...new Set([...custom, ...YABBAI_PUBLIC_SOLANA_RPC_FALLBACKS])];
+}
 const PUMP_LINK  = 'https://pump.fun/coin/'+YABBAI_MINT;
 const DEX_LINK   = 'https://dexscreener.com/solana/'+YABBAI_POOL;
 
@@ -67,49 +94,92 @@ function disconnectWallet() {
 }
 
 // ── BALANCE FETCH ────────────────────────────────────────
+async function postSolanaRpc(rpcUrl, bodyObj, timeoutMs) {
+  const ctrl = typeof AbortController !== 'undefined' ? new AbortController() : null;
+  const t =
+    ctrl &&
+    setTimeout(() => {
+      try {
+        ctrl.abort();
+      } catch (_) {}
+    }, timeoutMs || 22000);
+  try {
+    const res = await fetch(rpcUrl, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(bodyObj),
+      signal: ctrl ? ctrl.signal : undefined,
+      cache: 'no-store',
+      mode: 'cors',
+    });
+    if (!res.ok) return null;
+    return await res.json();
+  } catch (_) {
+    return null;
+  } finally {
+    if (t) clearTimeout(t);
+  }
+}
+
 async function fetchBalances() {
   if (!walletPubkey) return;
 
-  // SOL balance via RPC
-  try {
-    const res = await fetch(RPC, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        jsonrpc: '2.0', id: 1,
-        method: 'getBalance',
-        params: [walletPubkey],
-      }),
-    });
-    const data = await res.json();
-    if (data.result?.value !== undefined) {
-      solBalance = data.result.value / 1e9;
+  const rpcList = getYabbaiSolanaRpcList();
+  let gotSol = false;
+
+  // SOL balance via RPC (rotate through fallbacks; one backoff retry round)
+  for (let round = 0; round < 2 && !gotSol; round++) {
+    if (round > 0) await new Promise((r) => setTimeout(r, 800));
+    for (const rpc of rpcList) {
+      const data = await postSolanaRpc(
+        rpc,
+        {
+          jsonrpc: '2.0',
+          id: 1,
+          method: 'getBalance',
+          params: [walletPubkey],
+        },
+        22000
+      );
+      if (data && !data.error && data.result !== undefined && data.result !== null) {
+        const v = typeof data.result === 'object' && data.result !== null && 'value' in data.result ? data.result.value : data.result;
+        const lamports = typeof v === 'number' ? v : parseInt(v, 10);
+        if (Number.isFinite(lamports) && lamports >= 0) {
+          solBalance = lamports / 1e9;
+          gotSol = true;
+          break;
+        }
+      }
     }
-  } catch {}
+  }
 
   // $YABBAI token balance
-  try {
-    const res = await fetch(RPC, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        jsonrpc: '2.0', id: 2,
-        method: 'getTokenAccountsByOwner',
-        params: [
-          walletPubkey,
-          { mint: YABBAI_MINT },
-          { encoding: 'jsonParsed' },
-        ],
-      }),
-    });
-    const data = await res.json();
-    const accounts = data.result?.value || [];
-    if (accounts.length > 0) {
-      yabBalance = parseFloat(
-        accounts[0].account.data.parsed.info.tokenAmount.uiAmount || 0
+  let gotYab = false;
+  for (let round = 0; round < 2 && !gotYab; round++) {
+    if (round > 0) await new Promise((r) => setTimeout(r, 800));
+    for (const rpc of rpcList) {
+      const data = await postSolanaRpc(
+        rpc,
+        {
+          jsonrpc: '2.0',
+          id: 2,
+          method: 'getTokenAccountsByOwner',
+          params: [walletPubkey, { mint: YABBAI_MINT }, { encoding: 'jsonParsed' }],
+        },
+        22000
       );
+      if (!data || data.error) continue;
+      const accounts = data.result?.value || [];
+      if (accounts.length > 0) {
+        yabBalance = parseFloat(accounts[0].account.data.parsed.info.tokenAmount.uiAmount || 0);
+        gotYab = true;
+        break;
+      }
+      gotYab = true;
+      yabBalance = 0;
+      break;
     }
-  } catch {}
+  }
 
   // SOL price from Jupiter
   try {

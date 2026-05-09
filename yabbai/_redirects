@@ -1,2 +1,2 @@
-/  /index.html  200
-/*  /index.html  200
+# Within /yabbai/ only — no /* SPA fallback (avoid masking lp-network.html and other files).
+/   /index.html   200

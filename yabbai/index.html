@@ -3,6 +3,8 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<!-- Optional: set treasury receiver without editing mission-config.js (host inject / CMS). -->
+<meta name="yabbai-treasury-receiver" content="">
 <title>$YABBAI — Autonomous Income Generator · Solana</title>
 <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=Azeret+Mono:wght@300;400;500&family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <style>
@@ -135,6 +137,12 @@ body::before{content:'';position:fixed;inset:0;z-index:0;pointer-events:none;
 .mcp-bar{height:4px;background:var(--wire);border-radius:2px;overflow:hidden;margin-bottom:4px;}
 .mcp-fill{height:100%;border-radius:2px;background:linear-gradient(90deg,var(--sol),var(--neon));}
 .mcp-label{font-family:'Azeret Mono',monospace;font-size:0.56rem;color:var(--dim);}
+.mc-risk{font-family:'Azeret Mono',monospace;font-size:0.52rem;color:var(--dim);line-height:1.45;margin-bottom:10px;padding:8px 10px;background:rgba(0,0,0,0.18);border-radius:6px;border:1px dashed var(--wire2);}
+.mission-meta-strip{font-family:'Azeret Mono',monospace;font-size:0.55rem;color:var(--muted);display:flex;flex-wrap:wrap;gap:10px 16px;align-items:center;padding:10px 14px;margin-bottom:18px;background:var(--plate2);border:1px solid var(--wire);border-radius:8px;}
+.mission-meta-strip strong{font-weight:600;color:var(--white);}
+.mms-ok{color:var(--neon);}
+.mms-warn{color:var(--gold);}
+.mms-off{color:var(--dim);}
 .mc-footer{display:flex;gap:6px;padding:10px 16px;border-top:1px solid var(--wire);}
 .mf-btn{flex:1;padding:8px;border-radius:6px;font-family:'Azeret Mono',monospace;font-size:0.62rem;font-weight:600;cursor:pointer;border:1px solid;transition:all 0.15s;text-align:center;}
 .mfb-run{background:rgba(20,241,149,0.1);border-color:rgba(20,241,149,0.3);color:var(--neon);}
@@ -231,6 +239,8 @@ body::before{content:'';position:fixed;inset:0;z-index:0;pointer-events:none;
 .vm-pulse{font-family:'Azeret Mono',monospace;font-size:0.62rem;color:var(--gold);margin-top:6px;}
 .vault-split{display:grid;grid-template-columns:1fr 1fr;gap:14px;}
 @media(max-width:720px){.vault-split{grid-template-columns:1fr;}}
+.deposit-route-panels .cashout-panel{text-align:left;}
+.deposit-route-panels .treasury-strip{margin-bottom:0;}
 .vault-note{font-family:'Azeret Mono',monospace;font-size:0.55rem;color:var(--muted);line-height:1.55;margin-top:12px;padding:10px;background:rgba(0,0,0,0.2);border-radius:8px;border:1px solid var(--wire);}
 .ts-label{font-family:'Azeret Mono',monospace;font-size:0.56rem;color:var(--sol);letter-spacing:0.08em;text-transform:uppercase;flex-shrink:0;}
 .ts-addr{font-family:'Azeret Mono',monospace;font-size:0.62rem;color:var(--neon);word-break:break-all;flex:1;}
@@ -255,6 +265,44 @@ body::before{content:'';position:fixed;inset:0;z-index:0;pointer-events:none;
   .tb-nav{display:none;}
   .hero-title{font-size:2.8rem;}
 }
+
+/* DEPOSIT TERMINAL — additive panel scoped to #page-deposit (unique IDs / class prefix dep-term) */
+.dep-term{position:relative;background:linear-gradient(180deg,#06090f 0%,#080d18 100%);border:1px solid var(--wire2);border-radius:12px;margin-top:24px;overflow:hidden;box-shadow:0 0 0 1px rgba(20,241,149,0.04),0 12px 38px -18px rgba(20,241,149,0.35),inset 0 1px 0 rgba(255,255,255,0.03);}
+.dep-term::before{content:'';position:absolute;inset:0;pointer-events:none;background:repeating-linear-gradient(0deg,rgba(20,241,149,0.045) 0px,rgba(20,241,149,0.045) 1px,transparent 1px,transparent 3px);opacity:0.5;mix-blend-mode:screen;}
+.dep-term::after{content:'';position:absolute;inset:0;pointer-events:none;background:radial-gradient(ellipse 80% 60% at 18% 0%,rgba(153,69,255,0.09),transparent 60%),radial-gradient(ellipse 70% 50% at 100% 100%,rgba(20,241,149,0.06),transparent 60%);}
+.dep-term-head{position:relative;z-index:2;display:flex;align-items:center;gap:10px;padding:10px 14px;border-bottom:1px solid var(--wire);background:rgba(2,4,10,0.55);}
+.dep-term-dots{display:flex;gap:5px;}
+.dep-term-dots span{width:8px;height:8px;border-radius:50%;background:#1f2a3d;display:block;}
+.dep-term-dots span:nth-child(1){background:#ff5e5e;}
+.dep-term-dots span:nth-child(2){background:#ffc200;}
+.dep-term-dots span:nth-child(3){background:#14F195;box-shadow:0 0 6px rgba(20,241,149,0.7);}
+.dep-term-title{font-family:'Azeret Mono',monospace;font-size:0.6rem;letter-spacing:0.16em;text-transform:uppercase;color:var(--neon);}
+.dep-term-host{font-family:'Azeret Mono',monospace;font-size:0.55rem;color:var(--dim);margin-left:2px;letter-spacing:0.08em;}
+.dep-term-status{margin-left:auto;display:flex;align-items:center;gap:6px;font-family:'Azeret Mono',monospace;font-size:0.55rem;color:var(--muted);text-transform:uppercase;letter-spacing:0.1em;}
+.dep-term-status .dot{width:6px;height:6px;border-radius:50%;background:var(--neon);box-shadow:0 0 5px var(--neon);animation:pulse 2s infinite;}
+.dep-term-actions{display:flex;gap:6px;}
+.dep-term-btn{font-family:'Azeret Mono',monospace;font-size:0.55rem;letter-spacing:0.08em;text-transform:uppercase;background:transparent;color:var(--muted);border:1px solid var(--wire2);padding:4px 9px;border-radius:5px;cursor:pointer;transition:all 0.15s;}
+.dep-term-btn:hover{border-color:var(--neon);color:var(--neon);}
+.dep-term-body{position:relative;z-index:2;max-height:240px;min-height:120px;overflow-y:auto;padding:10px 14px;font-family:'Azeret Mono',monospace;font-size:0.62rem;line-height:1.55;}
+.dep-term-body::-webkit-scrollbar{width:4px;}
+.dep-term-body::-webkit-scrollbar-thumb{background:var(--wire3);border-radius:2px;}
+.dep-term-line{display:flex;gap:10px;padding:1px 0;animation:fadeUp 0.25s ease;}
+.dep-term-time{color:var(--dim);flex-shrink:0;}
+.dep-term-tag{flex-shrink:0;font-weight:600;letter-spacing:0.04em;}
+.dep-term-msg{color:var(--white);opacity:0.86;word-break:break-word;}
+.dep-term-line[data-sev="info"] .dep-term-tag{color:var(--arc);}
+.dep-term-line[data-sev="warn"] .dep-term-tag{color:var(--gold);}
+.dep-term-line[data-sev="success"] .dep-term-tag{color:var(--neon);text-shadow:0 0 6px rgba(20,241,149,0.5);}
+.dep-term-line[data-sev="error"] .dep-term-tag{color:var(--red);}
+.dep-term-line[data-sev="error"] .dep-term-msg{color:#ffd5d5;}
+.dep-term-foot{position:relative;z-index:2;display:flex;align-items:center;gap:8px;padding:8px 14px;border-top:1px solid var(--wire);background:rgba(2,4,10,0.5);font-family:'Azeret Mono',monospace;font-size:0.55rem;color:var(--dim);}
+.dep-term-prompt{color:var(--neon);}
+.dep-term-cursor{display:inline-block;width:7px;height:11px;background:var(--neon);margin-left:4px;animation:pulse 1.1s steps(2,end) infinite;vertical-align:-1px;}
+.dep-term-count{margin-left:auto;color:var(--muted);}
+@media(max-width:768px){
+  .dep-term-host{display:none;}
+  .dep-term-body{font-size:0.6rem;max-height:200px;}
+}
 </style>
 </head>
 <body>
@@ -266,8 +314,8 @@ body::before{content:'';position:fixed;inset:0;z-index:0;pointer-events:none;
 <div class="siws-overlay" id="siwsOverlay">
   <div class="siws-modal">
     <div class="siws-logo">🦞</div>
-    <div class="siws-title">Sign In With Solana</div>
-    <div class="siws-sub">Connect your wallet to access the YABBAI platform. Your wallet signs a message to prove ownership — no private key required.</div>
+    <div class="siws-title">Connect wallet</div>
+    <div class="siws-sub"><strong>Connect</strong> lets this site read your public key and query <strong>SOL balance from the Solana RPC</strong> (the network), like a block explorer. An optional <strong>Sign Message</strong> step proves you control the address for login — it is <strong>off-chain</strong> and does not move funds. Sending SOL or tokens still requires you to approve <strong>each</strong> transaction in Phantom; Solana does not grant one-signature “full transfer access.”</div>
     <div class="siws-wallets">
       <div class="siws-wallet-btn" onclick="connectWallet('phantom')">
         <div class="swb-icon" style="background:rgba(171,95,255,0.15)">👻</div>
@@ -292,7 +340,7 @@ body::before{content:'';position:fixed;inset:0;z-index:0;pointer-events:none;
         </div>
       </div>
     </div>
-    <div class="siws-note">By connecting you agree to sign a one-time authentication message. This is free and does not initiate any transaction.</div>
+    <div class="siws-note">Flow: <strong>Connect</strong> first (session + address) → balance loads from RPC. If you accept <strong>Sign Message</strong>, that is only for ownership proof / login, not spending rights. Deposits always use a separate wallet transaction prompt per transfer.</div>
     <br>
     <button class="btn btn-outline" style="width:100%;justify-content:center" onclick="closeSIWS()">Cancel</button>
   </div>
@@ -305,18 +353,18 @@ body::before{content:'';position:fixed;inset:0;z-index:0;pointer-events:none;
     <span class="ticker-item" id="tickPrice">PRICE: FETCHING...</span>
     <span class="ticker-item" id="tickMcap">MCAP: FETCHING...</span>
     <span class="ticker-item">◈ PUMP · ESKY · MISSION · SCALE · WITHDRAW</span>
-    <span class="ticker-item">◈ TREASURY: 8e6ogxf...UHPi</span>
+    <span class="ticker-item">◈ TREASURY: <span class="js-treasury-short">8e6ogxf...UHPi</span></span>
     <span class="ticker-item">◈ MINT: AcEVtp...LFUv</span>
     <span class="ticker-item">◈ 14 APIs LIVE</span>
-    <span class="ticker-item">◈ PAYPAL AUTOPAYOUT ACTIVE</span>
+    <span class="ticker-item">◈ AUTOPAYOUT TARGET (RULE-BASED · NOT GUARANTEED)</span>
     <span class="ticker-item">🦞 $YABBAI · SOLANA</span>
     <span class="ticker-item" id="tickPrice2">PRICE: FETCHING...</span>
     <span class="ticker-item" id="tickMcap2">MCAP: FETCHING...</span>
     <span class="ticker-item">◈ PUMP · ESKY · MISSION · SCALE · WITHDRAW</span>
-    <span class="ticker-item">◈ TREASURY: 8e6ogxf...UHPi</span>
+    <span class="ticker-item">◈ TREASURY: <span class="js-treasury-short">8e6ogxf...UHPi</span></span>
     <span class="ticker-item">◈ MINT: AcEVtp...LFUv</span>
     <span class="ticker-item">◈ 14 APIs LIVE</span>
-    <span class="ticker-item">◈ PAYPAL AUTOPAYOUT ACTIVE</span>
+    <span class="ticker-item">◈ AUTOPAYOUT TARGET (RULE-BASED · NOT GUARANTEED)</span>
   </div>
 </div>
 
@@ -326,6 +374,7 @@ body::before{content:'';position:fixed;inset:0;z-index:0;pointer-events:none;
   <div class="tb-nav">
     <div class="tn active" onclick="showPage('dashboard')" data-page="dashboard">Dashboard</div>
     <div class="tn" onclick="showPage('missions')" data-page="missions">Missions</div>
+    <div class="tn" onclick="showPage('deposit')" data-page="deposit">Deposit</div>
     <div class="tn" onclick="showPage('cashout')" data-page="cashout">Cashout</div>
     <div class="tn" onclick="showPage('lp')" data-page="lp">LP Manager</div>
     <div class="tn" onclick="showPage('ecosystem')" data-page="ecosystem">Ecosystem</div>
@@ -350,7 +399,7 @@ body::before{content:'';position:fixed;inset:0;z-index:0;pointer-events:none;
       <span class="ht2">Income Machine.</span>
     </h1>
     <div class="hero-sub">Pump · Esky · Mission · Scale · Withdraw · Repeat</div>
-    <p class="hero-desc">The YABBAI engine generates yield from Solana LP pools, routes it through 14 live APIs, and fires $50 AUD to your PayPal or wallet every $110 earned. Fully autonomous. Your keys, your control.</p>
+    <p class="hero-desc">The dashboard helps you route Solana LP activity, treasury deposits, and missions in one place. LP fees and token prices are variable — nothing here guarantees profit. Where configured, autopayout rules are operational targets, not promises. Your keys, your signatures.</p>
     <div class="hero-cta">
       <a class="btn btn-primary" href="https://pump.fun/coin/AcEVtpLEfxMHFzXQrhJiDhoWCkLVYH3drD2cxNAzLFUv" target="_blank">🦞 Buy $YABBAI</a>
       <button class="btn btn-sol" onclick="showPage('missions')">⚡ Launch Missions</button>
@@ -374,7 +423,7 @@ body::before{content:'';position:fixed;inset:0;z-index:0;pointer-events:none;
   <!-- TREASURY -->
   <div class="treasury-strip">
     <span class="ts-label">◆ Master Treasury</span>
-    <span class="ts-addr">8e6ogxfUnj6YXHp1tR4Kj1ytSkmEhLhi2fbKqRVxUHPi</span>
+    <span class="ts-addr js-treasury-full">2DarZ9hCi5PirKsDsnriewZEGqaz6Q11pEitoZJxBsYM</span>
     <span class="ts-copy" onclick="copyTreasury()">Copy</span>
   </div>
 
@@ -400,6 +449,11 @@ body::before{content:'';position:fixed;inset:0;z-index:0;pointer-events:none;
         <div class="vm-val" id="vaultApyLbl" style="font-size:1rem;-webkit-text-fill-color:var(--arc)">~15% APY</div>
         <div class="vm-lbl">Simulated compound (illustrative)</div>
       </div>
+      <div class="vm-card">
+        <div class="vm-val" id="vaultNetVsDep" style="font-size:1rem">—</div>
+        <div class="vm-lbl">Surplus vs. deposits (local ledger)</div>
+        <div class="vm-pulse" id="vaultFeeNote">Not realized PnL · DEX/LP fees vary</div>
+      </div>
     </div>
     <div class="vault-split">
       <div class="cashout-panel" style="margin:0;border-color:rgba(153,69,255,0.25)">
@@ -413,6 +467,11 @@ body::before{content:'';position:fixed;inset:0;z-index:0;pointer-events:none;
           <button class="ca-max" type="button" onclick="setMaxDeposit()">MAX</button>
         </div>
         <div style="font-family:'Azeret Mono',monospace;font-size:0.6rem;color:var(--dim);margin-bottom:12px" id="depositUsd">≈ $0.00 USD</div>
+        <div id="rpcBalanceHint" class="vault-note" style="display:none;margin-bottom:10px;border-color:rgba(255,194,0,0.35);color:var(--gold)"></div>
+        <label class="vault-note" style="display:flex;align-items:center;gap:8px;cursor:pointer;margin-bottom:10px;border-color:var(--wire2)">
+          <input type="checkbox" id="depositDryRunDash" style="accent-color:var(--neon)">
+          <span>Dry run only (show summary, do not open wallet)</span>
+        </label>
         <button class="cashout-execute" id="depositBtn" type="button" onclick="depositSolToTreasury()" style="background:linear-gradient(135deg,#1a0d2e,rgba(153,69,255,0.85));color:#fff">◎ Confirm deposit</button>
       </div>
       <div class="cashout-panel" style="margin:0;border-color:rgba(20,241,149,0.22)">
@@ -429,7 +488,7 @@ body::before{content:'';position:fixed;inset:0;z-index:0;pointer-events:none;
         <button class="cashout-execute" id="vaultWithdrawBtn" type="button" onclick="withdrawVaultToWallet()" style="background:linear-gradient(135deg,#003320,var(--neon));color:#000">Withdraw to connected wallet</button>
       </div>
     </div>
-    <div class="vault-note" id="vaultLegalNote">Connect a wallet to manage your vault. On-chain deposits use your wallet signature. Withdrawals update your dashboard allocation; routing SOL from treasury back to your wallet in production is handled by settlement automation or ops (not embedded private keys in this static app).</div>
+    <div class="vault-note" id="vaultLegalNote">Connect a wallet to manage your vault. On-chain deposits use your wallet signature and should match the configured treasury receiver (verify on-chain before large sends). Withdrawals update your dashboard allocation; routing SOL from treasury back to your wallet requires your payout Worker or ops — never a browser-stored private key. Simulated APY and “surplus vs. deposits” are UI math only, not audited yield or margin guarantees.</div>
   </div>
 
   <!-- LIVE STATS -->
@@ -464,7 +523,22 @@ body::before{content:'';position:fixed;inset:0;z-index:0;pointer-events:none;
 <div id="page-missions" class="page-section">
 
   <div class="section-header">
-    <div><div class="sh-title">Mission Control</div><div class="sh-sub">AI missions use a separate API URL (see mission-config.js) — 4EVERLAND hosts static files only</div></div>
+    <div><div class="sh-title">Mission Control</div><div class="sh-sub">AI missions use a separate API URL (see mission-config.js) — static hosts only serve this page</div></div>
+  </div>
+
+  <div class="mission-meta-strip" id="missionMetaStrip" aria-live="polite">
+    <span id="missionApiBadge" class="mms-off"><strong>AI API:</strong> checking…</span>
+    <span><strong>Treasury:</strong> <span class="js-treasury-short">—</span></span>
+    <span id="missionWalletBadge" class="mms-off"><strong>Wallet:</strong> not connected</span>
+  </div>
+
+  <div class="treasury-strip" style="margin-bottom:20px">
+    <span class="ts-label">◆ Treasury receiver</span>
+    <span class="ts-addr js-treasury-full">2DarZ9hCi5PirKsDsnriewZEGqaz6Q11pEitoZJxBsYM</span>
+    <span class="ts-copy" onclick="copyTreasury()">Copy</span>
+  </div>
+  <div class="vault-note" style="margin-bottom:18px;border-color:rgba(153,69,255,0.25)">
+    Fund the treasury with <strong>SOL</strong> (signed transfer from the <strong>Deposit</strong> tab or Platform Vault on Dashboard) or send <strong>any SPL token</strong> from your wallet app to this same address — the receiver is one Solana account; token accounts are created by the wallet/protocol as usual.
   </div>
 
   <!-- AI BRAIN -->
@@ -477,10 +551,10 @@ body::before{content:'';position:fixed;inset:0;z-index:0;pointer-events:none;
           <div class="ai-model" id="aiModelLabel">Claude Sonnet (Anthropic)</div>
         </div>
         <div style="margin-left:auto;display:flex;gap:6px;align-items:center">
-          <div style="font-family:'Azeret Mono',monospace;font-size:0.58rem;color:var(--neon)">● ONLINE</div>
+          <div id="aiBrainStatus" class="mms-off" style="font-family:'Azeret Mono',monospace;font-size:0.58rem">○ Local</div>
         </div>
       </div>
-      <textarea class="ai-input" id="aiPrompt" placeholder="Describe your mission... e.g. Generate community growth for $YABBAI by finding new holders on Twitter and Telegram. Reinvest 70% of yield into LP. Target: reach $5K market cap by end of week."></textarea>
+      <textarea class="ai-input" id="aiPrompt" placeholder="Describe your mission… e.g. weekly content cadence for $YABBAI, LP fee claim checklist (Raydium), or treasury-aligned CTA copy. Ask for steps + risks; avoid asking for guaranteed returns."></textarea>
       <div class="ai-controls">
         <select class="ai-model-select" id="aiModel" onchange="syncAiModelLabel()">
           <option value="claude">Claude Sonnet 4</option>
@@ -503,6 +577,107 @@ body::before{content:'';position:fixed;inset:0;z-index:0;pointer-events:none;
       <button class="btn btn-outline" style="font-size:0.72rem;padding:7px 14px" onclick="runAllMissions()">▶ Run All</button>
     </div>
     <div class="missions-grid" id="missionsGrid"></div>
+  </div>
+
+</div>
+
+<!-- ── DEPOSIT ── -->
+<div id="page-deposit" class="page-section">
+
+  <div class="section-header">
+    <div><div class="sh-title">Deposit</div><div class="sh-sub">SOL + SPL to treasury · on-chain transfers only when you confirm in your wallet</div></div>
+  </div>
+
+  <div class="vault-split deposit-route-panels" style="margin-bottom:20px;align-items:stretch">
+    <div class="cashout-panel" style="margin:0;border-color:rgba(153,69,255,0.28)">
+      <div class="cp-header" style="margin-bottom:12px">
+        <div class="cp-icon">↓</div>
+        <div>
+          <div class="cp-title">Deposit to</div>
+          <div class="sh-sub" style="margin-top:4px">Treasury receiver — resolved via <code>getTreasuryAddress()</code> (meta tag → <code>YABBAI_TREASURY_RECEIVER</code> / <code>YABBAI_TREASURY_ADDRESS</code> → site default). Same pubkey for <strong>SOL</strong> and <strong>SPL</strong>. Forks can override; otherwise deposits use the project treasury.</div>
+        </div>
+      </div>
+      <div class="treasury-strip" style="margin-bottom:12px">
+        <span class="ts-label">Receiver</span>
+        <span class="ts-addr js-treasury-full">2DarZ9hCi5PirKsDsnriewZEGqaz6Q11pEitoZJxBsYM</span>
+        <span class="ts-copy" onclick="copyTreasury()" title="Copy treasury address">Copy</span>
+      </div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap">
+        <button type="button" class="btn btn-outline" style="font-size:0.65rem;padding:8px 14px;flex:1;min-width:140px;justify-content:center" onclick="copyTreasury()">Copy address again</button>
+      </div>
+    </div>
+    <div class="cashout-panel" style="margin:0;border-color:rgba(20,241,149,0.2)">
+      <div class="cp-header" style="margin-bottom:12px">
+        <div class="cp-icon">↑</div>
+        <div>
+          <div class="cp-title">Withdraw from</div>
+          <div class="sh-sub" style="margin-top:4px">Treasury / vault side sends value <strong>out</strong>; this app never auto-pulls your user wallet. Returns land in <strong>the wallet you connect here</strong> when an on-chain payout Worker is configured.</div>
+        </div>
+      </div>
+      <div id="depositWithdrawDest"></div>
+    </div>
+  </div>
+
+  <div class="vault-note" style="margin-bottom:20px;line-height:1.65">
+    <strong>SOL:</strong> use the form below — the app builds a normal transfer and your wallet (Phantom, Solflare, etc.) asks you to sign. Nothing is sent automatically.
+    <br><strong>SPL tokens:</strong> send from your wallet app’s <strong>Send</strong> flow to the treasury address above; pick the token there. In-page SPL transfers are not bundled here — same note as <code>mission-config.js</code>.
+    <br><strong>Config:</strong> this deployment uses the built-in site treasury unless you set <code>window.YABBAI_TREASURY_RECEIVER</code> in <code>mission-config.js</code> or a meta tag (same env name <code>YABBAI_TREASURY_RECEIVER</code> on Workers for parity). Optional <code>YABBAI_PAYOUT_API</code> enables signed vault withdraw → SOL back to your connected wallet.
+  </div>
+
+  <div class="vault-panel" style="margin-bottom:24px">
+    <div class="vault-head">
+      <div class="vault-hero">
+        <div class="vault-title">◎ On-chain SOL deposit</div>
+        <div class="vault-sub">Same flow as Platform Vault on Dashboard — credits your local vault allocation after confirmation. Requires <strong>mainnet</strong> in your wallet.</div>
+      </div>
+    </div>
+    <div class="cashout-panel" style="margin:0;border-color:rgba(153,69,255,0.25);max-width:520px">
+      <div class="cp-header">
+        <div class="cp-icon">↓</div>
+        <div><div class="cp-title">Amount (SOL)</div></div>
+      </div>
+      <div class="cashout-amount">
+        <input class="ca-input" id="depositTabAmt" type="number" placeholder="0.00" min="0" step="0.0001">
+        <button class="ca-max" type="button" onclick="setMaxDeposit()">MAX</button>
+      </div>
+      <div style="font-family:'Azeret Mono',monospace;font-size:0.6rem;color:var(--dim);margin-bottom:12px" id="depositTabUsd">≈ $0.00 USD</div>
+      <label class="vault-note" style="display:flex;align-items:center;gap:8px;cursor:pointer;margin-bottom:10px;border-color:var(--wire2)">
+        <input type="checkbox" id="depositDryRun" style="accent-color:var(--neon)">
+        <span>Dry run only (summary, no wallet)</span>
+      </label>
+      <button class="cashout-execute" id="depositTabBtn" type="button" onclick="depositSolToTreasury()" style="background:linear-gradient(135deg,#1a0d2e,rgba(153,69,255,0.85));color:#fff">◎ Sign deposit in wallet</button>
+    </div>
+  </div>
+
+  <div class="section-header" style="margin-top:8px">
+    <div><div class="sh-title">Track SPL balance</div><div class="sh-sub">Optional — paste a mint to show UI amount next to your wallet (RPC only)</div></div>
+  </div>
+  <div class="cashout-panel" style="max-width:520px">
+    <div style="font-family:'Azeret Mono',monospace;font-size:0.56rem;color:var(--dim);text-transform:uppercase;letter-spacing:0.08em;margin-bottom:6px">Token mint (base58)</div>
+    <div class="cashout-amount">
+      <input class="ca-input" id="pasteMintInput" type="text" placeholder="Mint address…" autocomplete="off">
+      <button class="ca-max" type="button" onclick="addTrackedMintFromInput()">Add</button>
+    </div>
+    <div style="font-family:'Azeret Mono',monospace;font-size:0.55rem;color:var(--muted);margin-top:10px" id="trackedMintsHint">$YABBAI mint is always tracked when connected.</div>
+  </div>
+
+  <!-- DEPOSIT TERMINAL — additive log feed scoped to this page (unique IDs: depositTerminal*) -->
+  <div class="dep-term" id="depositTerminal" role="log" aria-live="polite" aria-label="Deposit terminal log">
+    <div class="dep-term-head">
+      <div class="dep-term-dots"><span></span><span></span><span></span></div>
+      <div class="dep-term-title">Deposit Terminal</div>
+      <div class="dep-term-host">// yabbai@sol-mainnet · stream</div>
+      <div class="dep-term-status"><span class="dot"></span><span>live</span></div>
+      <div class="dep-term-actions">
+        <button type="button" class="dep-term-btn" onclick="clearDepositLog()" title="Clear terminal">Clear</button>
+      </div>
+    </div>
+    <div class="dep-term-body" id="depositTerminalBody"></div>
+    <div class="dep-term-foot">
+      <span class="dep-term-prompt">yabbai@deposit:~$</span>
+      <span>idle</span><span class="dep-term-cursor" aria-hidden="true"></span>
+      <span class="dep-term-count" id="depositTerminalCount">0 lines</span>
+    </div>
   </div>
 
 </div>
@@ -544,7 +719,7 @@ body::before{content:'';position:fixed;inset:0;z-index:0;pointer-events:none;
         <div class="co-option selected" data-method="wallet" onclick="selectCashout(this)">
           <div class="co-icon">◎</div>
           <div class="co-name">Solana Wallet</div>
-          <div class="co-desc">Send SOL to 8e6ogxf...UHPi</div>
+          <div class="co-desc js-treasury-cashout-desc">Send SOL to treasury · use Deposit tab for in-app signed send</div>
         </div>
         <div class="co-option" data-method="paypal" onclick="selectCashout(this)">
           <div class="co-icon">🅿</div>
@@ -575,7 +750,7 @@ body::before{content:'';position:fixed;inset:0;z-index:0;pointer-events:none;
       <div style="background:rgba(20,241,149,0.04);border:1px solid rgba(20,241,149,0.12);border-radius:8px;padding:12px;margin-bottom:14px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;">
         <div>
           <div style="font-size:0.82rem;font-weight:600;color:var(--neon)">⚡ Autopayout Engine</div>
-          <div style="font-family:'Azeret Mono',monospace;font-size:0.58rem;color:var(--dim);margin-top:3px">$50 AUD fires every $110 earned or 30 minutes</div>
+          <div style="font-family:'Azeret Mono',monospace;font-size:0.58rem;color:var(--dim);margin-top:3px">Target: $50 AUD on a ~$110 gross-threshold timer (30m) — depends on routing, fees, and liquidity; not guaranteed.</div>
         </div>
         <div style="font-family:'Azeret Mono',monospace;font-size:0.65rem;color:var(--gold)">Awaiting LP yield</div>
       </div>
@@ -653,7 +828,7 @@ body::before{content:'';position:fixed;inset:0;z-index:0;pointer-events:none;
 
   <div class="treasury-strip">
     <span class="ts-label">◆ Master Treasury</span>
-    <span class="ts-addr">8e6ogxfUnj6YXHp1tR4Kj1ytSkmEhLhi2fbKqRVxUHPi</span>
+    <span class="ts-addr js-treasury-full">2DarZ9hCi5PirKsDsnriewZEGqaz6Q11pEitoZJxBsYM</span>
     <span class="ts-copy" onclick="copyTreasury()">Copy</span>
   </div>
 
@@ -695,14 +870,18 @@ body::before{content:'';position:fixed;inset:0;z-index:0;pointer-events:none;
 
 </div><!-- /main -->
 
-<script src="mission-config.js"></script>
+<script src="mission-config.js?v=20260510"></script>
 <script>
 // ── CONFIG ──────────────────────────────────────────────
 const MINT     = 'AcEVtpLEfxMHFzXQrhJiDhoWCkLVYH3drD2cxNAzLFUv';
 const POOL     = 'DaxLJ5mRkqWtfhFBKtibtGSYaiE7zFrtgsi5evmVBAax';
-const TREASURY = '8e6ogxfUnj6YXHp1tR4Kj1ytSkmEhLhi2fbKqRVxUHPi';
+/** Canonical YABBAI site treasury (public key only in git). Private key is NOT stored here — ops hold it off-repo (e.g. `wrangler secret put TREASURY_SECRET_KEY` for the payout Worker). Hosts/forks may override via `<meta name="yabbai-treasury-receiver">` or `window.YABBAI_TREASURY_RECEIVER`. */
+const DEFAULT_TREASURY = '2DarZ9hCi5PirKsDsnriewZEGqaz6Q11pEitoZJxBsYM';
+/** Mainnet-beta genesis hash — `assertMainnetRpc` rejects any RPC whose `getGenesisHash()` does not match. */
+const MAINNET_GENESIS_HASH = 'EtWTRABZaYq6iMfeYKouRu166VU2xqa1wcaWoxeehBOw';
+const MIN_DEPOSIT_SOL = 1e-6;
+/** SOL deposit = SystemProgram.transfer(lamports); wallet + RPC enforce spendable SOL (no in-page fee holdback). */
 const PAYPAL   = 'basham_x@protonmail.com';
-const RPC      = 'https://api.mainnet-beta.solana.com';
 const PUMP_URL = `https://pump.fun/coin/${MINT}`;
 const DEX_URL  = `https://dexscreener.com/solana/${POOL}`;
 /**
@@ -714,7 +893,206 @@ const MISSION_API = (typeof window !== 'undefined' && window.YABBAI_MISSION_API 
   ? String(window.YABBAI_MISSION_API).trim()
   : '';
 
+/**
+ * Treasury receiver: meta tag (host inject) > window.YABBAI_TREASURY_RECEIVER > window.YABBAI_TREASURY_ADDRESS > DEFAULT_TREASURY (site canonical; public key only in repo).
+ * Recommended env-style name for ops: YABBAI_TREASURY_RECEIVER (set on window in mission-config.js for static hosts).
+ */
+function getTreasuryAddress() {
+  let meta = '';
+  try {
+    meta = document.querySelector('meta[name="yabbai-treasury-receiver"]')?.getAttribute('content')?.trim() || '';
+  } catch (_) {}
+  const w1 =
+    typeof window !== 'undefined' && window.YABBAI_TREASURY_RECEIVER && String(window.YABBAI_TREASURY_RECEIVER).trim();
+  const w2 =
+    typeof window !== 'undefined' && window.YABBAI_TREASURY_ADDRESS && String(window.YABBAI_TREASURY_ADDRESS).trim();
+  const raw = (meta || w1 || w2 || DEFAULT_TREASURY || '').trim();
+  return raw;
+}
+
+function treasuryShortAddr(addr) {
+  const s = String(addr || '').trim();
+  if (s.length < 14) return s || '—';
+  return s.slice(0, 8) + '...' + s.slice(-4);
+}
+
+function applyTreasuryToDom() {
+  const addr = getTreasuryAddress();
+  document.querySelectorAll('.js-treasury-full').forEach(el => {
+    el.textContent = addr;
+  });
+  document.querySelectorAll('.js-treasury-short').forEach(el => {
+    el.textContent = treasuryShortAddr(addr);
+  });
+  const short = treasuryShortAddr(addr);
+  document.querySelectorAll('.js-treasury-cashout-desc').forEach(el => {
+    el.textContent = `Treasury ${short} · Deposit tab signs SOL in-app`;
+  });
+}
+
+function getUserTrackedMintsOnly() {
+  try {
+    const raw = localStorage.getItem('yabbai_tracked_mints');
+    const arr = raw ? JSON.parse(raw) : [];
+    if (!Array.isArray(arr)) return [];
+    return arr.map(x => String(x).trim()).filter(Boolean).slice(0, 24);
+  } catch (_) {
+    return [];
+  }
+}
+
+function saveTrackedMints(userList) {
+  try {
+    localStorage.setItem('yabbai_tracked_mints', JSON.stringify(userList.slice(0, 24)));
+  } catch (_) {}
+}
+
+/** SPL mints to show next to wallet chip: $YABBAI + config watchlist + user-pasted mints. */
+function getTrackedMintStrings() {
+  const out = [];
+  const push = (x) => {
+    const t = String(x || '').trim();
+    if (t && !out.includes(t)) out.push(t);
+  };
+  push(MINT);
+  try {
+    const w = typeof window !== 'undefined' && window.YABBAI_SPL_WATCHLIST;
+    if (w) String(w).split(/[\s,]+/).forEach(push);
+  } catch (_) {}
+  getUserTrackedMintsOnly().forEach(push);
+  return out;
+}
+
+function addTrackedMintFromInput() {
+  const inp = document.getElementById('pasteMintInput');
+  const raw = (inp && inp.value ? inp.value : '').trim();
+  if (!raw) {
+    toast('Paste a mint address first', 'warn');
+    return;
+  }
+  if (raw.length < 32 || raw.length > 64) {
+    toast('Mint looks invalid (length)', 'error');
+    return;
+  }
+  const user = getUserTrackedMintsOnly();
+  if (user.includes(raw) || raw === MINT) {
+    toast('Already tracking that mint', '');
+    return;
+  }
+  user.push(raw);
+  saveTrackedMints(user);
+  if (inp) inp.value = '';
+  const hint = document.getElementById('trackedMintsHint');
+  if (hint) hint.textContent = 'Mint saved — balances refresh on next RPC poll.';
+  toast('Mint added to watch list');
+  if (walletAddr) fetchWalletBalance();
+  renderMissionMetaStrip();
+}
+
+let splWalletLines = [];
+
+/**
+ * Only https URLs that are clearly Solana **mainnet** (never devnet/testnet/local).
+ * Phantom/Solflare on devnet report a devnet `rpcEndpoint` — using it here would show 0 SOL
+ * for a mainnet-funded wallet and confuse deposits.
+ */
+function isMainnetHttpsRpcUrl(raw) {
+  if (!raw || typeof raw !== 'string') return false;
+  const t = raw.trim();
+  if (!/^https:\/\//i.test(t)) return false;
+  let u;
+  try {
+    u = new URL(t);
+  } catch (_) {
+    return false;
+  }
+  const host = (u.hostname || '').toLowerCase();
+  const qs = `${u.pathname || ''} ${u.search || ''}`.toLowerCase();
+  if (
+    host.includes('devnet') ||
+    host.includes('testnet') ||
+    host.includes('localhost') ||
+    host === '127.0.0.1' ||
+    qs.includes('devnet') ||
+    qs.includes('testnet')
+  ) {
+    return false;
+  }
+  return true;
+}
+
+/** Some wallets expose the RPC they use — often more reliable from the browser than our public list. */
+function collectWalletRpcHints() {
+  const out = [];
+  const push = (u) => {
+    if (!u || typeof u !== 'string') return;
+    const t = u.trim();
+    if (!/^https?:\/\//i.test(t)) return;
+    if (!out.includes(t)) out.push(t);
+  };
+  try {
+    const type = localStorage.getItem('yabbai_wallet_type') || 'phantom';
+    const p = getWalletProviderByType(type);
+    if (!p) return out;
+    push(p.rpcEndpoint);
+    push(p._rpcEndpoint);
+    const c = p.connection;
+    if (c && typeof c.rpcEndpoint === 'string') push(c.rpcEndpoint);
+    if (c && c._rpcEndpoint) push(c._rpcEndpoint);
+    const w = p.wallet || p._wallet;
+    const ad = w && w.adapter;
+    if (ad?.connection?.rpcEndpoint) push(ad.connection.rpcEndpoint);
+  } catch (_) {}
+  return out;
+}
+
+function getSolanaRpcList() {
+  const trimmedCustom =
+    typeof window !== 'undefined' && window.YABBAI_SOLANA_RPC
+      ? String(window.YABBAI_SOLANA_RPC).trim()
+      : '';
+  if (trimmedCustom && !isMainnetHttpsRpcUrl(trimmedCustom)) {
+    console.warn('[YABBAI] YABBAI_SOLANA_RPC must be mainnet HTTPS — ignoring:', trimmedCustom);
+    try {
+      addLog('YABBAI_SOLANA_RPC ignored — not mainnet HTTPS (see mission-config.js)', '#ffc200', 'RPC');
+    } catch (_) {}
+  }
+  const hints = collectWalletRpcHints().filter(isMainnetHttpsRpcUrl);
+  const fallback = [
+    'https://api.mainnet-beta.solana.com',
+    'https://solana-mainnet.rpc.extrnode.com',
+    'https://solana-mainnet.publicnode.com',
+    'https://solana-rpc.publicnode.com',
+    'https://rpc.ankr.com/solana',
+    'https://mainnet.rpcpool.com',
+    'https://solana.drpc.org',
+  ];
+  const customFirst = trimmedCustom && isMainnetHttpsRpcUrl(trimmedCustom) ? [trimmedCustom] : [];
+  const rot = fallback.length ? solanaFallbackRotateIdx % fallback.length : 0;
+  const rotatedFallback = fallback.length
+    ? [...fallback.slice(rot), ...fallback.slice(0, rot)]
+    : [];
+  return [...new Set([...customFirst, ...hints, ...rotatedFallback])];
+}
+
 let walletAddr = null;
+/** Cleanup from provider.on('accountChanged'|'disconnect', …) — cleared before reconnect / disconnect */
+let walletListenerCleanup = null;
+/** Last RPC that answered getBalance — reused for deposit Connection when set */
+let primarySolanaRpc = null;
+/** Rotates public fallback order after failed polls so we do not always hammer the same endpoint. */
+let solanaFallbackRotateIdx = 0;
+/** Throttle Live Feed noise when RPC stays down (background poll is every 20s). */
+let balanceRpcFailureLogAt = 0;
+let balanceRpcFailureToastAt = 0;
+/** Set true only after a successful getBalance (IPFS often gets CORS/rate-limit failures). */
+let solBalanceFetchOk = false;
+/** Serialize top-level balance fetches so parallel polls cannot emit a stale “failed” after a success. */
+let balanceFetchSingleton = Promise.resolve();
+/** Incremented on each user-visible balance fetch kickoff; stale runs skip terminal feed noise. */
+let balanceFetchRunId = 0;
+/** First exhaustive RPC/API failure in this tab: console only, no Live Feed line (reduces false alarms). */
+let suppressedFirstBalanceRpcFeedLog = false;
 let solBalance = 0;
 let solPrice   = 88;
 try {
@@ -806,10 +1184,29 @@ function renderVaultPanel() {
   usdEl.textContent = '$' + (v.totalSol * px).toFixed(2);
 
   const gainVsDep = v.totalSol - v.depositedCumulative;
+  const netEl = document.getElementById('vaultNetVsDep');
+  const feeNoteEl = document.getElementById('vaultFeeNote');
+  if (netEl) {
+    if (v.depositedCumulative <= 0 && v.totalSol <= 0) {
+      netEl.textContent = '—';
+      netEl.style.webkitTextFillColor = '';
+    } else if (v.depositedCumulative <= 0) {
+      netEl.textContent = v.totalSol > 0 ? v.totalSol.toFixed(4) + ' SOL' : '—';
+      netEl.style.webkitTextFillColor = 'var(--arc)';
+    } else {
+      const sign = gainVsDep >= 0 ? '+' : '';
+      netEl.textContent = sign + gainVsDep.toFixed(4) + ' SOL';
+      netEl.style.webkitTextFillColor = gainVsDep >= 0 ? 'var(--neon)' : 'var(--gold)';
+    }
+  }
+  if (feeNoteEl) {
+    feeNoteEl.textContent =
+      'Illustrative ledger math only · real LP/DEX fees vary · not audited PnL';
+  }
   if (v.totalSol <= 0) {
     pulseEl.textContent = 'Deposit to start circulating balance';
   } else if (v.depositedCumulative > 0 && gainVsDep > 1e-8) {
-    pulseEl.textContent = `Accruing +${gainVsDep.toFixed(4)} SOL vs. deposits (simulated yield)`;
+    pulseEl.textContent = `+${gainVsDep.toFixed(4)} SOL vs. deposits (simulated — not withdrawable profit)`;
   } else {
     pulseEl.textContent = 'Yield engine active · ~' + Math.round(VAULT_APY_ANNUAL * 100) + '% APY (illustrative)';
   }
@@ -966,22 +1363,34 @@ async function withdrawVaultToWallet() {
 // ── MISSIONS DATA ────────────────────────────────────────
 const MISSIONS = [
   { id:'lp_yield', name:'LP Yield Harvest', type:'DeFi · Raydium', icon:'⚡', color:'#14F195', bg:'rgba(20,241,149,0.12)',
-    desc:'Auto-harvest LP fees from Raydium YABBAI/SOL pool. Routes 70% back to LP depth, 30% to treasury withdrawal queue.', progress:68, status:'active',
+    desc:'Claim Raydium LP fees on YABBAI/SOL when you have a position. Optionally re-add depth or route to treasury per your own playbook — splits like 70/30 are examples, not enforced here.',
+    riskNote:'Fees accrue only if you have LP; APR varies. IL and pool risk apply.',
+    progress:68, status:'active',
     action:()=>{ addLog('LP yield harvest initiated — opening Raydium', '#14F195', 'Raydium'); window.open(`https://raydium.io/portfolio/`, '_blank'); toast('Raydium portfolio opened — claim fees manually'); }},
   { id:'buy_pump', name:'Bonding Curve Pump', type:'pump.fun · Buy Signal', icon:'🦞', color:'#9945FF', bg:'rgba(153,69,255,0.12)',
-    desc:'Buy $YABBAI on pump.fun bonding curve. Moves price, builds chart momentum, attracts organic community buyers.', progress:35, status:'active',
+    desc:'Open pump.fun to review the bonding curve. Buys move price but can reverse; treat size as risk capital.',
+    riskNote:'Bonding curves are volatile; verify mint matches official $YABBAI before swapping.',
+    progress:35, status:'active',
     action:()=>{ addLog('Opening pump.fun buy — bonding curve push', '#9945FF', 'pump.fun'); window.open(PUMP_URL, '_blank'); toast('pump.fun opened — buy $YABBAI to push the curve'); }},
   { id:'community', name:'Community Growth', type:'Claude AI · Social', icon:'👥', color:'#00b4ff', bg:'rgba(0,180,255,0.12)',
-    desc:'Claude AI deploys community growth campaigns. Posts to X/Twitter, Telegram signals, holder incentive missions.', progress:52, status:'active',
-    action:async()=>{ await callAI('Deploy a short community growth tweet for $YABBAI Solana token. 280 chars max. Pump vibes.', 'community'); }},
+    desc:'Use the AI Brain (Worker) to draft posts and angles. You still choose what to publish; no auto-posting from this static page.',
+    riskNote:'AI output needs human review; disclosure rules vary by platform.',
+    progress:52, status:'active',
+    action:async()=>{ await callAI('Draft one community growth tweet for $YABBAI (Solana). Max 260 chars. Include a single risk disclaimer line. No guaranteed price targets.', 'community'); }},
   { id:'dca', name:'DCA Mission', type:'Dollar Cost Average', icon:'📈', color:'#ffc200', bg:'rgba(255,194,0,0.12)',
-    desc:'Deploy regular automated buy orders on Jupiter. Buy small amounts consistently to build price floor and holder base.', progress:20, status:'ready',
+    desc:'Jupiter DCA can split buys over time. You set schedule and size in Jupiter; this app only deep-links.',
+    riskNote:'DCA reduces timing risk but not market risk; fees on each leg.',
+    progress:20, status:'ready',
     action:()=>{ addLog('Jupiter DCA opened — set recurring buy orders', '#ffc200', 'Jupiter'); window.open(`https://jup.ag/dca/${MINT}`, '_blank'); toast('Jupiter DCA opened — set up recurring buys'); }},
   { id:'stake', name:'SOL Liquid Staking', type:'JitoSOL · Yield', icon:'🏦', color:'#ff5e1a', bg:'rgba(255,94,26,0.12)',
-    desc:'Stake idle SOL with JitoSOL for MEV rewards while waiting for LP opportunities. Currently ~8% APY.', progress:0, status:'ready',
-    action:()=>{ addLog('Opening Jito liquid staking', '#ff5e1a', 'Jito'); window.open('https://www.jito.network/', '_blank'); toast('Jito opened — stake idle SOL for ~8% APY'); }},
+    desc:'Liquid staking pays protocol-defined yield that changes with network conditions — check Jito’s current docs/UI, not a fixed headline APY.',
+    riskNote:'Depeg, smart-contract, and slash risk exist for any LST; read disclosures.',
+    progress:0, status:'ready',
+    action:()=>{ addLog('Opening Jito liquid staking', '#ff5e1a', 'Jito'); window.open('https://www.jito.network/', '_blank'); toast('Jito opened — compare live rates in-app'); }},
   { id:'basham', name:'BASHAM Side Hustle', type:'Business Intel · Cash', icon:'⛏', color:'#ffc200', bg:'rgba(255,194,0,0.12)',
-    desc:'Deploy BASHAM Gold Harvester — find local businesses losing money and convert to $50–$350 consulting tasks. Cash in hand.', progress:45, status:'active',
+    desc:'Separate BASHAM flow for off-chain consulting-style tasks. Income depends on your effort and clients — not on-chain yield.',
+    riskNote:'Not crypto trading advice; negotiate terms and tax with professionals.',
+    progress:45, status:'active',
     action:()=>{ window.location.href = '/yabbai/#basham'; toast('BASHAM protocol — fastest path to real cash'); }},
 ];
 
@@ -993,13 +1402,98 @@ function showPage(id) {
   if (page) page.classList.add('active');
   document.querySelector(`[data-page="${id}"]`)?.classList.add('active');
   window.scrollTo({ top:0, behavior:'smooth' });
+  applyTreasuryToDom();
+  syncDepositUsdFromInputs();
+  if (id === 'deposit') renderDepositWithdrawDestPanel();
+  if (id === 'missions') {
+    renderMissionMetaStrip();
+    renderAiBrainStatus();
+  }
 }
 
 // ── WALLET / SIWS ────────────────────────────────────────
 function getWalletProviderByType(type) {
   if (type === 'solflare') return window.solflare || null;
   if (type === 'backpack') return window.backpack?.solana || window.backpack || null;
-  return window.phantom?.solana || (window.solana?.isPhantom ? window.solana : null) || window.solana || null;
+  if (type === 'phantom') {
+    // Never fall back to generic window.solana for "Phantom" — another adapter often wins that slot (wrong pubkey → 0 SOL on RPC).
+    return window.phantom?.solana || (window.solana?.isPhantom ? window.solana : null) || null;
+  }
+  return (
+    window.phantom?.solana ||
+    (window.solana?.isPhantom ? window.solana : null) ||
+    window.solflare ||
+    window.backpack?.solana ||
+    null
+  );
+}
+
+function clearWalletListenerCleanup() {
+  if (typeof walletListenerCleanup === 'function') {
+    try {
+      walletListenerCleanup();
+    } catch (_) {}
+  }
+  walletListenerCleanup = null;
+}
+
+/**
+ * Phantom (and compatible wallets) update publicKey asynchronously on multi-account switch — refetch balance on same pubkey RPC uses.
+ */
+function bindWalletProviderEvents(provider) {
+  clearWalletListenerCleanup();
+  if (!provider || typeof provider.on !== 'function') return;
+
+  const onAccountChanged = async (newPublicKey) => {
+    try {
+      if (newPublicKey && typeof newPublicKey.toString === 'function') {
+        const next = newPublicKey.toString().trim();
+        if (!next) return;
+        walletAddr = next;
+        try {
+          localStorage.setItem('yabbai_wallet', walletAddr);
+        } catch (_) {}
+        await fetchWalletBalance();
+        syncBalanceLabels();
+        renderVaultPanel();
+        toast('Wallet account switched — balance refreshed');
+      } else {
+        disconnectWallet();
+      }
+    } catch (_) {
+      await fetchWalletBalance();
+      syncBalanceLabels();
+    }
+  };
+
+  const onDisconnect = () => {
+    disconnectWallet();
+  };
+
+  try {
+    provider.on('accountChanged', onAccountChanged);
+    provider.on('disconnect', onDisconnect);
+  } catch (_) {
+    return;
+  }
+
+  walletListenerCleanup = () => {
+    try {
+      if (typeof provider.removeListener === 'function') {
+        provider.removeListener('accountChanged', onAccountChanged);
+        provider.removeListener('disconnect', onDisconnect);
+      } else if (typeof provider.off === 'function') {
+        provider.off('accountChanged', onAccountChanged);
+        provider.off('disconnect', onDisconnect);
+      }
+    } catch (_) {}
+  };
+}
+
+function readProviderPublicKeyString(provider, connectResult) {
+  const pk = provider?.publicKey || connectResult?.publicKey;
+  if (!pk || typeof pk.toString !== 'function') return '';
+  return pk.toString().trim();
 }
 
 function getActiveWalletProvider() {
@@ -1026,26 +1520,56 @@ async function connectWallet(type) {
       return;
     }
 
-    const resp = await provider.connect();
-    walletAddr = resp.publicKey.toString();
+    let connectResult;
+    try {
+      connectResult = await provider.connect({ onlyIfTrusted: true });
+    } catch (_) {
+      try {
+        connectResult = await provider.connect({ onlyIfTrusted: false });
+      } catch (e1) {
+        connectResult = await provider.connect();
+      }
+    }
+    walletAddr = readProviderPublicKeyString(provider, connectResult);
+    if (!walletAddr) {
+      throw new Error('Wallet did not return a public key');
+    }
     localStorage.setItem('yabbai_wallet', walletAddr);
     localStorage.setItem('yabbai_wallet_type', type);
 
-    // Sign In With Solana — sign a message to verify ownership
-    const message = `Sign in to YABBAI\nWallet: ${walletAddr}\nTimestamp: ${Date.now()}\nThis signature proves wallet ownership and does not initiate any transaction.`;
-    const encodedMsg = new TextEncoder().encode(message);
-    try {
-      const signed = await provider.signMessage(encodedMsg);
-      addLog(`SIWS verified — wallet: ${walletAddr.slice(0,8)}...`, '#14F195', 'SIWS');
-    } catch(e) {
-      addLog(`Wallet connected without SIWS signature`, '#ffc200', 'Wallet');
-    }
+    bindWalletProviderEvents(provider);
 
-    await fetchSolPrice({ skipBalanceSync: true });
-    await fetchWalletBalance();
+    await Promise.all([
+      fetchSolPrice({ skipBalanceSync: true }),
+      fetchWalletBalance(),
+    ]);
+    if (solBalance <= 0) {
+      await new Promise((r) => setTimeout(r, 650));
+      await fetchWalletBalance();
+    }
     syncBalanceLabels();
     renderVaultPanel();
-    toast(`✓ Connected: ${walletAddr.slice(0,6)}...${walletAddr.slice(-4)}`);
+    renderMissionMetaStrip();
+    renderAiBrainStatus();
+    renderDepositWithdrawDestPanel();
+    toast(`✓ Connected: ${walletAddr.slice(0, 6)}...${walletAddr.slice(-4)}`);
+
+    // SIWS — optional ownership proof for login; does not gate balance (already fetched above)
+    const message =
+      `Sign in to YABBAI\nWallet: ${walletAddr}\nTimestamp: ${Date.now()}\n` +
+      `This signature proves you control this wallet (off-chain login). It does not move SOL or tokens. ` +
+      `Each on-chain transfer is still approved separately in your wallet — Solana has no single-signature unlimited spend approval.`;
+    const encodedMsg = new TextEncoder().encode(message);
+    try {
+      await provider.signMessage(encodedMsg);
+      addLog(`SIWS verified — wallet: ${walletAddr.slice(0, 8)}...`, '#14F195', 'SIWS');
+    } catch (e) {
+      addLog(
+        `Connected without Sign Message (optional login proof). SOL balance already loaded from RPC.`,
+        '#ffc200',
+        'Wallet'
+      );
+    }
   } catch(e) {
     toast('Connection failed: ' + e.message, 'error');
   }
@@ -1080,55 +1604,510 @@ function persistSolUsd(price) {
   } catch (_) {}
 }
 
+function updateRpcBalanceHint() {
+  const el = document.getElementById('rpcBalanceHint');
+  if (!el) return;
+  if (!walletAddr || solBalanceFetchOk) {
+    el.style.display = 'none';
+    el.textContent = '';
+    return;
+  }
+  el.style.display = 'block';
+  el.innerHTML =
+    '<strong>Wallet SOL not readable from this page</strong> (common on IPFS: browser RPC blocked). ' +
+    'Use <strong>Refresh balance</strong> or set <code>window.YABBAI_SOLANA_RPC</code> / <code>window.YABBAI_BALANCE_API</code> in mission-config.js (Helius/Alchemy or Worker). ' +
+    '<strong>Deposit still works</strong> — your wallet shows the real balance when you sign.';
+}
+
 /** Keeps cashout bar, top wallet chip, and deposit USD in sync with solBalance + solPrice */
 function syncBalanceLabels() {
   if (!walletAddr) return;
   const px = effectiveSolUsd();
   const usdTxt =
-    Number.isFinite(solBalance) && solBalance >= 0
+    solBalanceFetchOk && Number.isFinite(solBalance) && solBalance > 0
       ? (solBalance * px).toFixed(2)
       : '—';
   const cp = document.getElementById('cpBalance');
-  if (cp) cp.textContent = `Balance: ${solBalance.toFixed(4)} SOL · $${usdTxt}`;
+  if (cp) {
+    if (!solBalanceFetchOk) {
+      cp.textContent = 'Balance: — (RPC from browser failed — use Refresh or set YABBAI_SOLANA_RPC)';
+    } else if (solBalance > 0) {
+      cp.textContent = `Balance: ${solBalance.toFixed(4)} SOL · $${usdTxt} (RPC/worker)`;
+    } else {
+      cp.textContent =
+        'Balance: RPC shows 0 — chip uses Solana RPC here (not a separate Phantom web API) · tap ↻ or check wallet';
+    }
+  }
   renderWalletUI();
   updateDepositUsd();
   renderVaultPanel();
+  updateRpcBalanceHint();
 }
 
-async function fetchWalletBalance() {
-  if (!walletAddr) return;
-  const RPCS = [
-    RPC,
-    'https://api.mainnet-beta.solana.com',
-    'https://rpc.ankr.com/solana',
-  ];
-  for (const rpc of RPCS) {
-    try {
-      const sigOpt = abortableFetchSignal(8000);
-      const signal = sigOpt.signal || sigOpt;
-      const r = await fetch(rpc, {
-        method:'POST',
-        headers:{'Content-Type':'application/json'},
-        body: JSON.stringify({jsonrpc:'2.0',id:1,method:'getBalance',params:[walletAddr]}),
-        signal,
-      });
-      if (sigOpt.cancel) sigOpt.cancel();
-      if (!r.ok) continue;
-      const d = await r.json();
-      const lamports = d.result?.value;
-      if (lamports !== undefined) {
-        solBalance = lamports / 1e9;
-        syncBalanceLabels();
-        addLog(
-          `Wallet balance: ${solBalance.toFixed(4)} SOL`,
-          '#14F195',
-          'RPC'
-        );
-        return;
-      }
-    } catch(e) { continue; }
+async function refreshWalletBalanceUi() {
+  toast('Refreshing SOL balance…', '');
+  await fetchWalletBalance();
+  if (solBalanceFetchOk && solBalance > 0) toast(`Balance: ${solBalance.toFixed(4)} SOL`, '');
+  else if (solBalanceFetchOk && solBalance <= 0) {
+    toast('RPC shows 0 SOL — open Phantom for real balance. Deposit still works when you sign.', 'warn');
+  } else toast('Still could not read balance — you can deposit anyway (wallet will confirm).', 'warn');
+}
+
+function resolveLiveWalletAddress() {
+  const type = localStorage.getItem('yabbai_wallet_type') || 'phantom';
+  const provider = getWalletProviderByType(type);
+  if (!provider?.publicKey) return walletAddr;
+  try {
+    const live = provider.publicKey.toString().trim();
+    if (live && live !== walletAddr) {
+      walletAddr = live;
+      localStorage.setItem('yabbai_wallet', walletAddr);
+    }
+    return walletAddr;
+  } catch (_) {
+    return walletAddr;
   }
-  addLog('Balance fetch failed — check RPC connection', '#ffc200', 'RPC');
+}
+
+let web3BalanceModulePromise = null;
+function loadWeb3BalanceModule() {
+  if (!web3BalanceModulePromise) {
+    web3BalanceModulePromise = import('https://cdn.jsdelivr.net/npm/@solana/web3.js@1.95.3/+esm');
+  }
+  return web3BalanceModulePromise;
+}
+
+/** Parse getBalance JSON-RPC body — lamports may be number, string, or nested under result.value */
+/**
+ * Some wallets expose JSON-RPC via request(); not standard across adapters — feature-detect and ignore failures.
+ * Returns lamports (integer) or null.
+ */
+async function tryWalletExtensionGetBalanceLamports(pubkeyBase58) {
+  try {
+    const s = typeof window !== 'undefined' ? window.solana : null;
+    if (!s || typeof s.request !== 'function') return null;
+    const res = await s.request({ method: 'getBalance', params: [pubkeyBase58] });
+    if (typeof res === 'number' && Number.isFinite(res) && res >= 0) return Math.floor(res);
+    if (typeof res === 'string') {
+      const x = parseInt(res, 10);
+      return Number.isFinite(x) && x >= 0 ? x : null;
+    }
+    if (res && typeof res === 'object') {
+      const v = res.value ?? res.lamports ?? res.result;
+      if (typeof v === 'number' && Number.isFinite(v) && v >= 0) return Math.floor(v);
+      if (typeof v === 'string') {
+        const x = parseInt(v, 10);
+        return Number.isFinite(x) && x >= 0 ? x : null;
+      }
+      if (v && typeof v === 'object' && typeof v.lamports === 'number') {
+        const n = Math.floor(v.lamports);
+        return n >= 0 ? n : null;
+      }
+    }
+  } catch (_) {
+    /* optional path */
+  }
+  return null;
+}
+
+function lamportsFromGetBalanceJson(d) {
+  if (!d || d.error) return null;
+  const r = d.result;
+  if (r === null || r === undefined) return null;
+  if (typeof r === 'number' && Number.isFinite(r)) return Math.floor(r);
+  if (typeof r === 'string') {
+    const x = parseInt(r, 10);
+    return Number.isFinite(x) ? x : null;
+  }
+  if (typeof r === 'bigint') return Number(r);
+  if (typeof r === 'object' && r !== null && 'value' in r) {
+    const v = r.value;
+    if (typeof v === 'number' && Number.isFinite(v)) return Math.floor(v);
+    if (typeof v === 'string') {
+      const x = parseInt(v, 10);
+      return Number.isFinite(x) ? x : null;
+    }
+    if (typeof v === 'bigint') return Number(v);
+  }
+  return null;
+}
+
+/** One console.info per tab when balance API is unset (see mission-config.js). */
+function maybeWarnBalanceApiUnsetOnce() {
+  try {
+    if (sessionStorage.getItem('yabbai_balance_api_doc_once')) return;
+    if (typeof window !== 'undefined' && String(window.YABBAI_BALANCE_API || '').trim()) {
+      sessionStorage.setItem('yabbai_balance_api_doc_once', '1');
+      return;
+    }
+    sessionStorage.setItem('yabbai_balance_api_doc_once', '1');
+    console.info(
+      '[YABBAI] YABBAI_BALANCE_API is unset — SOL balance uses browser JSON-RPC (often rate-limited on static/IPFS). Prefer deploying workers/balance-api and setting the URL in yabbai/mission-config.js.'
+    );
+  } catch (_) {}
+}
+
+async function fetchWalletBalance(opts) {
+  opts = opts || {};
+  const attempt0 = typeof opts._attempt === 'number' ? opts._attempt : 0;
+  opts._attempt = attempt0;
+  if (attempt0 === 0) {
+    if (typeof opts._run !== 'number') opts._run = ++balanceFetchRunId;
+    balanceFetchSingleton = balanceFetchSingleton
+      .then(() => fetchWalletBalanceCore(opts))
+      .catch((e) => console.warn('[YABBAI][SOL] balance fetch queue', e));
+    return balanceFetchSingleton;
+  }
+  return fetchWalletBalanceCore(opts);
+}
+
+async function fetchWalletBalanceCore(opts) {
+  opts = opts || {};
+  const isBackground = !!opts.isBackground;
+  const attempt = typeof opts._attempt === 'number' ? opts._attempt : 0;
+  const maxAttempt = isBackground ? 6 : 4;
+  resolveLiveWalletAddress();
+  if (!walletAddr) {
+    try {
+      const s = (localStorage.getItem('yabbai_wallet') || '').trim();
+      if (s) walletAddr = s;
+    } catch (_) {}
+  }
+  const prov = getActiveWalletProvider();
+  if ((!walletAddr || !String(walletAddr).trim()) && prov && !prov.publicKey) {
+    syncBalanceLabels();
+    return;
+  }
+  let addrRaw = walletAddr ? String(walletAddr).trim() : '';
+  if (!addrRaw && prov) {
+    const pk = readProviderPublicKeyString(prov, null);
+    if (pk) {
+      walletAddr = pk;
+      addrRaw = pk;
+      try {
+        localStorage.setItem('yabbai_wallet', pk);
+      } catch (_) {}
+    }
+  }
+  if (!addrRaw) return;
+
+  let web3;
+  try {
+    web3 = await loadWeb3BalanceModule();
+  } catch (e) {
+    console.warn('[YABBAI][SOL] web3 load failed', e);
+    solBalanceFetchOk = false;
+    const now = Date.now();
+    if (!isBackground || now - balanceRpcFailureLogAt > 180000) {
+      balanceRpcFailureLogAt = now;
+      addLog('Balance: could not load Solana library — try refresh', '#ffc200', 'RPC');
+    }
+    syncBalanceLabels();
+    return;
+  }
+
+  const { Connection, PublicKey } = web3;
+  let pk;
+  try {
+    pk = new PublicKey(addrRaw);
+  } catch (e) {
+    console.warn('[YABBAI][SOL] invalid pubkey', addrRaw, e);
+    toast('Wallet address invalid — disconnect and reconnect.', 'error');
+    return;
+  }
+  walletAddr = addrRaw;
+  maybeWarnBalanceApiUnsetOnce();
+
+  const endpoints = getSolanaRpcList();
+
+  solBalanceFetchOk = false;
+
+  try {
+  const extBalancePromise = tryWalletExtensionGetBalanceLamports(addrRaw);
+
+  /** Commit positive balance and exit fetch early. Zero lamports are never treated as authoritative from this path alone (avoids false $0 on flaky IPFS/RPC). */
+  const applyPositiveLamports = (lamports, rpc, tag) => {
+    let n =
+      typeof lamports === 'bigint'
+        ? Number(lamports)
+        : typeof lamports === 'string'
+          ? parseInt(lamports, 10)
+          : Number(lamports);
+    if (!Number.isFinite(n) || n < 0) return false;
+    if (n === 0) {
+      return false;
+    }
+    primarySolanaRpc = rpc;
+    solBalance = n / 1e9;
+    solBalanceFetchOk = true;
+    syncBalanceLabels();
+    addLog(`Wallet balance: ${solBalance.toFixed(4)} SOL${tag ? ' ' + tag : ''}`, '#14F195', 'RPC');
+    return true;
+  };
+
+  // 0) Prefer Worker + D1 when configured (server-side RPC — avoids browser CORS/rate limits)
+  const balBase =
+    typeof window !== 'undefined' &&
+    window.YABBAI_BALANCE_API &&
+    String(window.YABBAI_BALANCE_API).trim();
+  if (balBase) {
+    const base = balBase.replace(/\/$/, '');
+    for (let wTry = 0; wTry < 3; wTry++) {
+      if (wTry > 0) await new Promise((r) => setTimeout(r, 500));
+      try {
+        const u = new URL('balance', base + '/');
+        u.searchParams.set('wallet', addrRaw);
+        const sigOpt = abortableFetchSignal(24000);
+        const signal = sigOpt.signal || sigOpt;
+        const r = await fetch(u.toString(), { method: 'GET', signal, mode: 'cors', cache: 'no-store' });
+        if (sigOpt.cancel) sigOpt.cancel();
+        if (r.ok) {
+          const j = await r.json();
+          if (j && j.ok !== false) {
+            let lp =
+              j.lamports != null
+                ? Number(j.lamports)
+                : j.sol != null
+                  ? Math.round(Number(j.sol) * 1e9)
+                  : NaN;
+            if (Number.isFinite(lp) && lp >= 0) {
+              const rpcHint = getSolanaRpcList()[0] || 'https://api.mainnet-beta.solana.com';
+              if (lp > 0) {
+                if (applyPositiveLamports(lp, rpcHint, '(Worker+D1)')) return;
+              } else if (j.ok === true) {
+                primarySolanaRpc = rpcHint;
+                solBalance = 0;
+                solBalanceFetchOk = true;
+                syncBalanceLabels();
+                addLog('Wallet balance: 0 SOL (Worker+D1)', '#14F195', 'RPC');
+                return;
+              }
+            }
+          }
+        }
+      } catch (e) {
+        console.warn('[YABBAI][SOL] YABBAI_BALANCE_API try', wTry + 1, e);
+      }
+    }
+  }
+
+  // 1) @solana/web3 Connection first (same path as deposits; handles RPC quirks)
+  for (const rpc of endpoints) {
+    try {
+      const conn = new Connection(rpc, 'confirmed');
+      try {
+        await assertMainnetRpc(conn);
+      } catch (ce) {
+        console.warn('[YABBAI][SOL] skipped non-mainnet RPC', rpc, ce?.message || ce);
+        continue;
+      }
+      const lamports = await conn.getBalance(pk, 'confirmed');
+      if (applyPositiveLamports(lamports, rpc, '(rpc)')) return;
+    } catch (e) {
+      console.warn('[YABBAI][SOL] Connection.getBalance', rpc, e?.message || e);
+    }
+  }
+
+  // 2) Raw JSON-RPC — try without optional params (some gateways reject the 2nd arg)
+  const jsonBodies = [
+    JSON.stringify({
+      jsonrpc: '2.0',
+      id: 1,
+      method: 'getBalance',
+      params: [addrRaw],
+    }),
+    JSON.stringify({
+      jsonrpc: '2.0',
+      id: 1,
+      method: 'getBalance',
+      params: [addrRaw, { commitment: 'confirmed' }],
+    }),
+  ];
+
+  for (const rpc of endpoints) {
+    for (const body of jsonBodies) {
+      try {
+        const sigOpt = abortableFetchSignal(26000);
+        const signal = sigOpt.signal || sigOpt;
+        const r = await fetch(rpc, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body,
+          signal,
+          cache: 'no-store',
+          mode: 'cors',
+        });
+        if (sigOpt.cancel) sigOpt.cancel();
+        if (!r.ok) continue;
+        let d;
+        try {
+          d = JSON.parse(await r.text());
+        } catch (parseErr) {
+          console.warn('[YABBAI][SOL] non-JSON', rpc, parseErr);
+          continue;
+        }
+        if (d.error) {
+          console.warn('[YABBAI][SOL]', rpc, d.error);
+          continue;
+        }
+        const lamports = lamportsFromGetBalanceJson(d);
+        if (lamports != null && applyPositiveLamports(lamports, rpc, '(http)')) return;
+      } catch (e) {
+        console.warn('[YABBAI][SOL] fetch', rpc, e?.message || e);
+      }
+    }
+  }
+
+  let extLamports = null;
+  try {
+    extLamports = await extBalancePromise;
+  } catch (_) {
+    extLamports = null;
+  }
+  const curLam = solBalanceFetchOk ? Math.round(solBalance * 1e9) : 0;
+  if (extLamports != null) {
+    if (extLamports > curLam) {
+      primarySolanaRpc = primarySolanaRpc || getSolanaRpcList()[0] || '';
+      solBalance = extLamports / 1e9;
+      solBalanceFetchOk = true;
+      syncBalanceLabels();
+      addLog(`Wallet balance: ${solBalance.toFixed(4)} SOL (wallet getBalance)`, '#14F195', 'RPC');
+    } else if (extLamports === 0 && !solBalanceFetchOk) {
+      primarySolanaRpc = primarySolanaRpc || getSolanaRpcList()[0] || '';
+      solBalance = 0;
+      solBalanceFetchOk = true;
+      syncBalanceLabels();
+      addLog('Wallet balance: 0 SOL (wallet getBalance)', '#14F195', 'RPC');
+    }
+  }
+
+  if (!solBalanceFetchOk && attempt < maxAttempt) {
+    solanaFallbackRotateIdx++;
+    const waitMs = Math.round(550 * Math.pow(2, attempt));
+    if (!isBackground) {
+      console.warn('[YABBAI][SOL] balance poll retry after', waitMs, 'ms (attempt', attempt + 1, ')');
+    }
+    syncBalanceLabels();
+    await new Promise((r) => setTimeout(r, waitMs));
+    return await fetchWalletBalanceCore({ ...opts, _attempt: attempt + 1 });
+  }
+
+  if (!solBalanceFetchOk) {
+    const staleRun = typeof opts._run === 'number' && opts._run !== balanceFetchRunId;
+    if (staleRun) {
+      syncBalanceLabels();
+    } else {
+      solanaFallbackRotateIdx++;
+      const now = Date.now();
+      const LOG_GAP_MS = 3 * 60 * 1000;
+      const TOAST_GAP_MS = 90 * 1000;
+      if (now - balanceRpcFailureLogAt > LOG_GAP_MS) {
+        const customRpc =
+          typeof window !== 'undefined' && String(window.YABBAI_SOLANA_RPC || '').trim();
+        const balApi =
+          typeof window !== 'undefined' && String(window.YABBAI_BALANCE_API || '').trim();
+        let msg;
+        if (balApi && customRpc) {
+          msg =
+            '<strong>[RPC] All balance paths failed</strong> (Worker + private RPC). Check <code>YABBAI_BALANCE_API</code> URL/CORS, <code>YABBAI_SOLANA_RPC</code> (HTTPS mainnet), then <strong>hard refresh</strong>. Dexscreener does not prove Solana JSON-RPC from this page. Deposits still work in Phantom.';
+        } else if (balApi) {
+          msg =
+            '<strong>[RPC] Balance Worker unreachable or error</strong> — verify <code>window.YABBAI_BALANCE_API</code> (deploy <code>workers/balance-api</code>, GET <code>/balance?wallet=…</code>, CORS). Fallback browser RPC also failed after retries. Try a private <code>YABBAI_SOLANA_RPC</code> or hard refresh. Deposits still work in Phantom.';
+        } else if (customRpc) {
+          msg =
+            '<strong>[RPC] Balance fetch failed</strong> — your <code>YABBAI_SOLANA_RPC</code> did not return mainnet lamports (firewall, wrong cluster, or key limits). Confirm HTTPS mainnet URL; optional: deploy <code>YABBAI_BALANCE_API</code>. Hard refresh after editing mission-config. Deposits still work in Phantom.';
+        } else {
+          msg =
+            '<strong>[RPC] All public Solana RPC endpoints failed</strong> (rate limits / CORS / timeouts from this host). Set <code>window.YABBAI_SOLANA_RPC</code> (Helius, Alchemy, QuickNode…) or deploy <code>YABBAI_BALANCE_API</code> in mission-config.js, then hard refresh. Deposits still work in Phantom.';
+        }
+        if (!suppressedFirstBalanceRpcFeedLog) {
+          suppressedFirstBalanceRpcFeedLog = true;
+          console.warn(
+            '[YABBAI][SOL] Could not read wallet SOL on this page (first failure; Live Feed line suppressed). If it repeats, check mission-config / RPC.',
+            { customRpc: !!customRpc, balApi: !!balApi }
+          );
+        } else {
+          balanceRpcFailureLogAt = now;
+          addLog(msg, '#ffc200', 'RPC');
+        }
+      }
+      syncBalanceLabels();
+      if (!isBackground && now - balanceRpcFailureToastAt > TOAST_GAP_MS) {
+        balanceRpcFailureToastAt = now;
+        toast(
+          'Could not load SOL balance here — set YABBAI_SOLANA_RPC or deploy YABBAI_BALANCE_API (see mission-config.js), then hard refresh. You can still deposit from Phantom.',
+          'warn'
+        );
+      }
+    }
+  }
+  } finally {
+    try {
+      await refreshSplTokenBalances(pk, web3, endpoints);
+    } catch (_) {}
+  }
+}
+
+async function assertMainnetRpc(connection) {
+  const gh = await connection.getGenesisHash();
+  if (gh !== MAINNET_GENESIS_HASH) {
+    throw new Error(
+      `Wrong Solana cluster — this app is mainnet-beta only (genesis mismatch; RPC reports ${(gh || '').slice(0, 12)}…)`
+    );
+  }
+}
+
+async function refreshSplTokenBalances(ownerPk, web3Mod, rpcList) {
+  splWalletLines = [];
+  const mints = getTrackedMintStrings();
+  if (!ownerPk || !web3Mod || !mints.length) {
+    renderWalletUI();
+    return;
+  }
+  const { Connection, PublicKey } = web3Mod;
+  const orderedRpc = [];
+  const pushRpc = (u) => {
+    if (u && typeof u === 'string' && !orderedRpc.includes(u)) orderedRpc.push(u);
+  };
+  if (primarySolanaRpc) pushRpc(primarySolanaRpc);
+  (rpcList || []).forEach(pushRpc);
+
+  const fetchLines = async (rpc) => {
+    const c = new Connection(rpc, 'confirmed');
+    const lines = [];
+    for (const m of mints) {
+      let mintPk;
+      try {
+        mintPk = new PublicKey(m);
+      } catch (_) {
+        continue;
+      }
+      try {
+        const rows = await c.getParsedTokenAccountsByOwner(ownerPk, { mint: mintPk }, 'confirmed');
+        let ui = 0;
+        const infos = rows && rows.value ? rows.value : [];
+        for (const row of infos) {
+          const amt = row?.account?.data?.parsed?.info?.tokenAmount?.uiAmount;
+          if (typeof amt === 'number' && Number.isFinite(amt)) ui += amt;
+        }
+        if (ui > 0) lines.push({ mint: m, ui });
+      } catch (_) {
+        /* ignore per-mint */
+      }
+    }
+    return lines;
+  };
+
+  for (const rpc of orderedRpc.slice(0, 8)) {
+    try {
+      splWalletLines = await fetchLines(rpc);
+      renderWalletUI();
+      return;
+    } catch (_) {
+      splWalletLines = [];
+    }
+  }
+  renderWalletUI();
 }
 
 async function ensureBufferPolyfill() {
@@ -1137,27 +2116,70 @@ async function ensureBufferPolyfill() {
   globalThis.Buffer = mod.Buffer;
 }
 
+function getDepositControls() {
+  const dep = document.getElementById('page-deposit');
+  if (dep && dep.classList.contains('active')) {
+    return {
+      amt: document.getElementById('depositTabAmt'),
+      usd: document.getElementById('depositTabUsd'),
+      btn: document.getElementById('depositTabBtn'),
+      dry: document.getElementById('depositDryRun'),
+    };
+  }
+  return {
+    amt: document.getElementById('depositAmt'),
+    usd: document.getElementById('depositUsd'),
+    btn: document.getElementById('depositBtn'),
+    dry: document.getElementById('depositDryRunDash'),
+  };
+}
+
 function setMaxDeposit() {
-  const input = document.getElementById('depositAmt');
+  const c = getDepositControls();
+  const input = c.amt;
   if (!input) return;
-  const reserve = 0.015;
-  const max = Math.max(0, solBalance - reserve);
+  if (!solBalanceFetchOk || solBalance <= 0) {
+    toast('MAX unavailable — RPC balance missing/zero here. Type SOL manually; Phantom shows real balance when you sign.', 'warn');
+    return;
+  }
+  const max = Math.max(0, solBalance);
   input.value = max > 0 ? max.toFixed(6) : '';
-  updateDepositUsd();
+  syncDepositUsdFromInputs();
+}
+
+function syncDepositUsdFromInputs() {
+  const px = effectiveSolUsd();
+  const syncOne = (amtEl, usdEl) => {
+    if (!amtEl || !usdEl) return;
+    const amt = parseFloat(amtEl.value || 0);
+    usdEl.textContent = `≈ $${(amt * px).toFixed(2)} USD · Amount sent to treasury`;
+  };
+  syncOne(document.getElementById('depositAmt'), document.getElementById('depositUsd'));
+  syncOne(document.getElementById('depositTabAmt'), document.getElementById('depositTabUsd'));
 }
 
 function updateDepositUsd() {
-  const amt = parseFloat(document.getElementById('depositAmt')?.value || 0);
-  const el = document.getElementById('depositUsd');
-  const px = effectiveSolUsd();
-  if (el) el.textContent = `≈ $${(amt * px).toFixed(2)} USD · Fee paid separately by wallet`;
+  syncDepositUsdFromInputs();
 }
 
 async function depositSolToTreasury() {
-  const amt = parseFloat(document.getElementById('depositAmt')?.value || 0);
+  const depCtx = getDepositControls();
+  const amt = parseFloat(depCtx.amt?.value || 0);
   if (!amt || amt <= 0) { toast('Enter a deposit amount (SOL)', 'error'); return; }
+  if (amt < MIN_DEPOSIT_SOL) { toast(`Minimum deposit is ${MIN_DEPOSIT_SOL} SOL`, 'error'); return; }
   if (!walletAddr) { openSIWS(); toast('Connect wallet first', 'warn'); return; }
   if (depositBusy) return;
+
+  const dryRun = !!(depCtx.dry && depCtx.dry.checked);
+  if (dryRun) {
+    const t = treasuryShortAddr(getTreasuryAddress());
+    toast(`Dry run: would send ${amt} SOL → treasury ${t}`, '');
+    addLog(`Dry run · ${amt} SOL → treasury (${getTreasuryAddress()})`, '#9945FF', 'Deposit');
+    return;
+  }
+
+  resolveLiveWalletAddress();
+  await fetchWalletBalance();
 
   const provider = getActiveWalletProvider();
   if (!provider?.publicKey) {
@@ -1166,20 +2188,40 @@ async function depositSolToTreasury() {
     return;
   }
 
-  const fromStr = provider.publicKey.toString();
-  if (fromStr !== walletAddr) {
+  const fromStr = provider.publicKey.toString().trim();
+  if (fromStr !== (walletAddr || '').trim()) {
     walletAddr = fromStr;
     localStorage.setItem('yabbai_wallet', walletAddr);
+    await fetchWalletBalance();
   }
 
-  const reserve = 0.02;
-  if (amt + reserve > solBalance) {
-    toast(`Insufficient SOL · balance ${solBalance.toFixed(4)} (keep ~${reserve} for fees)`, 'error');
+  // First RPC poll sometimes returns 0 from congested public endpoints — refetch once before blocking deposit
+  if (solBalance <= 0) {
+    await new Promise(r => setTimeout(r, 650));
+    await fetchWalletBalance();
+  }
+
+  // Only block when RPC reported a **positive** spendable balance and amount exceeds it.
+  // Zero / unknown in-page balance never blocks deposit (wallet enforces real SOL at sign time).
+  if (solBalanceFetchOk && solBalance > 0 && amt > solBalance) {
+    toast(
+      `Amount exceeds on-chain balance reported here (${solBalance.toFixed(4)} SOL vs ${amt.toFixed(4)} sent). Lower the amount or tap ↻ Refresh balance.`,
+      'error'
+    );
+    return;
+  }
+
+  if (!solBalanceFetchOk || solBalance <= 0) {
+    addLog('Deposit: page balance unreliable — Phantom shows real SOL when you approve', '#ffc200', 'Deposit');
+  }
+
+  if (!window.confirm(`Send ${amt} SOL to treasury ${treasuryShortAddr(getTreasuryAddress())}? On-chain transfer — you approve in your wallet only; not reversible.`)) {
+    toast('Cancelled', 'warn');
     return;
   }
 
   depositBusy = true;
-  const btn = document.getElementById('depositBtn');
+  const btn = depCtx.btn;
   if (btn) { btn.disabled = true; btn.textContent = 'Approve in wallet…'; }
 
   try {
@@ -1190,53 +2232,77 @@ async function depositSolToTreasury() {
     const lamports = Math.round(amt * 1e9);
     if (lamports < 1) { throw new Error('Amount too small'); }
 
-    const connection = new Connection(RPC, 'confirmed');
     const fromPubkey = provider.publicKey;
-    const toPubkey = new PublicKey(TREASURY);
-
-    const latest = await connection.getLatestBlockhash('confirmed');
-    const tx = new Transaction();
-    tx.recentBlockhash = latest.blockhash;
-    tx.feePayer = fromPubkey;
-    tx.add(
-      SystemProgram.transfer({
-        fromPubkey,
-        toPubkey,
-        lamports,
-      })
-    );
-
-    toast('Confirm the transfer in your wallet…', 'warn');
-    addLog(`Deposit ${amt} SOL → treasury — awaiting wallet approval`, '#9945FF', 'Deposit');
-
-    let signature;
-    if (typeof provider.signAndSendTransaction === 'function') {
-      const result = await provider.signAndSendTransaction(tx);
-      signature = typeof result === 'string' ? result : result?.signature;
-    } else if (typeof provider.signTransaction === 'function') {
-      const signed = await provider.signTransaction(tx);
-      signature = await connection.sendRawTransaction(signed.serialize(), {
-        skipPreflight: false,
-        maxRetries: 3,
-      });
-    } else {
-      throw new Error('This wallet cannot sign SOL transfers from this page');
+    let toPubkey;
+    try {
+      toPubkey = new PublicKey(getTreasuryAddress());
+    } catch (_) {
+      throw new Error('Treasury address invalid — set YABBAI_TREASURY_RECEIVER in mission-config.js');
     }
 
-    if (!signature) throw new Error('No signature returned');
-    const sigStr = typeof signature === 'string' ? signature : String(signature);
+    const rpcCandidates = getSolanaRpcList();
 
-    await connection.confirmTransaction(
-      { signature: sigStr, blockhash: latest.blockhash, lastValidBlockHeight: latest.lastValidBlockHeight },
-      'confirmed'
-    );
+    for (let ri = 0; ri < rpcCandidates.length; ri++) {
+      const rpcUrl = rpcCandidates[ri];
+      let connection;
+      try {
+        connection = new Connection(rpcUrl, 'confirmed');
+        await assertMainnetRpc(connection);
+        const latest = await connection.getLatestBlockhash('confirmed');
+        const tx = new Transaction();
+        tx.recentBlockhash = latest.blockhash;
+        tx.feePayer = fromPubkey;
+        tx.add(
+          SystemProgram.transfer({
+            fromPubkey,
+            toPubkey,
+            lamports,
+          })
+        );
 
-    addLog(`Deposit confirmed · ${sigStr.slice(0, 10)}…`, '#14F195', 'Solana');
-    toast('Deposit confirmed — vault credited');
-    vaultCreditDeposit(amt);
-    document.getElementById('depositAmt').value = '';
-    updateDepositUsd();
-    await fetchWalletBalance();
+        toast('Confirm the transfer in your wallet…', 'warn');
+        addLog(`Deposit ${amt} SOL → treasury — awaiting wallet (${ri === 0 ? 'primary' : 'fallback'} RPC)`, '#9945FF', 'Deposit');
+
+        let signature;
+        if (typeof provider.signAndSendTransaction === 'function') {
+          const result = await provider.signAndSendTransaction(tx);
+          signature = typeof result === 'string' ? result : result?.signature;
+        } else if (typeof provider.signTransaction === 'function') {
+          const signed = await provider.signTransaction(tx);
+          signature = await connection.sendRawTransaction(signed.serialize(), {
+            skipPreflight: false,
+            maxRetries: 3,
+          });
+        } else {
+          throw new Error('This wallet cannot sign SOL transfers from this page');
+        }
+
+        if (!signature) throw new Error('No signature returned');
+        const sigStr = typeof signature === 'string' ? signature : String(signature);
+
+        await connection.confirmTransaction(
+          { signature: sigStr, blockhash: latest.blockhash, lastValidBlockHeight: latest.lastValidBlockHeight },
+          'confirmed'
+        );
+
+        primarySolanaRpc = rpcUrl;
+        addLog(`Deposit confirmed · ${sigStr.slice(0, 10)}…`, '#14F195', 'Solana');
+        toast('Deposit confirmed — vault credited');
+        vaultCreditDeposit(amt);
+        const da = document.getElementById('depositAmt');
+        const dtab = document.getElementById('depositTabAmt');
+        if (da) da.value = '';
+        if (dtab) dtab.value = '';
+        syncDepositUsdFromInputs();
+        await fetchWalletBalance();
+        break;
+      } catch (e) {
+        const msg = e?.message || String(e);
+        if (/User rejected|cancel/i.test(msg)) throw e;
+        console.warn('[YABBAI][Deposit] RPC attempt failed', rpcUrl, msg);
+        if (ri === rpcCandidates.length - 1) throw e;
+      }
+    }
   } catch (e) {
     const msg = e?.message || String(e);
     if (/User rejected|cancel/i.test(msg)) {
@@ -1247,7 +2313,11 @@ async function depositSolToTreasury() {
     }
   } finally {
     depositBusy = false;
-    if (btn) { btn.disabled = false; btn.textContent = '◎ Deposit SOL → Treasury'; }
+    const c2 = getDepositControls();
+    if (c2.btn) {
+      c2.btn.disabled = false;
+      c2.btn.textContent = c2.btn.id === 'depositTabBtn' ? '◎ Sign deposit in wallet' : '◎ Confirm deposit';
+    }
   }
 }
 
@@ -1256,25 +2326,36 @@ function renderWalletUI() {
   const px = effectiveSolUsd();
   const walletType = localStorage.getItem('yabbai_wallet_type') || 'phantom';
   const icons = { phantom:'👻', solflare:'🔆', backpack:'🎒' };
-  const usdChip =
-    Number.isFinite(solBalance) && solBalance >= 0
-      ? '$' + (solBalance * px).toFixed(2)
-      : '$—';
+  const balLine = solBalanceFetchOk
+    ? solBalance > 0
+      ? `${solBalance.toFixed(4)} SOL · $${(solBalance * px).toFixed(2)}`
+      : `— SOL · <span style="color:var(--gold);font-size:0.52rem">RPC $0 here — wallet app has true balance · ↻</span>`
+    : `— SOL · <span style="color:var(--gold);font-size:0.52rem">RPC blocked?</span>`;
+  const splHtml = (splWalletLines || [])
+    .map(l => {
+      const label = l.mint === MINT ? '$YABBAI' : `${l.mint.slice(0, 4)}…${l.mint.slice(-4)}`;
+      return `<div class="w-bal" style="font-size:0.52rem;color:var(--sol)">${label}: ${Number(l.ui).toLocaleString(undefined, { maximumFractionDigits: 6 })}</div>`;
+    })
+    .join('');
   document.getElementById('walletArea').innerHTML = `
-    <div style="display:flex;align-items:center;gap:8px">
+    <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap">
       <div class="wallet-btn wallet-connected">
         <div class="w-dot"></div>
         <div>
           <div class="w-addr">${icons[walletType]} ${walletAddr.slice(0,6)}...${walletAddr.slice(-4)}</div>
-          <div class="w-bal">${solBalance.toFixed(4)} SOL · ${usdChip}</div>
+          <div class="w-bal">${balLine}</div>
+          ${splHtml}
         </div>
       </div>
+      <button type="button" class="btn btn-outline" style="font-size:0.58rem;padding:6px 8px" onclick="refreshWalletBalanceUi()" title="Re-fetch SOL from RPC">↻</button>
       <button class="btn btn-outline" style="font-size:0.65rem;padding:7px 10px" onclick="disconnectWallet()">✕</button>
     </div>`;
+  renderDepositWithdrawDestPanel();
 }
 
 function disconnectWallet() {
   const type = localStorage.getItem('yabbai_wallet_type') || 'phantom';
+  clearWalletListenerCleanup();
   try {
     const p = getWalletProviderByType(type);
     if (p?.disconnect) p.disconnect();
@@ -1283,12 +2364,17 @@ function disconnectWallet() {
 
   walletAddr = null;
   solBalance = 0;
+  solBalanceFetchOk = false;
+  splWalletLines = [];
   localStorage.removeItem('yabbai_wallet');
   localStorage.removeItem('yabbai_wallet_type');
   document.getElementById('walletArea').innerHTML = `<button class="wallet-btn wallet-disconnected" onclick="openSIWS()"><div class="w-dot"></div>Connect Wallet</button>`;
   const cp = document.getElementById('cpBalance');
   if (cp) cp.textContent = 'Balance: —';
   renderVaultPanel();
+  renderMissionMetaStrip();
+  renderAiBrainStatus();
+  renderDepositWithdrawDestPanel();
   toast('Wallet disconnected');
 }
 
@@ -1301,25 +2387,32 @@ async function restoreWalletSession() {
   try {
     if (provider) {
       if (provider.isConnected && provider.publicKey) {
-        walletAddr = provider.publicKey.toString();
+        walletAddr = readProviderPublicKeyString(provider, null);
       } else if (savedType === 'phantom' && typeof provider.connect === 'function') {
-        await provider.connect({ onlyIfTrusted: true });
-        walletAddr = provider.publicKey.toString();
+        const cr = await provider.connect({ onlyIfTrusted: true });
+        walletAddr = readProviderPublicKeyString(provider, cr);
       } else {
-        walletAddr = saved;
+        walletAddr = saved.trim();
       }
     } else {
-      walletAddr = saved;
+      walletAddr = saved.trim();
     }
-    localStorage.setItem('yabbai_wallet', walletAddr);
+    if (walletAddr) localStorage.setItem('yabbai_wallet', walletAddr);
   } catch (_) {
-    walletAddr = saved;
+    walletAddr = saved.trim();
+    if (walletAddr) localStorage.setItem('yabbai_wallet', walletAddr);
   }
 
+  if (provider && walletAddr) bindWalletProviderEvents(provider);
+
   await fetchSolPrice({ skipBalanceSync: true });
+  resolveLiveWalletAddress();
   await fetchWalletBalance();
   syncBalanceLabels();
   renderVaultPanel();
+  renderMissionMetaStrip();
+  renderAiBrainStatus();
+  renderDepositWithdrawDestPanel();
 }
 
 // ── LIVE DATA ────────────────────────────────────────────
@@ -1449,6 +2542,9 @@ async function fetchTokenData() {
 }
 
 // ── AI BRAIN (MISSION_API from mission-config.js) ─────────
+/** null = unknown, true/false from last GET / ping */
+let missionApiReachable = null;
+
 function syncAiModelLabel() {
   const sel = document.getElementById('aiModel')?.value || 'auto';
   const labels = {
@@ -1460,23 +2556,157 @@ function syncAiModelLabel() {
   if (el) el.textContent = labels[sel] || labels.auto;
 }
 
+function renderMissionMetaStrip() {
+  const apiEl = document.getElementById('missionApiBadge');
+  const wEl = document.getElementById('missionWalletBadge');
+  if (apiEl) {
+    if (!MISSION_API) {
+      apiEl.className = 'mms-warn';
+      apiEl.innerHTML = '<strong>AI API:</strong> not set (cards & deep links still work)';
+    } else if (missionApiReachable === true) {
+      apiEl.className = 'mms-ok';
+      apiEl.innerHTML = '<strong>AI API:</strong> reachable';
+    } else if (missionApiReachable === false) {
+      apiEl.className = 'mms-warn';
+      apiEl.innerHTML = '<strong>AI API:</strong> URL set · last ping failed';
+    } else {
+      apiEl.className = 'mms-off';
+      apiEl.innerHTML = '<strong>AI API:</strong> not checked yet';
+    }
+  }
+  if (wEl) {
+    if (!walletAddr) {
+      wEl.className = 'mms-off';
+      wEl.innerHTML = '<strong>Wallet:</strong> not connected';
+    } else {
+      wEl.className = 'mms-ok';
+      wEl.innerHTML = '<strong>Wallet:</strong> ' + treasuryShortAddr(walletAddr);
+    }
+  }
+}
+
+function renderAiBrainStatus() {
+  const el = document.getElementById('aiBrainStatus');
+  if (!el) return;
+  if (!MISSION_API) {
+    el.className = 'mms-off';
+    el.textContent = '○ Local only';
+  } else if (missionApiReachable === true) {
+    el.className = 'mms-ok';
+    el.textContent = '● API ready';
+  } else if (missionApiReachable === false) {
+    el.className = 'mms-warn';
+    el.textContent = '◐ API unreachable';
+  } else {
+    el.className = 'mms-warn';
+    el.textContent = '◐ API not verified';
+  }
+}
+
+function getBrainWalletSummaryLine() {
+  if (!walletAddr) return '- Wallet: not connected.';
+  try {
+    accrueVaultYield();
+  } catch (_) {}
+  const v = loadVaultState();
+  const tail = treasuryShortAddr(walletAddr);
+  return (
+    `- Wallet (short): ${tail}\n` +
+    `- SOL balance (mainnet RPC est.): ${Number.isFinite(solBalance) ? solBalance.toFixed(4) : '?'} SOL\n` +
+    `- Vault ledger on this device: ${v.totalSol.toFixed(4)} SOL tracked · ${v.depositedCumulative.toFixed(4)} SOL cumulative deposited`
+  );
+}
+
+function getBrainTokenWatchlistLine() {
+  const mints = getTrackedMintStrings();
+  const max = 12;
+  const head = mints.slice(0, max);
+  const more = mints.length > max ? ` …+${mints.length - max} more mints` : '';
+  return `- SPL mints in UI watchlist (${mints.length}): ${head.join(', ') || '(none)'}${more}`;
+}
+
+function buildBrainUserSnapshot() {
+  const px = typeof effectiveSolUsd === 'function' ? effectiveSolUsd() : solPrice;
+  const lines = [
+    '### Live snapshot (browser; not a server audit)',
+    getBrainWalletSummaryLine(),
+    getBrainTokenWatchlistLine(),
+    `- SOL/USD label uses ~$${Number.isFinite(px) ? px.toFixed(2) : '?'} for estimates`,
+    `- $YABBAI price (last feed): ${tokenPrice > 0 ? '$' + tokenPrice.toFixed(8) : 'n/a'}`,
+  ];
+  return lines.join('\n');
+}
+
+function buildYabbaiBrainSystemPrompt() {
+  const treasury = getTreasuryAddress();
+  const mcap = Number.isFinite(tokenMcap) ? Math.round(tokenMcap) : 0;
+  const liq = Number.isFinite(tokenLiq) ? Math.round(tokenLiq) : 0;
+  const vol = Number.isFinite(tokenVol) ? Math.round(tokenVol) : 0;
+  return `You are the YABBAI mission brain — a concise strategist for the $YABBAI Solana community dashboard (static site + optional Worker AI proxy).
+
+## Canonical context
+- Treasury receiver (SOL account for deposits): ${treasury}
+- $YABBAI mint: ${MINT}
+- Reference pool id: ${POOL}
+- Links: ${PUMP_URL} · ${DEX_URL}
+- Worker AI in this session: ${MISSION_API ? 'configured (API keys only on server)' : 'not configured — user relies on canned mission cards'}
+- Market snapshot from last Dexscreener refresh (may be stale): mcap ~$${mcap}, liq ~$${liq}, 24h vol ~$${vol}
+
+## Required answer shape
+1) One-line thesis.
+2) **Steps:** up to 5 numbered items — each a concrete next action (verify mint/address, open a named product, draft copy, check balance, etc.).
+3) **Risks / checks:** 2–4 bullets (fees, slippage, IL, protocol risk, regulatory, phishing/wrong-address).
+
+## Guardrails (must follow)
+- Informational only — not personalised financial, tax, or legal advice.
+- Never promise guaranteed profit, fixed APR, or risk-free outcomes.
+- Tell the user to verify the treasury pubkey against official config and a block explorer before sending funds.
+- Prefer "estimate", "if configured", and "check live UI" over absolutes.
+- Encourage small test transactions when learning a flow.
+
+Tone: direct, crypto-literate, no hype guarantees.`;
+}
+
+function buildBrainFullUserPrompt(userPrompt, contextTag) {
+  const tag = contextTag && String(contextTag).trim() ? String(contextTag).trim() : 'mission';
+  return `${buildBrainUserSnapshot()}
+- Route / context tag: ${tag}
+
+---
+
+User mission request:
+${userPrompt.trim()}`;
+}
+
 async function fetchMissionApiStatus() {
+  missionApiReachable = null;
+  renderMissionMetaStrip();
+  renderAiBrainStatus();
   if (!MISSION_API) {
     addLog('AI: set YABBAI_MISSION_API in mission-config.js (e.g. Cloudflare Worker) — see workers/wrangler.toml', '#ffc200', 'AI');
     return;
   }
   try {
     const r = await fetch(MISSION_API, { method: 'GET' });
-    if (!r.ok) return;
+    if (!r.ok) {
+      missionApiReachable = false;
+      renderMissionMetaStrip();
+      renderAiBrainStatus();
+      return;
+    }
     const d = await r.json();
+    missionApiReachable = true;
     const ok = [];
     if (d.anthropicConfigured) ok.push('Anthropic ✓');
     if (d.moonshotConfigured) ok.push('Moonshot ✓');
     if (ok.length) addLog(`AI backend ready · ${ok.join(' · ')}`, '#14F195', 'AI');
     else addLog('AI backend: set ANTHROPIC_API_KEY / MOONSHOT_API_KEY as Worker secrets', '#ffc200', 'AI');
   } catch (_) {
+    missionApiReachable = false;
     addLog('AI backend not reachable — check MISSION_API URL and CORS', '#ffc200', 'AI');
   }
+  renderMissionMetaStrip();
+  renderAiBrainStatus();
 }
 
 async function callAI(prompt, context='mission') {
@@ -1502,13 +2732,8 @@ Add secrets ANTHROPIC_API_KEY and/or MOONSHOT_API_KEY on the Worker. Manual miss
   }
 
   const modelChoice = document.getElementById('aiModel')?.value || 'auto';
-  const systemPrompt = `You are the YABBAI autonomous income mission brain.
-Treasury: ${TREASURY}
-Token: $YABBAI on Solana. Mint: ${MINT}
-Market Cap: $${tokenMcap.toFixed(0)} USD
-Your job: Generate actionable, specific mission plans for growing $YABBAI.
-Always include: specific actions, timelines, expected outcomes.
-Be concise. Be specific. Think like a crypto growth hacker.`;
+  const systemPrompt = buildYabbaiBrainSystemPrompt();
+  const fullUserPrompt = buildBrainFullUserPrompt(prompt, context);
 
   try {
     const apiResp = await fetch(MISSION_API, {
@@ -1516,7 +2741,7 @@ Be concise. Be specific. Think like a crypto growth hacker.`;
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         modelChoice,
-        prompt,
+        prompt: fullUserPrompt,
         context,
         system: systemPrompt,
       }),
@@ -1574,9 +2799,14 @@ async function runAllMissions() {
   const active = MISSIONS.filter(m => m.status === 'active');
   for (const m of active) {
     addLog(`Mission: ${m.name}`, m.color, m.type);
-    await new Promise(r => setTimeout(r, 400));
+    try {
+      await Promise.resolve(m.action());
+    } catch (e) {
+      addLog(`${m.name}: ${e?.message || e}`, '#ff3b3b', 'YABBAI');
+    }
+    await new Promise(r => setTimeout(r, 500));
   }
-  toast(`${active.length} missions activated`);
+  toast(`${active.length} mission runs finished (check tabs / AI output)`);
 }
 
 // ── RENDER MISSIONS ──────────────────────────────────────
@@ -1597,9 +2827,10 @@ function renderMissions() {
       </div>
       <div class="mc-body">
         <div class="mc-desc">${m.desc}</div>
+        ${m.riskNote ? `<div class="mc-risk">⚠ ${m.riskNote}</div>` : ''}
         ${m.progress > 0 ? `<div class="mc-progress">
           <div class="mcp-bar"><div class="mcp-fill" style="width:${m.progress}%;background:linear-gradient(90deg,${m.color}88,${m.color})"></div></div>
-          <div class="mcp-label">${m.progress}% complete</div>
+          <div class="mcp-label">${m.progress}% illustrative progress</div>
         </div>` : ''}
       </div>
       <div class="mc-footer">
@@ -1620,7 +2851,21 @@ function runMission(id) {
 function configureMission(id) {
   const m = MISSIONS.find(x => x.id === id);
   if (!m) return;
-  toast(`Mission config: ${m.name} — edit mission parameters`);
+  const ta = document.getElementById('aiPrompt');
+  if (ta) {
+    const tshort = treasuryShortAddr(getTreasuryAddress());
+    const hint =
+      `[Mission card: ${m.name} · ${m.type}]\n` +
+      `Goal: improve steps, copy, and risk notes for this playbook. Treasury (verify): ${tshort}.\n` +
+      `Constraints: no guaranteed returns; mention fees/slippage where relevant.\n\n`;
+    const rest = (ta.value || '').trim();
+    ta.value = rest ? hint + rest : hint + `Refine strategy for: ${m.desc}`;
+    ta.focus();
+    try {
+      ta.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    } catch (_) {}
+  }
+  toast('Prompt staged in AI Brain — review and Deploy Mission');
 }
 
 // ── CASHOUT ──────────────────────────────────────────────
@@ -1655,7 +2900,7 @@ async function executeCashout() {
   if (!walletAddr) { openSIWS(); toast('Connect wallet first', 'warn'); return; }
 
   const destinations = {
-    wallet: { label:'Solana Wallet', action:()=>{ addLog(`Cashout: ${amt} SOL → ${TREASURY.slice(0,8)}...`, '#14F195', 'Wallet'); toast('Open Phantom → Send → paste treasury address'); window.open('https://phantom.app','_blank'); }},
+    wallet: { label:'Solana Wallet', action:()=>{ addLog(`Cashout: ${amt} SOL → treasury ${treasuryShortAddr(getTreasuryAddress())}`, '#14F195', 'Wallet'); showPage('deposit'); toast('Use Deposit tab for in-app signed SOL transfer, or Send in Phantom to copied treasury'); }},
     paypal: { label:'PayPal', action:()=>{ addLog(`Cashout: ${amt} SOL → PayPal (${PAYPAL})`, '#14F195', 'PayPal'); window.open('https://www.paypal.com/ncp/payment/RNKZ6497VNA8G','_blank'); toast('PayPal payment link opened'); }},
     usdc: { label:'USDC via Jupiter', action:()=>{ addLog(`Cashout: ${amt} SOL → USDC via Jupiter`, '#00D4AA', 'Jupiter'); window.open(`https://jup.ag/swap/SOL-USDC?inputAmount=${amt}`,'_blank'); toast('Jupiter SOL→USDC swap opened'); }},
     bank: { label:'Bank via off-ramp', action:()=>{ addLog(`Cashout: ${amt} SOL → USDC → Bank`, '#ffc200', 'Off-ramp'); window.open('https://jup.ag/swap/SOL-USDC','_blank'); toast('Swap SOL to USDC first, then use MoonPay or Coinbase to cash out'); }},
@@ -1718,7 +2963,62 @@ function addLog(msg, color='#14F195', source='YABBAI') {
 
 // ── UTILS ────────────────────────────────────────────────
 function copyTreasury() {
-  navigator.clipboard.writeText(TREASURY).then(() => toast('Treasury address copied'));
+  navigator.clipboard.writeText(getTreasuryAddress()).then(() => toast('Treasury address copied'));
+}
+
+function copyConnectedWalletPubkey() {
+  if (!walletAddr) {
+    toast('Connect wallet first', 'warn');
+    return;
+  }
+  navigator.clipboard.writeText(walletAddr).then(() => toast('Connected wallet address copied'));
+}
+
+/** Deposit tab — “Withdraw from” panel: where vault / payout flows return funds (user custody). */
+function renderDepositWithdrawDestPanel() {
+  const root = document.getElementById('depositWithdrawDest');
+  if (!root) return;
+  const payoutConfigured =
+    typeof window.YABBAI_PAYOUT_API === 'string' && window.YABBAI_PAYOUT_API.trim().length > 0;
+  if (walletAddr) {
+    const short = treasuryShortAddr(walletAddr);
+    const payoutLine = payoutConfigured
+      ? 'Payout Worker URL is set — Platform Vault withdraw can move SOL on-chain to this pubkey after you sign the withdraw message.'
+      : 'YABBAI_PAYOUT_API is not set — vault withdraw only changes this browser’s allocation; it does not pull SOL from treasury automatically.';
+    root.innerHTML =
+      '<div class="treasury-strip" style="margin-bottom:12px;border-color:rgba(20,241,149,0.22);background:rgba(20,241,149,0.06)">' +
+      '<span class="ts-label" style="color:var(--neon)">Connected</span>' +
+      '<span class="ts-addr" style="color:var(--white)">' +
+      short +
+      '</span>' +
+      '<span class="ts-copy" onclick="copyConnectedWalletPubkey()" title="Copy full address">Copy</span>' +
+      '</div>' +
+      '<div style="font-family:\'Azeret Mono\',monospace;font-size:0.58rem;color:var(--muted);line-height:1.55;margin-bottom:6px">Full pubkey (withdraw / return destination)</div>' +
+      '<div style="font-family:\'Azeret Mono\',monospace;font-size:0.58rem;color:var(--neon);word-break:break-all;line-height:1.55;margin-bottom:12px;padding:10px;background:var(--plate2);border:1px solid var(--wire2);border-radius:8px">' +
+      walletAddr +
+      '</div>' +
+      '<button type="button" class="btn btn-outline" style="font-size:0.65rem;width:100%;justify-content:center;margin-bottom:12px" onclick="copyConnectedWalletPubkey()">Copy full wallet address</button>' +
+      '<div class="vault-note" style="margin:0">' +
+      '<strong>Withdraw from (treasury → you):</strong> this page never holds treasury private keys. When <code>YABBAI_PAYOUT_API</code> is configured, the payout Worker sends SOL <strong>to this connected wallet</strong> after you confirm vault withdraw on the Dashboard. ' +
+      'Without that Worker, only the local vault tally updates — move SOL manually in Phantom (or any wallet) <strong>from</strong> whichever account holds treasury funds if you are the operator holding those keys.' +
+      '</div>' +
+      '<div style="margin-top:10px;font-family:\'Azeret Mono\',monospace;font-size:0.55rem;color:' +
+      (payoutConfigured ? 'var(--neon)' : 'var(--gold)') +
+      '">' +
+      payoutLine +
+      '</div>';
+  } else {
+    const extra = payoutConfigured
+      ? ' A payout Worker URL is already configured — once you connect, that pubkey is the on-chain return target for signed vault withdraws.'
+      : ' Set <code>window.YABBAI_PAYOUT_API</code> in <code>mission-config.js</code> when your payout Worker is deployed; until then, treat treasury → user sends as manual in the wallet that controls treasury.';
+    root.innerHTML =
+      '<div class="vault-note" style="margin:0;margin-bottom:12px">' +
+      '<strong>Not connected.</strong> Use <strong>Connect Wallet</strong> in the top bar (Phantom, Solflare, or Backpack) to show the Solana address used as your <strong>withdraw / return</strong> destination when automated payout is available.' +
+      extra +
+      '</div>' +
+      '<button type="button" class="btn btn-primary" style="font-size:0.72rem;width:100%;justify-content:center" onclick="openSIWS()">Connect wallet</button>' +
+      '<p class="sh-sub" style="margin-top:14px;line-height:1.65">Solo operator: if treasury SOL lives in a wallet you control outside this app, initiate <strong>Send</strong> there — this static site does not sign outbound treasury transfers except via your optional payout Worker + wallet message signing.</p>';
+  }
 }
 
 function toast(msg, type='') {
@@ -1730,10 +3030,15 @@ function toast(msg, type='') {
 
 // ── CASHOUT INPUT LISTENER ───────────────────────────────
 window.addEventListener('load', async () => {
+  applyTreasuryToDom();
+  renderDepositWithdrawDestPanel();
+
   const ca = document.getElementById('cashoutAmt');
   if (ca) ca.addEventListener('input', updateCashoutCalc);
   const da = document.getElementById('depositAmt');
-  if (da) da.addEventListener('input', updateDepositUsd);
+  if (da) da.addEventListener('input', syncDepositUsdFromInputs);
+  const dtab = document.getElementById('depositTabAmt');
+  if (dtab) dtab.addEventListener('input', syncDepositUsdFromInputs);
   const vw = document.getElementById('vaultWithdrawAmt');
   if (vw) vw.addEventListener('input', updateVaultWithdrawUsd);
 
@@ -1747,7 +3052,14 @@ window.addEventListener('load', async () => {
   fetchTokenData();
   setInterval(fetchTokenData, 30000);
   setInterval(fetchSolPrice, 60000);
-  setInterval(() => { if (walletAddr) fetchWalletBalance(); }, 45000);
+  setInterval(() => {
+    if (walletAddr) fetchWalletBalance({ isBackground: true });
+  }, 20000);
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'visible' && walletAddr) {
+      fetchWalletBalance({ isBackground: true });
+    }
+  });
   setInterval(() => {
     if (!walletAddr) return;
     accrueVaultYield();
@@ -1760,6 +3072,207 @@ window.addEventListener('load', async () => {
   addLog('Cashout destinations: Wallet · PayPal · USDC · Bank', '#ffc200', 'Cashout');
   addLog('Phantom/Solflare SIWS authentication ready', '#14F195', 'Auth');
 });
+
+// ── DEPOSIT TERMINAL ─────────────────────────────────────────────
+// Additive on-page log feed for #page-deposit. Public API:
+//   appendDepositLog(line, { source?, severity? })  // severity: info|warn|success|error
+//   clearDepositLog()
+// Decorates existing globals (addLog, showPage, copyTreasury, copyConnectedWalletPubkey,
+// disconnectWallet, renderDepositWithdrawDestPanel) without touching their bodies.
+(function depositTerminalInit(){
+  const MAX_LINES = 200;
+  const SEV_TAGS = { info:'INFO', warn:'WARN', success:' OK ', error:'FAIL' };
+  const SEVS = ['info','warn','success','error'];
+
+  function ts(){
+    const d = new Date();
+    const p = n => String(n).padStart(2,'0');
+    return `${p(d.getHours())}:${p(d.getMinutes())}:${p(d.getSeconds())}`;
+  }
+
+  function classifyAddLogColor(color){
+    const c = String(color || '').toLowerCase();
+    if (c.includes('ff3b3b') || c.includes('ff0055') || c === 'red') return 'error';
+    if (c.includes('ffc200') || c.includes('ffae') || c.includes('gold') || c.includes('orange')) return 'warn';
+    if (c.includes('14f195') || c.includes('00cc7a') || c.includes('00d4aa')) return 'success';
+    return 'info';
+  }
+
+  function shortAddr(a){
+    if (!a || typeof a !== 'string') return '';
+    return a.length > 10 ? `${a.slice(0,4)}…${a.slice(-4)}` : a;
+  }
+
+  window.appendDepositLog = function appendDepositLog(line, opts){
+    opts = opts || {};
+    const body = document.getElementById('depositTerminalBody');
+    if (!body) return;
+    const sev = SEVS.includes((opts.severity || opts.sev || '').toLowerCase())
+      ? (opts.severity || opts.sev).toLowerCase()
+      : 'info';
+    const source = (opts.source || 'YABBAI').toString().slice(0, 20);
+    const row = document.createElement('div');
+    row.className = 'dep-term-line';
+    row.setAttribute('data-sev', sev);
+
+    const time = document.createElement('span');
+    time.className = 'dep-term-time';
+    time.textContent = ts();
+
+    const tag = document.createElement('span');
+    tag.className = 'dep-term-tag';
+    tag.textContent = `[${source}/${SEV_TAGS[sev]}]`;
+
+    const msg = document.createElement('span');
+    msg.className = 'dep-term-msg';
+    msg.textContent = String(line == null ? '' : line);
+
+    row.appendChild(time);
+    row.appendChild(tag);
+    row.appendChild(msg);
+    body.appendChild(row);
+
+    while (body.children.length > MAX_LINES) body.removeChild(body.firstChild);
+
+    body.scrollTop = body.scrollHeight;
+    const counter = document.getElementById('depositTerminalCount');
+    if (counter) {
+      const n = body.children.length;
+      counter.textContent = `${n} line${n === 1 ? '' : 's'}`;
+    }
+  };
+
+  window.clearDepositLog = function clearDepositLog(){
+    const body = document.getElementById('depositTerminalBody');
+    if (body) body.innerHTML = '';
+    const counter = document.getElementById('depositTerminalCount');
+    if (counter) counter.textContent = '0 lines';
+    window.appendDepositLog('Terminal cleared by operator', { source:'Term', severity:'info' });
+  };
+
+  // Mirror existing live-feed addLog calls for deposit/wallet-related sources.
+  try {
+    const _origAddLog = (typeof addLog === 'function') ? addLog : null;
+    if (_origAddLog) {
+      window.addLog = function(msg, color, source){
+        try { _origAddLog(msg, color, source); } catch(_) {}
+        const src = String(source || '').toLowerCase();
+        if (src === 'deposit' || src === 'vault' || src === 'solana' || src === 'auth' || src === 'wallet') {
+          window.appendDepositLog(msg, {
+            source: source || 'YABBAI',
+            severity: classifyAddLogColor(color),
+          });
+        }
+      };
+    }
+  } catch(_) {}
+
+  // Clipboard hooks.
+  try {
+    const _origCopyT = (typeof copyTreasury === 'function') ? copyTreasury : null;
+    if (_origCopyT) {
+      window.copyTreasury = function(){
+        const r = _origCopyT.apply(this, arguments);
+        try {
+          const addr = (typeof getTreasuryAddress === 'function') ? getTreasuryAddress() : '';
+          window.appendDepositLog(`Copied treasury address ${shortAddr(addr)}`, {
+            source:'Clipboard', severity:'success',
+          });
+        } catch(_) {}
+        return r;
+      };
+    }
+    const _origCopyW = (typeof copyConnectedWalletPubkey === 'function') ? copyConnectedWalletPubkey : null;
+    if (_origCopyW) {
+      window.copyConnectedWalletPubkey = function(){
+        const before = !!window.walletAddr;
+        const r = _origCopyW.apply(this, arguments);
+        if (before) {
+          window.appendDepositLog(`Copied wallet pubkey ${shortAddr(window.walletAddr)}`, {
+            source:'Clipboard', severity:'success',
+          });
+        } else {
+          window.appendDepositLog('Copy wallet aborted — not connected', {
+            source:'Clipboard', severity:'warn',
+          });
+        }
+        return r;
+      };
+    }
+  } catch(_) {}
+
+  // Router hook — log when user navigates to Deposit page.
+  try {
+    const _origShowPage = (typeof showPage === 'function') ? showPage : null;
+    if (_origShowPage) {
+      window.showPage = function(id){
+        const r = _origShowPage.apply(this, arguments);
+        if (id === 'deposit') {
+          window.appendDepositLog('Deposit terminal active — listening for transfer events', {
+            source:'Router', severity:'info',
+          });
+        }
+        return r;
+      };
+    }
+  } catch(_) {}
+
+  // Disconnect hook (connect side handled below via wallet-state mirror).
+  try {
+    const _origDisc = (typeof disconnectWallet === 'function') ? disconnectWallet : null;
+    if (_origDisc) {
+      window.disconnectWallet = function(){
+        const r = _origDisc.apply(this, arguments);
+        window.appendDepositLog('Wallet disconnected', { source:'Wallet', severity:'warn' });
+        return r;
+      };
+    }
+  } catch(_) {}
+
+  // Wallet-state mirror — detect connect transitions through the existing
+  // panel-render call chain (renderDepositWithdrawDestPanel runs on connect, restore, account change).
+  try {
+    let lastWallet = null;
+    const _origRender = (typeof renderDepositWithdrawDestPanel === 'function')
+      ? renderDepositWithdrawDestPanel : null;
+    if (_origRender) {
+      window.renderDepositWithdrawDestPanel = function(){
+        const before = lastWallet;
+        const r = _origRender.apply(this, arguments);
+        const now = window.walletAddr || null;
+        if (now && now !== before) {
+          window.appendDepositLog(`Wallet connected · ${shortAddr(now)}`, {
+            source:'Wallet', severity:'success',
+          });
+        } else if (!now && before) {
+          // disconnect already logged via disconnectWallet hook — skip duplicate
+        }
+        lastWallet = now;
+        return r;
+      };
+    }
+  } catch(_) {}
+
+  function boot(){
+    if (!document.getElementById('depositTerminalBody')) return;
+    window.appendDepositLog('Boot · deposit terminal v1', { source:'YABBAI', severity:'success' });
+    window.appendDepositLog('Severity legend: INFO · WARN · OK · FAIL', { source:'Term', severity:'info' });
+    if (window.walletAddr) {
+      window.appendDepositLog(`Session restored · ${shortAddr(window.walletAddr)}`, {
+        source:'Wallet', severity:'success',
+      });
+    } else {
+      window.appendDepositLog('No wallet connected — connect to enable on-chain deposit', {
+        source:'Wallet', severity:'info',
+      });
+    }
+  }
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', boot);
+  } else {
+    setTimeout(boot, 0);
+  }
+})();
 </script>
 </body>
 </html>
