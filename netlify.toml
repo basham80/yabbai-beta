@@ -1,38 +1,12 @@
 [build]
-  publish = "."
-  command = ""
-
-[build.environment]
-  NODE_VERSION = "18"
-
-[[headers]]
-  for = "/*"
-  [headers.values]
-    X-Frame-Options = "SAMEORIGIN"
-    X-Content-Type-Options = "nosniff"
-    Access-Control-Allow-Origin = "*"
+publish = "."
+command = "echo 'Static site - no build needed'"
 
 [[redirects]]
-  from = "/yabbai"
-  to = "/yabbai/"
-  status = 301
+from = "/*"
+to = "/index.html"
+status = 200
 
-[[redirects]]
-  from = "/bash"
-  to = "/bash/"
-  status = 301
-
-[[redirects]]
-  from = "/yabbie"
-  to = "/yabbie/"
-  status = 301
-
-[[redirects]]
-  from = "/homegrown"
-  to = "/homegrown/"
-  status = 301
-
-[[redirects]]
-  from = "/greenhousegrow"
-  to = "/greenhousegrow/"
-  status = 301
+[env.production]
+  [env.production.context]
+    environment = { VITE_SOLANA_RPC_URL = "https://api.mainnet-beta.solana.com" }

@@ -1,10 +1,61 @@
 // YABBAI Universal Phantom Wallet Connection
 // Include this script on every page
 
+// ── BROWSER POLYFILLS ────────────────────────────────────
+// Ensure global context exists
+if (typeof global === 'undefined') window.global = window;
+
+// Load Buffer polyfill for @solana/web3.js
+if (!globalThis.Buffer) {
+  try {
+    // Attempt dynamic import of buffer module
+    import('https://cdn.jsdelivr.net/npm/buffer@6.0.3/+esm').then(mod => {
+      globalThis.Buffer = mod.Buffer;
+      console.log('[INIT] Buffer polyfill loaded from CDN');
+    }).catch(e => {
+      console.warn('[INIT] Buffer polyfill failed to load — some @solana/web3.js features may not work', e);
+    });
+  } catch (e) {
+    console.warn('[INIT] Buffer polyfill import error:', e);
+  }
+}
+
 const YABBAI_MINT = 'AcEVtpLEfxMHFzXQrhJiDhoWCkLVYH3drD2cxNAzLFUv';
 const YABBAI_POOL = 'DaxLJ5mRkqWtfhFBKtibtGSYaiE7zFrtgsi5evmVBAax';
 const TREASURY   = '8e6ogxfUnj6YXHp1tR4Kj1ytSkmEhLhi2fbKqRVxUHPi';
-const RPC        = 'https://api.mainnet-beta.solana.com';
+
+// ── DYNAMIC RPC URL (AVOIDS RATE LIMITING) ───────────────
+// Try environment variables first, fallback to public RPC
+const getRpcUrl = () => {
+  // For Vite/modern bundlers
+  try {
+    if (typeof import?.meta?.env?.VITE_SOLANA_RPC_URL !== 'undefined') {
+      const url = import.meta.env.VITE_SOLANA_RPC_URL;
+      if (url && url.trim()) {
+        console.log('[INIT] Using private RPC from VITE_SOLANA_RPC_URL');
+        return url;
+      }
+    }
+  } catch (e) { /* ignore */ }
+  
+  // For Node/process environments
+  if (typeof process !== 'undefined' && process.env?.VITE_SOLANA_RPC_URL) {
+    console.log('[INIT] Using private RPC from process.env.VITE_SOLANA_RPC_URL');
+    return process.env.VITE_SOLANA_RPC_URL;
+  }
+  
+  // Check window global (for runtime injection)
+  if (window.VITE_SOLANA_RPC_URL) {
+    console.log('[INIT] Using private RPC from window.VITE_SOLANA_RPC_URL');
+    return window.VITE_SOLANA_RPC_URL;
+  }
+  
+  // Fallback to public RPC
+  console.warn('[INIT] ⚠️ No private RPC configured — using public RPC (rate-limit risk). Set VITE_SOLANA_RPC_URL to optimize.');
+  return 'https://api.mainnet-beta.solana.com';
+};
+
+const RPC = getRpcUrl();
 const PUMP_LINK  = 'https://pump.fun/coin/'+YABBAI_MINT;
 const DEX_LINK   = 'https://dexscreener.com/solana/'+YABBAI_POOL;
 
@@ -13,23 +64,32 @@ let solBalance   = 0;
 let yabBalance   = 0;
 let solPrice     = 88;
 let yabPrice     = 0;
+let balanceRefreshInterval = null;
 
 // ── WALLET CONNECTION ────────────────────────────────────
 async function connectPhantom() {
   try {
     const provider = getProvider();
     if (!provider) {
+      console.log('[PHANTOM] Phantom not found, opening install page');
       window.open('https://phantom.app/', '_blank');
       return null;
     }
     const resp = await provider.connect();
     walletPubkey = resp.publicKey.toString();
+    console.log('[PHANTOM] ✓ Connected:', walletPubkey);
     localStorage.setItem('yabbai_wallet', walletPubkey);
+    
+    // Immediately fetch balances
     await fetchBalances();
     renderWalletUI();
+    
+    // Start balance refresh loop
+    startBalanceRefresh();
+    
     return walletPubkey;
   } catch(e) {
-    console.error('Phantom connect failed:', e);
+    console.error('[PHANTOM] Connection failed:', e);
     return null;
   }
 }
@@ -37,17 +97,24 @@ async function connectPhantom() {
 async function connectSolflare() {
   try {
     if (!window.solflare) {
+      console.log('[SOLFLARE] Solflare not found, opening install page');
       window.open('https://solflare.com/', '_blank');
       return null;
     }
     await window.solflare.connect();
     walletPubkey = window.solflare.publicKey.toString();
+    console.log('[SOLFLARE] ✓ Connected:', walletPubkey);
     localStorage.setItem('yabbai_wallet', walletPubkey);
+    
     await fetchBalances();
     renderWalletUI();
+    
+    // Start balance refresh loop
+    startBalanceRefresh();
+    
     return walletPubkey;
   } catch(e) {
-    console.error('Solflare connect failed:', e);
+    console.error('[SOLFLARE] Connection failed:', e);
     return null;
   }
 }
@@ -58,17 +125,50 @@ function getProvider() {
 }
 
 function disconnectWallet() {
+  console.log('[WALLET] Disconnecting...');
   walletPubkey = null;
   solBalance = 0;
   yabBalance = 0;
   localStorage.removeItem('yabbai_wallet');
   try { getProvider()?.disconnect(); } catch {}
+  
+  // Stop balance refresh
+  if (balanceRefreshInterval) {
+    clearInterval(balanceRefreshInterval);
+    balanceRefreshInterval = null;
+  }
+  
   renderWalletUI();
+}
+
+// ── BALANCE SYNC (CRITICAL FOR LIVE UPDATES) ─────────────
+function startBalanceRefresh() {
+  // Clear existing interval to prevent duplicates
+  if (balanceRefreshInterval) clearInterval(balanceRefreshInterval);
+  
+  console.log('[BALANCE] Starting refresh loop (30s interval)');
+  
+  // Refresh every 30 seconds
+  balanceRefreshInterval = setInterval(async () => {
+    if (walletPubkey) {
+      try {
+        await fetchBalances();
+        renderWalletUI();
+      } catch (e) {
+        console.error('[BALANCE] Refresh failed:', e);
+      }
+    }
+  }, 30000);
 }
 
 // ── BALANCE FETCH ────────────────────────────────────────
 async function fetchBalances() {
-  if (!walletPubkey) return;
+  if (!walletPubkey) {
+    console.warn('[BALANCE] No wallet connected');
+    return;
+  }
+
+  console.log('[BALANCE] Fetching for', walletPubkey.slice(0, 8) + '...');
 
   // SOL balance via RPC
   try {
@@ -83,9 +183,15 @@ async function fetchBalances() {
     });
     const data = await res.json();
     if (data.result?.value !== undefined) {
-      solBalance = data.result.value / 1e9;
+      const oldBalance = solBalance;
+      solBalance = data.result.value / 1000000000; // 1 SOL = 1,000,000,000 lamports
+      console.log(`[SOL] ${oldBalance.toFixed(4)} → ${solBalance.toFixed(4)} SOL (${data.result.value} lamports)`);
+    } else if (data.error) {
+      console.error('[SOL] RPC error:', data.error);
     }
-  } catch {}
+  } catch (e) {
+    console.error('[SOL] Fetch failed:', e.message);
+  }
 
   // $YABBAI token balance
   try {
@@ -108,8 +214,13 @@ async function fetchBalances() {
       yabBalance = parseFloat(
         accounts[0].account.data.parsed.info.tokenAmount.uiAmount || 0
       );
+      console.log(`[$YABBAI] ${yabBalance.toLocaleString()} tokens`);
+    } else {
+      console.log(`[$YABBAI] 0 tokens (no accounts found)`);
     }
-  } catch {}
+  } catch (e) {
+    console.error('[$YABBAI] Fetch failed:', e.message);
+  }
 
   // SOL price from Jupiter
   try {
@@ -118,8 +229,13 @@ async function fetchBalances() {
     );
     const data = await res.json();
     const p = data?.data?.['So11111111111111111111111111111111111111112']?.price;
-    if (p) solPrice = parseFloat(p);
-  } catch {}
+    if (p) {
+      solPrice = parseFloat(p);
+      console.log(`[PRICE] SOL = $${solPrice.toFixed(2)} AUD`);
+    }
+  } catch (e) {
+    console.error('[PRICE] SOL fetch failed:', e.message);
+  }
 
   // YABBAI price from Dexscreener
   try {
@@ -129,8 +245,13 @@ async function fetchBalances() {
     );
     const data = await res.json();
     const pair = data?.pair || data?.pairs?.[0];
-    if (pair?.priceUsd) yabPrice = parseFloat(pair.priceUsd);
-  } catch {}
+    if (pair?.priceUsd) {
+      yabPrice = parseFloat(pair.priceUsd);
+      console.log(`[PRICE] $YABBAI = $${yabPrice.toFixed(8)} AUD`);
+    }
+  } catch (e) {
+    console.error('[PRICE] $YABBAI fetch failed:', e.message);
+  }
 }
 
 // ── INCOME CALCULATOR ────────────────────────────────────
@@ -248,6 +369,8 @@ function renderIncomeCalc() {
 
 // ── AUTO-INIT ────────────────────────────────────────────
 window.addEventListener('load', async () => {
+  console.log('[INIT] Page loaded, initializing wallet');
+  
   // Render initial UI
   renderWalletUI();
   renderIncomeCalc();
@@ -257,17 +380,11 @@ window.addEventListener('load', async () => {
   if (saved) {
     const provider = getProvider();
     if (provider?.isConnected) {
+      console.log('[INIT] Auto-reconnecting to saved wallet:', saved.slice(0, 8) + '...');
       walletPubkey = saved;
       await fetchBalances();
       renderWalletUI();
+      startBalanceRefresh();
     }
   }
-
-  // Refresh balances every 60 seconds
-  setInterval(async () => {
-    if (walletPubkey) {
-      await fetchBalances();
-      renderWalletUI();
-    }
-  }, 60000);
 });
