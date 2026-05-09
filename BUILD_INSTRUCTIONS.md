@@ -28,6 +28,46 @@ Public Solana RPC (`api.mainnet-beta.solana.com`) has aggressive rate limiting:
 
 ### 2. Netlify/4EVERLAND Deployment
 
+#### Static site root — hub + `/yabbai/` app
+
+This repo is meant to be published from the **repository root** (the folder that contains root **`index.html`** and the **`yabbai/`** directory).
+
+- **Correct:** build/output folder = **`.`** (root). Visitors open `/` for the hub and `/yabbai/` for the main app.
+- **Wrong:** setting the static root to **`workers/payout`** or any Worker-only folder. That folder has **no** `index.html` for the UI — you may see raw config files (e.g. `wrangler.toml`) or broken routing.
+
+#### 4EVERLAND: `package.json not found` / `stat …/echo`
+
+The repo root now includes **`package.json`** so hosts can run **`npm install`** (no dependencies; completes instantly) and **`npm run build`** (checks that **`index.html`** exists next to `package.json`, even when the runner’s working directory is not the repo root).
+
+**4EVERLAND Hosting / Build panel — set these explicitly**
+
+| Field | Value | Notes |
+|--------|--------|--------|
+| **Framework / template** | **Static** or **Other** (plain static) | Do **not** pick Next.js/Nuxt unless you actually use them. This site is static HTML + assets. |
+| **Root directory** | **`.`** or **empty** (repository root) | Must be the folder that contains both **`package.json`** and **`index.html`**. Wrong root → “package.json not found” or wrong homepage. |
+| **Install command** | **`npm install`** | Required so the host does not skip install with *package.json not found*. If Install is empty and the platform looks for `package.json` in a subfolder, you get that skip. |
+| **Build command** | **`npm run build`** **or** leave **empty** | **`npm run build`** only verifies `index.html` is present (fast). For pure static, an empty build step is OK **only** if the host still uses the correct **output** root. |
+| **Output / Publish directory** | **`.`** (site root) | Must be the same root as **`index.html`** and the **`yabbai/`** folder so `/` and `/yabbai/` both work. |
+
+**Never** set the build step to a bare **`echo`** (or anything that looks like a path named `echo`). Some runners then try to `stat …/echo` inside the repo and spam errors.
+
+If **`package.json not found`** persists: your connected branch or **root directory** is not the branch/folder that contains this file (e.g. default **`main`** may lag behind **`cursor/yabbai-wallet-sol-balance`**). Either **deploy the branch that includes root `package.json`** or **merge** that branch into your default deploy branch, then redeploy.
+
+If the log shows **`stat …/echo`**: the project **build command** is wrong — some runners treat **`echo`** as a path inside the repo. In **4EVERLAND → Build settings**, set **Build command** to **`npm run build`** or leave it **empty** for static-only, and **never** use a bare **`echo`** step. **Output / root directory** must be the repo root **`.`** so **`index.html`** and **`yabbai/`** are deployed together.
+
+Upload or connect **the whole project** (or at minimum root `index.html`, `_redirects`, `netlify.toml`, and all sibling app folders you use). Deploy **Cloudflare Workers** separately with Wrangler; they are **not** the static website root.
+
+#### Troubleshooting: browser shows `wrangler.toml` (plain text)
+
+That almost always means the static host’s **publish directory** is set to **`workers/payout`** (or you opened `/workers/payout/wrangler.toml` directly). Fix the dashboard setting so the site root is **`.`** (repo root with hub `index.html`) or **`yabbai/`** for the main app only — never `workers/payout`. The payout Worker is deployed only via **`npx wrangler deploy`** inside `workers/payout`, not by uploading that folder as your website.
+
+#### After redeploy (Git / IPFS)
+
+The **homepage** for `https://…ipfs.4everland.app/` must be the repository **`index.html`** at the **root of your deployment** (title: *YABBAI Beta — Full Ecosystem*).
+
+- If **`/`** shows **`wrangler.toml`** or non-HTML text, **Root Directory** on 4EVERLAND is still pointed at **`workers/payout`** (or another subfolder). Set **Root Directory** and **Output Directory** to **empty**, connect the **full Git repo**, and redeploy so the pinned folder contains **`index.html`** next to **`yabbai/`**, **`bash/`**, etc.
+- **IPFS does not reliably honor** `_redirects` / Netlify-style redirects; fixing the **publish root** is the real solution. Optional: in 4EVERLAND **Advanced → Rewrite**, map **`/`** → **`/index.html`** only if your gateway serves a wrong default file.
+
 #### Add Environment Variable
 
 1. Go to your deployment dashboard
@@ -49,6 +89,20 @@ API keys **cannot** run on IPFS/static hosting. Use one of:
 If you host on **Netlify** instead, you can set `window.YABBAI_MISSION_API = '/.netlify/functions/mission'` and configure the same env vars in Netlify.
 
 Shared logic lives in **`api/mission-logic.mjs`**.
+
+#### SOL balance server + database (optional)
+
+If the wallet chip shows **0** or **—** on IPFS because browsers cannot reach public RPC reliably, deploy **`workers/balance-api`** (Cloudflare Worker). It runs **`getBalance` on the server** and optionally caches results in **Cloudflare D1**.
+
+1. `cd workers/balance-api`
+2. `wrangler d1 create yabbai-balance` — copy **`database_id`** into `wrangler.toml` under `[[d1_databases]]` (see comments in that file), binding **`DB`**, then run **`wrangler d1 migrations apply yabbai-balance --remote`**
+3. Set **`SOLANA_RPC_URL`** in `[vars]` or via **`wrangler secret put SOLANA_RPC_URL`** to a Helius/Alchemy mainnet URL (recommended).
+4. **`npx wrangler deploy`**
+5. In **`yabbai/mission-config.js`**, set **`window.YABBAI_BALANCE_API`** to the Worker base URL (e.g. `https://yabbai-balance-api.<you>.workers.dev`), redeploy static site.
+
+The page calls **`GET /balance?wallet=<pubkey>`** first; falls back to in-browser RPC if unset.
+
+**IPFS / gateway caching:** the hub root is **`index.html`** (ecosystem links only). **SOL deposit + wallet chip** live under **`yabbai/index.html`** (open **`/yabbai/`**). After editing `mission-config.js`, do a **hard refresh** or bump the `?v=` on its script tag in `yabbai/index.html` so gateways do not serve an old config.
 
 #### For Netlify Specifically
 

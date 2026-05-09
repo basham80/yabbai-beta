@@ -1,3 +1,2 @@
-/  /index.html  200
-/hub  /index.html  200
-/*  /index.html  200
+# Optional host-specific rules. IPFS gateways often ignore this file — publish repo root so `/` = `index.html`.
+# Do not add /* → /index.html SPA fallback (breaks multi-page sites).

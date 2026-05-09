@@ -1,13 +1,12 @@
+# Publish from repo root so `/` = `index.html` (YABBAI Beta hub) and `/yabbai/` = main app.
+# Do not point publish at workers/payout — that is only for Wrangler deploy.
+
 [build]
 publish = "."
 command = "echo 'Static site - no build needed'"
 functions = "netlify/functions"
 
-# SPA fallback (4EVERLAND / Netlify static). AI runs separately — see wrangler.toml + yabbai/mission-config.js
-[[redirects]]
-from = "/*"
-to = "/index.html"
-status = 200
+# No root redirects — `/` serves repo `index.html`. Many IPFS gateways ignore Netlify/_redirects anyway.
 
 [env.production]
   [env.production.context]

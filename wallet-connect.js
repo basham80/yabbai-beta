@@ -22,7 +22,7 @@ if (!globalThis.Buffer) {
 
 const YABBAI_MINT = 'AcEVtpLEfxMHFzXQrhJiDhoWCkLVYH3drD2cxNAzLFUv';
 const YABBAI_POOL = 'DaxLJ5mRkqWtfhFBKtibtGSYaiE7zFrtgsi5evmVBAax';
-const TREASURY   = '8e6ogxfUnj6YXHp1tR4Kj1ytSkmEhLhi2fbKqRVxUHPi';
+const TREASURY   = '2DarZ9hCi5PirKsDsnriewZEGqaz6Q11pEitoZJxBsYM';
 
 // ── DYNAMIC RPC URL (AVOIDS RATE LIMITING) ───────────────
 // Try environment variables first, fallback to public RPC
