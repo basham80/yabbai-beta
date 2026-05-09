@@ -137,6 +137,12 @@ body::before{content:'';position:fixed;inset:0;z-index:0;pointer-events:none;
 .mcp-bar{height:4px;background:var(--wire);border-radius:2px;overflow:hidden;margin-bottom:4px;}
 .mcp-fill{height:100%;border-radius:2px;background:linear-gradient(90deg,var(--sol),var(--neon));}
 .mcp-label{font-family:'Azeret Mono',monospace;font-size:0.56rem;color:var(--dim);}
+.mc-risk{font-family:'Azeret Mono',monospace;font-size:0.52rem;color:var(--dim);line-height:1.45;margin-bottom:10px;padding:8px 10px;background:rgba(0,0,0,0.18);border-radius:6px;border:1px dashed var(--wire2);}
+.mission-meta-strip{font-family:'Azeret Mono',monospace;font-size:0.55rem;color:var(--muted);display:flex;flex-wrap:wrap;gap:10px 16px;align-items:center;padding:10px 14px;margin-bottom:18px;background:var(--plate2);border:1px solid var(--wire);border-radius:8px;}
+.mission-meta-strip strong{font-weight:600;color:var(--white);}
+.mms-ok{color:var(--neon);}
+.mms-warn{color:var(--gold);}
+.mms-off{color:var(--dim);}
 .mc-footer{display:flex;gap:6px;padding:10px 16px;border-top:1px solid var(--wire);}
 .mf-btn{flex:1;padding:8px;border-radius:6px;font-family:'Azeret Mono',monospace;font-size:0.62rem;font-weight:600;cursor:pointer;border:1px solid;transition:all 0.15s;text-align:center;}
 .mfb-run{background:rgba(20,241,149,0.1);border-color:rgba(20,241,149,0.3);color:var(--neon);}
@@ -353,7 +359,7 @@ body::before{content:'';position:fixed;inset:0;z-index:0;pointer-events:none;
       <span class="ht2">Income Machine.</span>
     </h1>
     <div class="hero-sub">Pump · Esky · Mission · Scale · Withdraw · Repeat</div>
-    <p class="hero-desc">The YABBAI engine generates yield from Solana LP pools, routes it through 14 live APIs, and fires $50 AUD to your PayPal or wallet every $110 earned. Fully autonomous. Your keys, your control.</p>
+    <p class="hero-desc">The dashboard helps you route Solana LP activity, treasury deposits, and missions in one place. LP fees and token prices are variable — nothing here guarantees profit. Where configured, autopayout rules are operational targets, not promises. Your keys, your signatures.</p>
     <div class="hero-cta">
       <a class="btn btn-primary" href="https://pump.fun/coin/AcEVtpLEfxMHFzXQrhJiDhoWCkLVYH3drD2cxNAzLFUv" target="_blank">🦞 Buy $YABBAI</a>
       <button class="btn btn-sol" onclick="showPage('missions')">⚡ Launch Missions</button>
@@ -403,6 +409,11 @@ body::before{content:'';position:fixed;inset:0;z-index:0;pointer-events:none;
         <div class="vm-val" id="vaultApyLbl" style="font-size:1rem;-webkit-text-fill-color:var(--arc)">~15% APY</div>
         <div class="vm-lbl">Simulated compound (illustrative)</div>
       </div>
+      <div class="vm-card">
+        <div class="vm-val" id="vaultNetVsDep" style="font-size:1rem">—</div>
+        <div class="vm-lbl">Surplus vs. deposits (local ledger)</div>
+        <div class="vm-pulse" id="vaultFeeNote">Not realized PnL · DEX/LP fees vary</div>
+      </div>
     </div>
     <div class="vault-split">
       <div class="cashout-panel" style="margin:0;border-color:rgba(153,69,255,0.25)">
@@ -437,7 +448,7 @@ body::before{content:'';position:fixed;inset:0;z-index:0;pointer-events:none;
         <button class="cashout-execute" id="vaultWithdrawBtn" type="button" onclick="withdrawVaultToWallet()" style="background:linear-gradient(135deg,#003320,var(--neon));color:#000">Withdraw to connected wallet</button>
       </div>
     </div>
-    <div class="vault-note" id="vaultLegalNote">Connect a wallet to manage your vault. On-chain deposits use your wallet signature. Withdrawals update your dashboard allocation; routing SOL from treasury back to your wallet in production is handled by settlement automation or ops (not embedded private keys in this static app).</div>
+    <div class="vault-note" id="vaultLegalNote">Connect a wallet to manage your vault. On-chain deposits use your wallet signature and should match the configured treasury receiver (verify on-chain before large sends). Withdrawals update your dashboard allocation; routing SOL from treasury back to your wallet requires your payout Worker or ops — never a browser-stored private key. Simulated APY and “surplus vs. deposits” are UI math only, not audited yield or margin guarantees.</div>
   </div>
 
   <!-- LIVE STATS -->
@@ -472,7 +483,13 @@ body::before{content:'';position:fixed;inset:0;z-index:0;pointer-events:none;
 <div id="page-missions" class="page-section">
 
   <div class="section-header">
-    <div><div class="sh-title">Mission Control</div><div class="sh-sub">AI missions use a separate API URL (see mission-config.js) — 4EVERLAND hosts static files only</div></div>
+    <div><div class="sh-title">Mission Control</div><div class="sh-sub">AI missions use a separate API URL (see mission-config.js) — static hosts only serve this page</div></div>
+  </div>
+
+  <div class="mission-meta-strip" id="missionMetaStrip" aria-live="polite">
+    <span id="missionApiBadge" class="mms-off"><strong>AI API:</strong> checking…</span>
+    <span><strong>Treasury:</strong> <span class="js-treasury-short">—</span></span>
+    <span id="missionWalletBadge" class="mms-off"><strong>Wallet:</strong> not connected</span>
   </div>
 
   <div class="treasury-strip" style="margin-bottom:20px">
@@ -494,10 +511,10 @@ body::before{content:'';position:fixed;inset:0;z-index:0;pointer-events:none;
           <div class="ai-model" id="aiModelLabel">Claude Sonnet (Anthropic)</div>
         </div>
         <div style="margin-left:auto;display:flex;gap:6px;align-items:center">
-          <div style="font-family:'Azeret Mono',monospace;font-size:0.58rem;color:var(--neon)">● ONLINE</div>
+          <div id="aiBrainStatus" class="mms-off" style="font-family:'Azeret Mono',monospace;font-size:0.58rem">○ Local</div>
         </div>
       </div>
-      <textarea class="ai-input" id="aiPrompt" placeholder="Describe your mission... e.g. Generate community growth for $YABBAI by finding new holders on Twitter and Telegram. Reinvest 70% of yield into LP. Target: reach $5K market cap by end of week."></textarea>
+      <textarea class="ai-input" id="aiPrompt" placeholder="Describe your mission… e.g. weekly content cadence for $YABBAI, LP fee claim checklist (Raydium), or treasury-aligned CTA copy. Ask for steps + risks; avoid asking for guaranteed returns."></textarea>
       <div class="ai-controls">
         <select class="ai-model-select" id="aiModel" onchange="syncAiModelLabel()">
           <option value="claude">Claude Sonnet 4</option>
@@ -650,7 +667,7 @@ body::before{content:'';position:fixed;inset:0;z-index:0;pointer-events:none;
       <div style="background:rgba(20,241,149,0.04);border:1px solid rgba(20,241,149,0.12);border-radius:8px;padding:12px;margin-bottom:14px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;">
         <div>
           <div style="font-size:0.82rem;font-weight:600;color:var(--neon)">⚡ Autopayout Engine</div>
-          <div style="font-family:'Azeret Mono',monospace;font-size:0.58rem;color:var(--dim);margin-top:3px">$50 AUD fires every $110 earned or 30 minutes</div>
+          <div style="font-family:'Azeret Mono',monospace;font-size:0.58rem;color:var(--dim);margin-top:3px">Target: $50 AUD on a ~$110 gross-threshold timer (30m) — depends on routing, fees, and liquidity; not guaranteed.</div>
         </div>
         <div style="font-family:'Azeret Mono',monospace;font-size:0.65rem;color:var(--gold)">Awaiting LP yield</div>
       </div>
@@ -1067,10 +1084,29 @@ function renderVaultPanel() {
   usdEl.textContent = '$' + (v.totalSol * px).toFixed(2);
 
   const gainVsDep = v.totalSol - v.depositedCumulative;
+  const netEl = document.getElementById('vaultNetVsDep');
+  const feeNoteEl = document.getElementById('vaultFeeNote');
+  if (netEl) {
+    if (v.depositedCumulative <= 0 && v.totalSol <= 0) {
+      netEl.textContent = '—';
+      netEl.style.webkitTextFillColor = '';
+    } else if (v.depositedCumulative <= 0) {
+      netEl.textContent = v.totalSol > 0 ? v.totalSol.toFixed(4) + ' SOL' : '—';
+      netEl.style.webkitTextFillColor = 'var(--arc)';
+    } else {
+      const sign = gainVsDep >= 0 ? '+' : '';
+      netEl.textContent = sign + gainVsDep.toFixed(4) + ' SOL';
+      netEl.style.webkitTextFillColor = gainVsDep >= 0 ? 'var(--neon)' : 'var(--gold)';
+    }
+  }
+  if (feeNoteEl) {
+    feeNoteEl.textContent =
+      'Illustrative ledger math only · real LP/DEX fees vary · not audited PnL';
+  }
   if (v.totalSol <= 0) {
     pulseEl.textContent = 'Deposit to start circulating balance';
   } else if (v.depositedCumulative > 0 && gainVsDep > 1e-8) {
-    pulseEl.textContent = `Accruing +${gainVsDep.toFixed(4)} SOL vs. deposits (simulated yield)`;
+    pulseEl.textContent = `+${gainVsDep.toFixed(4)} SOL vs. deposits (simulated — not withdrawable profit)`;
   } else {
     pulseEl.textContent = 'Yield engine active · ~' + Math.round(VAULT_APY_ANNUAL * 100) + '% APY (illustrative)';
   }
@@ -1227,22 +1263,34 @@ async function withdrawVaultToWallet() {
 // ── MISSIONS DATA ────────────────────────────────────────
 const MISSIONS = [
   { id:'lp_yield', name:'LP Yield Harvest', type:'DeFi · Raydium', icon:'⚡', color:'#14F195', bg:'rgba(20,241,149,0.12)',
-    desc:'Auto-harvest LP fees from Raydium YABBAI/SOL pool. Routes 70% back to LP depth, 30% to treasury withdrawal queue.', progress:68, status:'active',
+    desc:'Claim Raydium LP fees on YABBAI/SOL when you have a position. Optionally re-add depth or route to treasury per your own playbook — splits like 70/30 are examples, not enforced here.',
+    riskNote:'Fees accrue only if you have LP; APR varies. IL and pool risk apply.',
+    progress:68, status:'active',
     action:()=>{ addLog('LP yield harvest initiated — opening Raydium', '#14F195', 'Raydium'); window.open(`https://raydium.io/portfolio/`, '_blank'); toast('Raydium portfolio opened — claim fees manually'); }},
   { id:'buy_pump', name:'Bonding Curve Pump', type:'pump.fun · Buy Signal', icon:'🦞', color:'#9945FF', bg:'rgba(153,69,255,0.12)',
-    desc:'Buy $YABBAI on pump.fun bonding curve. Moves price, builds chart momentum, attracts organic community buyers.', progress:35, status:'active',
+    desc:'Open pump.fun to review the bonding curve. Buys move price but can reverse; treat size as risk capital.',
+    riskNote:'Bonding curves are volatile; verify mint matches official $YABBAI before swapping.',
+    progress:35, status:'active',
     action:()=>{ addLog('Opening pump.fun buy — bonding curve push', '#9945FF', 'pump.fun'); window.open(PUMP_URL, '_blank'); toast('pump.fun opened — buy $YABBAI to push the curve'); }},
   { id:'community', name:'Community Growth', type:'Claude AI · Social', icon:'👥', color:'#00b4ff', bg:'rgba(0,180,255,0.12)',
-    desc:'Claude AI deploys community growth campaigns. Posts to X/Twitter, Telegram signals, holder incentive missions.', progress:52, status:'active',
-    action:async()=>{ await callAI('Deploy a short community growth tweet for $YABBAI Solana token. 280 chars max. Pump vibes.', 'community'); }},
+    desc:'Use the AI Brain (Worker) to draft posts and angles. You still choose what to publish; no auto-posting from this static page.',
+    riskNote:'AI output needs human review; disclosure rules vary by platform.',
+    progress:52, status:'active',
+    action:async()=>{ await callAI('Draft one community growth tweet for $YABBAI (Solana). Max 260 chars. Include a single risk disclaimer line. No guaranteed price targets.', 'community'); }},
   { id:'dca', name:'DCA Mission', type:'Dollar Cost Average', icon:'📈', color:'#ffc200', bg:'rgba(255,194,0,0.12)',
-    desc:'Deploy regular automated buy orders on Jupiter. Buy small amounts consistently to build price floor and holder base.', progress:20, status:'ready',
+    desc:'Jupiter DCA can split buys over time. You set schedule and size in Jupiter; this app only deep-links.',
+    riskNote:'DCA reduces timing risk but not market risk; fees on each leg.',
+    progress:20, status:'ready',
     action:()=>{ addLog('Jupiter DCA opened — set recurring buy orders', '#ffc200', 'Jupiter'); window.open(`https://jup.ag/dca/${MINT}`, '_blank'); toast('Jupiter DCA opened — set up recurring buys'); }},
   { id:'stake', name:'SOL Liquid Staking', type:'JitoSOL · Yield', icon:'🏦', color:'#ff5e1a', bg:'rgba(255,94,26,0.12)',
-    desc:'Stake idle SOL with JitoSOL for MEV rewards while waiting for LP opportunities. Currently ~8% APY.', progress:0, status:'ready',
-    action:()=>{ addLog('Opening Jito liquid staking', '#ff5e1a', 'Jito'); window.open('https://www.jito.network/', '_blank'); toast('Jito opened — stake idle SOL for ~8% APY'); }},
+    desc:'Liquid staking pays protocol-defined yield that changes with network conditions — check Jito’s current docs/UI, not a fixed headline APY.',
+    riskNote:'Depeg, smart-contract, and slash risk exist for any LST; read disclosures.',
+    progress:0, status:'ready',
+    action:()=>{ addLog('Opening Jito liquid staking', '#ff5e1a', 'Jito'); window.open('https://www.jito.network/', '_blank'); toast('Jito opened — compare live rates in-app'); }},
   { id:'basham', name:'BASHAM Side Hustle', type:'Business Intel · Cash', icon:'⛏', color:'#ffc200', bg:'rgba(255,194,0,0.12)',
-    desc:'Deploy BASHAM Gold Harvester — find local businesses losing money and convert to $50–$350 consulting tasks. Cash in hand.', progress:45, status:'active',
+    desc:'Separate BASHAM flow for off-chain consulting-style tasks. Income depends on your effort and clients — not on-chain yield.',
+    riskNote:'Not crypto trading advice; negotiate terms and tax with professionals.',
+    progress:45, status:'active',
     action:()=>{ window.location.href = '/yabbai/#basham'; toast('BASHAM protocol — fastest path to real cash'); }},
 ];
 
@@ -1256,6 +1304,10 @@ function showPage(id) {
   window.scrollTo({ top:0, behavior:'smooth' });
   applyTreasuryToDom();
   syncDepositUsdFromInputs();
+  if (id === 'missions') {
+    renderMissionMetaStrip();
+    renderAiBrainStatus();
+  }
 }
 
 // ── WALLET / SIWS ────────────────────────────────────────
@@ -1396,6 +1448,8 @@ async function connectWallet(type) {
     }
     syncBalanceLabels();
     renderVaultPanel();
+    renderMissionMetaStrip();
+    renderAiBrainStatus();
     toast(`✓ Connected: ${walletAddr.slice(0, 6)}...${walletAddr.slice(-4)}`);
 
     // SIWS — optional ownership proof for login; does not gate balance (already fetched above)
@@ -2105,6 +2159,8 @@ function disconnectWallet() {
   const cp = document.getElementById('cpBalance');
   if (cp) cp.textContent = 'Balance: —';
   renderVaultPanel();
+  renderMissionMetaStrip();
+  renderAiBrainStatus();
   toast('Wallet disconnected');
 }
 

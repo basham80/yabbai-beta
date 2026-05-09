@@ -34,6 +34,8 @@ window.YABBAI_TREASURY_ADDRESS = '';
 /**
  * Extra SPL mints (comma-separated base58) to show balances for in the wallet chip (RPC read only).
  * The $YABBAI mint is always watched. Users can add more from the Deposit tab ("paste mint").
+ * The same list is summarized (truncated) to the YABBAI AI Brain when MISSION_API is set — helps the model
+ * reason about holdings the user asked to track, without moving keys or signing.
  */
 window.YABBAI_SPL_WATCHLIST = '';
 
