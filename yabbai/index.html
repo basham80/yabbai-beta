@@ -1418,14 +1418,19 @@ function syncBalanceLabels() {
   if (!walletAddr) return;
   const px = effectiveSolUsd();
   const usdTxt =
-    solBalanceFetchOk && Number.isFinite(solBalance) && solBalance >= 0
+    solBalanceFetchOk && Number.isFinite(solBalance) && solBalance > 0
       ? (solBalance * px).toFixed(2)
       : '—';
   const cp = document.getElementById('cpBalance');
   if (cp) {
-    cp.textContent = solBalanceFetchOk
-      ? `Balance: ${solBalance.toFixed(4)} SOL · $${usdTxt}`
-      : 'Balance: — (RPC from browser failed — use Refresh or set YABBAI_SOLANA_RPC)';
+    if (!solBalanceFetchOk) {
+      cp.textContent = 'Balance: — (RPC from browser failed — use Refresh or set YABBAI_SOLANA_RPC)';
+    } else if (solBalance > 0) {
+      cp.textContent = `Balance: ${solBalance.toFixed(4)} SOL · $${usdTxt}`;
+    } else {
+      cp.textContent =
+        'Balance: RPC shows 0 — Phantom may differ · tap ↻ or deposit (wallet signs real amount)';
+    }
   }
   renderWalletUI();
   updateDepositUsd();
@@ -1436,8 +1441,10 @@ function syncBalanceLabels() {
 async function refreshWalletBalanceUi() {
   toast('Refreshing SOL balance…', '');
   await fetchWalletBalance();
-  if (solBalanceFetchOk) toast(`Balance: ${solBalance.toFixed(4)} SOL`, '');
-  else toast('Still could not read balance — you can deposit anyway (wallet will confirm).', 'warn');
+  if (solBalanceFetchOk && solBalance > 0) toast(`Balance: ${solBalance.toFixed(4)} SOL`, '');
+  else if (solBalanceFetchOk && solBalance <= 0) {
+    toast('RPC shows 0 SOL — open Phantom for real balance. Deposit still works when you sign.', 'warn');
+  } else toast('Still could not read balance — you can deposit anyway (wallet will confirm).', 'warn');
 }
 
 function resolveLiveWalletAddress() {
@@ -1728,8 +1735,8 @@ function setMaxDeposit() {
   const c = getDepositControls();
   const input = c.amt;
   if (!input) return;
-  if (!solBalanceFetchOk) {
-    toast('Balance unknown on this page — type amount manually or set YABBAI_SOLANA_RPC and tap ↻', 'warn');
+  if (!solBalanceFetchOk || solBalance <= 0) {
+    toast('MAX unavailable — RPC balance missing/zero here. Type SOL manually; Phantom shows real balance when you sign.', 'warn');
     return;
   }
   const reserve = 0.015;
@@ -1793,14 +1800,14 @@ async function depositSolToTreasury() {
   }
 
   const reserve = 0.02;
-  if (solBalanceFetchOk) {
-    if (amt + reserve > solBalance) {
-      toast(`Insufficient SOL · balance ${solBalance.toFixed(4)} (keep ~${reserve} for fees)`, 'error');
-      return;
-    }
-  } else {
-    addLog('Deposit without client balance check (RPC unreadable) — wallet validates', '#ffc200', 'Deposit');
-    toast('Opening wallet — it will show your real SOL; this site could not read balance (RPC/CORS).', 'warn');
+  // Only block when RPC gave a positive balance AND amount exceeds it. RPC "0 SOL" is often wrong on IPFS/CORS — Phantom enforces real funds.
+  if (solBalanceFetchOk && solBalance > 0 && amt + reserve > solBalance) {
+    toast(`Insufficient SOL · balance ${solBalance.toFixed(4)} (keep ~${reserve} for fees)`, 'error');
+    return;
+  }
+
+  if (!solBalanceFetchOk || solBalance <= 0) {
+    addLog('Deposit: page balance unreliable — Phantom shows real SOL when you approve', '#ffc200', 'Deposit');
   }
 
   if (!window.confirm(`Send ${amt} SOL to treasury ${treasuryShortAddr(getTreasuryAddress())}? On-chain transfer — you approve in your wallet only; not reversible.`)) {
@@ -1915,7 +1922,9 @@ function renderWalletUI() {
   const walletType = localStorage.getItem('yabbai_wallet_type') || 'phantom';
   const icons = { phantom:'👻', solflare:'🔆', backpack:'🎒' };
   const balLine = solBalanceFetchOk
-    ? `${solBalance.toFixed(4)} SOL · $${(solBalance * px).toFixed(2)}`
+    ? solBalance > 0
+      ? `${solBalance.toFixed(4)} SOL · $${(solBalance * px).toFixed(2)}`
+      : `— SOL · <span style="color:var(--gold);font-size:0.52rem">RPC $0 — open Phantom for truth · ↻</span>`
     : `— SOL · <span style="color:var(--gold);font-size:0.52rem">RPC blocked?</span>`;
   const splHtml = (splWalletLines || [])
     .map(l => {
