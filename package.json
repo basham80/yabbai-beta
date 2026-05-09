@@ -3,6 +3,6 @@
   "private": true,
   "description": "Static site (hub + yabbai/). Workers live under workers/* with their own package.json.",
   "scripts": {
-    "build": "node -e \"require('fs').accessSync('index.html'); console.log('Static root OK');\""
+    "build": "node -e \"const fs=require('fs'),path=require('path');const idx=path.join(__dirname,'index.html');fs.accessSync(idx);console.log('Static root OK');\""
   }
 }

@@ -37,7 +37,21 @@ This repo is meant to be published from the **repository root** (the folder that
 
 #### 4EVERLAND: `package.json not found` / `stat …/echo`
 
-The repo root now includes **`package.json`** so hosts can run **`npm install`** (no dependencies; completes instantly) and **`npm run build`** (checks that **`index.html`** exists at the publish root).
+The repo root now includes **`package.json`** so hosts can run **`npm install`** (no dependencies; completes instantly) and **`npm run build`** (checks that **`index.html`** exists next to `package.json`, even when the runner’s working directory is not the repo root).
+
+**4EVERLAND Hosting / Build panel — set these explicitly**
+
+| Field | Value | Notes |
+|--------|--------|--------|
+| **Framework / template** | **Static** or **Other** (plain static) | Do **not** pick Next.js/Nuxt unless you actually use them. This site is static HTML + assets. |
+| **Root directory** | **`.`** or **empty** (repository root) | Must be the folder that contains both **`package.json`** and **`index.html`**. Wrong root → “package.json not found” or wrong homepage. |
+| **Install command** | **`npm install`** | Required so the host does not skip install with *package.json not found*. If Install is empty and the platform looks for `package.json` in a subfolder, you get that skip. |
+| **Build command** | **`npm run build`** **or** leave **empty** | **`npm run build`** only verifies `index.html` is present (fast). For pure static, an empty build step is OK **only** if the host still uses the correct **output** root. |
+| **Output / Publish directory** | **`.`** (site root) | Must be the same root as **`index.html`** and the **`yabbai/`** folder so `/` and `/yabbai/` both work. |
+
+**Never** set the build step to a bare **`echo`** (or anything that looks like a path named `echo`). Some runners then try to `stat …/echo` inside the repo and spam errors.
+
+If **`package.json not found`** persists: your connected branch or **root directory** is not the branch/folder that contains this file (e.g. default **`main`** may lag behind **`cursor/yabbai-wallet-sol-balance`**). Either **deploy the branch that includes root `package.json`** or **merge** that branch into your default deploy branch, then redeploy.
 
 If the log shows **`stat …/echo`**: the project **build command** is wrong — some runners treat **`echo`** as a path inside the repo. In **4EVERLAND → Build settings**, set **Build command** to **`npm run build`** or leave it **empty** for static-only, and **never** use a bare **`echo`** step. **Output / root directory** must be the repo root **`.`** so **`index.html`** and **`yabbai/`** are deployed together.
 
