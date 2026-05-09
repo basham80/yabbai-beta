@@ -6,8 +6,11 @@ const YABBAI_POOL = 'DaxLJ5mRkqWtfhFBKtibtGSYaiE7zFrtgsi5evmVBAax';
 /** Same mainnet HTTPS sources as yabbai/index.html — custom `window.YABBAI_SOLANA_RPC` wins when set. */
 const YABBAI_PUBLIC_SOLANA_RPC_FALLBACKS = [
   'https://api.mainnet-beta.solana.com',
+  'https://solana-mainnet.rpc.extrnode.com',
   'https://solana-mainnet.publicnode.com',
+  'https://solana-rpc.publicnode.com',
   'https://rpc.ankr.com/solana',
+  'https://mainnet.rpcpool.com',
   'https://solana.drpc.org',
 ];
 

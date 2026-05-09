@@ -63,12 +63,13 @@ window.YABBAI_SPL_WATCHLIST = '';
 window.YABBAI_SOLANA_RPC = '';
 
 /**
- * Optional: Cloudflare Worker + D1 balance API (`workers/balance-api`). Deploy then set base URL (no trailing slash needed).
- * GET /balance?wallet=<pubkey> returns { ok, lamports, sol } using server-side RPC + SQLite cache.
+ * **Preferred path for reliable SOL balance** when set: the page calls this Worker first (GET), then falls back to browser RPC.
+ * Cloudflare Worker + D1: `workers/balance-api`. Deploy (`npx wrangler deploy` in that folder), then set base URL (trailing slash optional).
+ * GET /balance?wallet=<pubkey> returns { ok, lamports, sol } using server-side mainnet RPC + cache.
  * Example: window.YABBAI_BALANCE_API = 'https://yabbai-balance-api.<account>.workers.dev';
  *
- * IPFS / static-only hosts: leave this empty and the page relies on browser → public Solana RPC (often rate-limited).
- * Set this Worker URL **before** pinning to IPFS if users should see reliable SOL without a private YABBAI_SOLANA_RPC.
+ * Empty string `''` means **no Worker** — balance uses `YABBAI_SOLANA_RPC` if set, else rotating public mainnet HTTPS endpoints (often rate-limited / CORS from static hosts). First balance fetch logs a **one-time** browser console tip when this stays empty.
+ * Set this URL before pinning static/IPFS builds if the Live Engine should not depend on public browser RPC alone.
  */
 window.YABBAI_BALANCE_API = '';
 
