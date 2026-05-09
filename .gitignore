@@ -6,6 +6,9 @@ node_modules/
 .env.local
 .env.*.local
 
+# One-off treasury key material (never commit); delete after `wrangler secret put`
+treasury-operator-only.local.json
+
 # OS / editor
 .DS_Store
 Thumbs.db

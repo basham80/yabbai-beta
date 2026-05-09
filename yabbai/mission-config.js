@@ -9,7 +9,7 @@
  * Leave empty to disable AI missions until configured.
  *
  * Payout API (optional): deploy workers/payout (`cd workers/payout && npx wrangler deploy`), add secret
- * TREASURY_SECRET_KEY (must be the keypair for this same **public** receiver), then set:
+ * TREASURY_SECRET_KEY (must be the keypair for the same **public** receiver users see — default pubkey is `DEFAULT_TREASURY` in `yabbai/index.html`; never commit the secret), then set:
  *
  *   window.YABBAI_PAYOUT_API = 'https://yabbai-payout.<account>.workers.dev';
  *
@@ -22,11 +22,12 @@ window.YABBAI_MISSION_API = '';
 window.YABBAI_PAYOUT_API = '';
 
 /**
- * On-chain deposit receiver (Solana pubkey, base58). Use the same name as server/Worker env
- * `YABBAI_TREASURY_RECEIVER` so ops can grep one string across static + backend configs.
+ * On-chain deposit receiver (Solana pubkey, base58). Leave empty to use the built-in site treasury in
+ * `yabbai/index.html` (`DEFAULT_TREASURY`). Use the same name as server/Worker env `YABBAI_TREASURY_RECEIVER`
+ * so ops can grep one string across static + backend configs when overriding.
  * Alias: `window.YABBAI_TREASURY_ADDRESS` (either wins if set).
  * Optional HTML: `<meta name="yabbai-treasury-receiver" content="YourPubkey...">` in `index.html`
- * overrides both (useful for host-specific injects).
+ * overrides both (useful for forks / host-specific injects).
  */
 window.YABBAI_TREASURY_RECEIVER = '';
 window.YABBAI_TREASURY_ADDRESS = '';

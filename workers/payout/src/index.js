@@ -3,9 +3,8 @@
  * Requires wallet-signed message so random callers cannot drain treasury.
  *
  * Ops alignment (static app `yabbai/`):
- * - Browser deposits use the **public** receiver from `window.YABBAI_TREASURY_RECEIVER`
- *   (or meta `yabbai-treasury-receiver`) in `yabbai/mission-config.js` — same name as optional
- *   Worker var `YABBAI_TREASURY_RECEIVER` below.
+ * - Browser deposits use the **public** receiver: meta / `window.YABBAI_TREASURY_RECEIVER` if set, else
+ *   `DEFAULT_TREASURY` in `yabbai/index.html` — same optional Worker var name `YABBAI_TREASURY_RECEIVER` below.
  * - This Worker signs sends with **TREASURY_SECRET_KEY**; its **public key must match** that
  *   receiver, or payouts debit the wrong account. Optional: set plain var `YABBAI_TREASURY_RECEIVER`
  *   to the same base58 pubkey; GET/POST will report or enforce a mismatch (see fetch handler).

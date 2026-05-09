@@ -3,7 +3,7 @@
 
 const YABBAI_MINT = 'AcEVtpLEfxMHFzXQrhJiDhoWCkLVYH3drD2cxNAzLFUv';
 const YABBAI_POOL = 'DaxLJ5mRkqWtfhFBKtibtGSYaiE7zFrtgsi5evmVBAax';
-const TREASURY   = '8e6ogxfUnj6YXHp1tR4Kj1ytSkmEhLhi2fbKqRVxUHPi';
+const TREASURY   = '2DarZ9hCi5PirKsDsnriewZEGqaz6Q11pEitoZJxBsYM';
 const RPC        = 'https://api.mainnet-beta.solana.com';
 const PUMP_LINK  = 'https://pump.fun/coin/'+YABBAI_MINT;
 const DEX_LINK   = 'https://dexscreener.com/solana/'+YABBAI_POOL;
