@@ -38,7 +38,20 @@ Public Solana RPC (`api.mainnet-beta.solana.com`) has aggressive rate limiting:
    ```
 4. Redeploy
 
+#### AI missions (Anthropic / Moonshot) — 4EVERLAND is static-only
+
+API keys **cannot** run on IPFS/static hosting. Use one of:
+
+1. **Cloudflare Worker** (recommended): from repo root run `npx wrangler deploy`. Add secrets: `ANTHROPIC_API_KEY`, `MOONSHOT_API_KEY` (`npx wrangler secret put ...`).
+2. Edit **`yabbai/mission-config.js`** and set `window.YABBAI_MISSION_API` to your Worker URL (shown after deploy).
+3. Deploy / rebuild your **static** site on 4EVERLAND.
+
+If you host on **Netlify** instead, you can set `window.YABBAI_MISSION_API = '/.netlify/functions/mission'` and configure the same env vars in Netlify.
+
+Shared logic lives in **`api/mission-logic.mjs`**.
+
 #### For Netlify Specifically
+
 
 The `netlify.toml` file is already configured. Just add the env var above.
 

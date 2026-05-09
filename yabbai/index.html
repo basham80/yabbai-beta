@@ -365,6 +365,30 @@ body::before{content:'';position:fixed;inset:0;z-index:0;pointer-events:none;
     <span class="ts-copy" onclick="copyTreasury()">Copy</span>
   </div>
 
+  <!-- DEPOSIT SOL (wallet signs transfer) -->
+  <div class="section">
+    <div class="cashout-panel" style="border-color:rgba(153,69,255,0.25)">
+      <div class="cp-header">
+        <div class="cp-icon">◎</div>
+        <div>
+          <div class="cp-title">Deposit SOL to Treasury</div>
+          <div style="font-family:'Azeret Mono',monospace;font-size:0.58rem;color:var(--dim);margin-top:3px">
+            Uses your connected wallet · approval opens in Phantom, Solflare, Backpack, etc.
+          </div>
+        </div>
+      </div>
+      <div style="font-family:'Azeret Mono',monospace;font-size:0.56rem;color:var(--dim);text-transform:uppercase;letter-spacing:0.08em;margin-bottom:6px">Amount (SOL)</div>
+      <div class="cashout-amount">
+        <input class="ca-input" id="depositAmt" type="number" placeholder="0.00" min="0" step="0.0001">
+        <button class="ca-max" type="button" onclick="setMaxDeposit()">MAX</button>
+      </div>
+      <div style="font-family:'Azeret Mono',monospace;font-size:0.6rem;color:var(--dim);margin-bottom:14px" id="depositUsd">≈ $0.00 USD</div>
+      <button class="cashout-execute" id="depositBtn" type="button" onclick="depositSolToTreasury()" style="background:linear-gradient(135deg,#1a0d2e,rgba(153,69,255,0.85));color:#fff">
+        ◎ Deposit SOL → Treasury
+      </button>
+    </div>
+  </div>
+
   <!-- LIVE STATS -->
   <div class="stats-grid" id="statsGrid">
     <div class="stat-card"><div class="sc-val" id="statPrice">Fetching...</div><div class="sc-lbl">$YABBAI Price</div></div>
@@ -397,7 +421,7 @@ body::before{content:'';position:fixed;inset:0;z-index:0;pointer-events:none;
 <div id="page-missions" class="page-section">
 
   <div class="section-header">
-    <div><div class="sh-title">Mission Control</div><div class="sh-sub">Deploy autonomous income missions via Claude AI</div></div>
+    <div><div class="sh-title">Mission Control</div><div class="sh-sub">AI missions use a separate API URL (see mission-config.js) — 4EVERLAND hosts static files only</div></div>
   </div>
 
   <!-- AI BRAIN -->
@@ -407,7 +431,7 @@ body::before{content:'';position:fixed;inset:0;z-index:0;pointer-events:none;
         <div class="ai-orb">🧠</div>
         <div>
           <div class="ai-title">YABBAI AI Brain</div>
-          <div class="ai-model" id="aiModelLabel">Claude Sonnet 4 · Auto-routing</div>
+          <div class="ai-model" id="aiModelLabel">Claude Sonnet (Anthropic)</div>
         </div>
         <div style="margin-left:auto;display:flex;gap:6px;align-items:center">
           <div style="font-family:'Azeret Mono',monospace;font-size:0.58rem;color:var(--neon)">● ONLINE</div>
@@ -415,7 +439,7 @@ body::before{content:'';position:fixed;inset:0;z-index:0;pointer-events:none;
       </div>
       <textarea class="ai-input" id="aiPrompt" placeholder="Describe your mission... e.g. Generate community growth for $YABBAI by finding new holders on Twitter and Telegram. Reinvest 70% of yield into LP. Target: reach $5K market cap by end of week."></textarea>
       <div class="ai-controls">
-        <select class="ai-model-select" id="aiModel">
+        <select class="ai-model-select" id="aiModel" onchange="syncAiModelLabel()">
           <option value="claude">Claude Sonnet 4</option>
           <option value="kimi">Kimi 2.5</option>
           <option value="auto">Auto (Claude → Kimi fallback)</option>
@@ -628,6 +652,7 @@ body::before{content:'';position:fixed;inset:0;z-index:0;pointer-events:none;
 
 </div><!-- /main -->
 
+<script src="mission-config.js"></script>
 <script>
 // ── CONFIG ──────────────────────────────────────────────
 const MINT     = 'AcEVtpLEfxMHFzXQrhJiDhoWCkLVYH3drD2cxNAzLFUv';
@@ -637,10 +662,19 @@ const PAYPAL   = 'basham_x@protonmail.com';
 const RPC      = 'https://api.mainnet-beta.solana.com';
 const PUMP_URL = `https://pump.fun/coin/${MINT}`;
 const DEX_URL  = `https://dexscreener.com/solana/${POOL}`;
+/**
+ * AI proxy URL (keys live only on that server — never in this static bundle).
+ * Set window.YABBAI_MISSION_API in mission-config.js (e.g. Cloudflare Worker URL).
+ * 4EVERLAND is static-only; deploy the Worker separately and paste its URL here.
+ */
+const MISSION_API = (typeof window !== 'undefined' && window.YABBAI_MISSION_API && String(window.YABBAI_MISSION_API).trim())
+  ? String(window.YABBAI_MISSION_API).trim()
+  : '';
 
 let walletAddr = null;
 let solBalance = 0;
 let solPrice   = 88;
+let depositBusy = false;
 let tokenPrice = 0;
 let tokenMcap  = 313;
 let tokenLiq   = 0;
@@ -680,6 +714,17 @@ function showPage(id) {
 }
 
 // ── WALLET / SIWS ────────────────────────────────────────
+function getWalletProviderByType(type) {
+  if (type === 'solflare') return window.solflare || null;
+  if (type === 'backpack') return window.backpack?.solana || window.backpack || null;
+  return window.phantom?.solana || (window.solana?.isPhantom ? window.solana : null) || window.solana || null;
+}
+
+function getActiveWalletProvider() {
+  const type = localStorage.getItem('yabbai_wallet_type') || 'phantom';
+  return getWalletProviderByType(type);
+}
+
 function openSIWS() {
   document.getElementById('siwsOverlay').classList.add('show');
 }
@@ -690,10 +735,7 @@ function closeSIWS() {
 async function connectWallet(type) {
   closeSIWS();
   try {
-    let provider;
-    if (type === 'phantom') provider = window.phantom?.solana || window.solana;
-    else if (type === 'solflare') provider = window.solflare;
-    else provider = window.backpack;
+    const provider = getWalletProviderByType(type);
 
     if (!provider) {
       const urls = { phantom:'https://phantom.app', solflare:'https://solflare.com', backpack:'https://backpack.app' };
@@ -717,7 +759,9 @@ async function connectWallet(type) {
       addLog(`Wallet connected without SIWS signature`, '#ffc200', 'Wallet');
     }
 
+    await fetchSolPrice();
     await fetchWalletBalance();
+    updateDepositUsd();
     renderWalletUI();
     toast(`✓ Connected: ${walletAddr.slice(0,6)}...${walletAddr.slice(-4)}`);
   } catch(e) {
@@ -725,39 +769,166 @@ async function connectWallet(type) {
   }
 }
 
+function abortableFetchSignal(ms) {
+  if (typeof AbortSignal !== 'undefined' && AbortSignal.timeout) return AbortSignal.timeout(ms);
+  const c = new AbortController();
+  const t = setTimeout(() => c.abort(), ms);
+  return { signal: c.signal, cancel: () => clearTimeout(t) };
+}
+
 async function fetchWalletBalance() {
   if (!walletAddr) return;
-  // Try multiple RPC endpoints for reliability
   const RPCS = [
+    RPC,
     'https://api.mainnet-beta.solana.com',
-    'https://solana-mainnet.g.alchemy.com/v2/demo',
     'https://rpc.ankr.com/solana',
   ];
   for (const rpc of RPCS) {
     try {
+      const sigOpt = abortableFetchSignal(8000);
+      const signal = sigOpt.signal || sigOpt;
       const r = await fetch(rpc, {
         method:'POST',
         headers:{'Content-Type':'application/json'},
         body: JSON.stringify({jsonrpc:'2.0',id:1,method:'getBalance',params:[walletAddr]}),
-        signal: AbortSignal.timeout(5000),
+        signal,
       });
+      if (sigOpt.cancel) sigOpt.cancel();
       if (!r.ok) continue;
       const d = await r.json();
       const lamports = d.result?.value;
       if (lamports !== undefined) {
         solBalance = lamports / 1e9;
-        // Update ALL balance displays
         const balStr = `${solBalance.toFixed(4)} SOL`;
         const usdStr = `$${(solBalance * solPrice).toFixed(2)}`;
         const el = document.getElementById('cpBalance');
         if (el) el.textContent = `Balance: ${balStr} · ${usdStr}`;
         addLog(`Wallet balance: ${balStr} (${usdStr})`, '#14F195', 'RPC');
-        renderWalletUI(); // Re-render so w-bal updates
+        renderWalletUI();
+        updateDepositUsd();
         return;
       }
     } catch(e) { continue; }
   }
   addLog('Balance fetch failed — check RPC connection', '#ffc200', 'RPC');
+}
+
+async function ensureBufferPolyfill() {
+  if (typeof globalThis.Buffer !== 'undefined' && globalThis.Buffer) return;
+  const mod = await import('https://cdn.jsdelivr.net/npm/buffer@6.0.3/+esm');
+  globalThis.Buffer = mod.Buffer;
+}
+
+function setMaxDeposit() {
+  const input = document.getElementById('depositAmt');
+  if (!input) return;
+  const reserve = 0.015;
+  const max = Math.max(0, solBalance - reserve);
+  input.value = max > 0 ? max.toFixed(6) : '';
+  updateDepositUsd();
+}
+
+function updateDepositUsd() {
+  const amt = parseFloat(document.getElementById('depositAmt')?.value || 0);
+  const el = document.getElementById('depositUsd');
+  if (el) el.textContent = `≈ $${(amt * solPrice).toFixed(2)} USD · Fee paid separately by wallet`;
+}
+
+async function depositSolToTreasury() {
+  const amt = parseFloat(document.getElementById('depositAmt')?.value || 0);
+  if (!amt || amt <= 0) { toast('Enter a deposit amount (SOL)', 'error'); return; }
+  if (!walletAddr) { openSIWS(); toast('Connect wallet first', 'warn'); return; }
+  if (depositBusy) return;
+
+  const provider = getActiveWalletProvider();
+  if (!provider?.publicKey) {
+    toast('Wallet not ready — reconnect from Connect Wallet', 'error');
+    openSIWS();
+    return;
+  }
+
+  const fromStr = provider.publicKey.toString();
+  if (fromStr !== walletAddr) {
+    walletAddr = fromStr;
+    localStorage.setItem('yabbai_wallet', walletAddr);
+  }
+
+  const reserve = 0.02;
+  if (amt + reserve > solBalance) {
+    toast(`Insufficient SOL · balance ${solBalance.toFixed(4)} (keep ~${reserve} for fees)`, 'error');
+    return;
+  }
+
+  depositBusy = true;
+  const btn = document.getElementById('depositBtn');
+  if (btn) { btn.disabled = true; btn.textContent = 'Approve in wallet…'; }
+
+  try {
+    await ensureBufferPolyfill();
+    const web3 = await import('https://cdn.jsdelivr.net/npm/@solana/web3.js@1.95.3/+esm');
+    const { Connection, Transaction, SystemProgram, PublicKey } = web3;
+
+    const lamports = Math.round(amt * 1e9);
+    if (lamports < 1) { throw new Error('Amount too small'); }
+
+    const connection = new Connection(RPC, 'confirmed');
+    const fromPubkey = provider.publicKey;
+    const toPubkey = new PublicKey(TREASURY);
+
+    const latest = await connection.getLatestBlockhash('confirmed');
+    const tx = new Transaction();
+    tx.recentBlockhash = latest.blockhash;
+    tx.feePayer = fromPubkey;
+    tx.add(
+      SystemProgram.transfer({
+        fromPubkey,
+        toPubkey,
+        lamports,
+      })
+    );
+
+    toast('Confirm the transfer in your wallet…', 'warn');
+    addLog(`Deposit ${amt} SOL → treasury — awaiting wallet approval`, '#9945FF', 'Deposit');
+
+    let signature;
+    if (typeof provider.signAndSendTransaction === 'function') {
+      const result = await provider.signAndSendTransaction(tx);
+      signature = typeof result === 'string' ? result : result?.signature;
+    } else if (typeof provider.signTransaction === 'function') {
+      const signed = await provider.signTransaction(tx);
+      signature = await connection.sendRawTransaction(signed.serialize(), {
+        skipPreflight: false,
+        maxRetries: 3,
+      });
+    } else {
+      throw new Error('This wallet cannot sign SOL transfers from this page');
+    }
+
+    if (!signature) throw new Error('No signature returned');
+    const sigStr = typeof signature === 'string' ? signature : String(signature);
+
+    await connection.confirmTransaction(
+      { signature: sigStr, blockhash: latest.blockhash, lastValidBlockHeight: latest.lastValidBlockHeight },
+      'confirmed'
+    );
+
+    addLog(`Deposit confirmed · ${sigStr.slice(0, 10)}…`, '#14F195', 'Solana');
+    toast('Deposit confirmed');
+    document.getElementById('depositAmt').value = '';
+    updateDepositUsd();
+    await fetchWalletBalance();
+  } catch (e) {
+    const msg = e?.message || String(e);
+    if (/User rejected|cancel/i.test(msg)) {
+      toast('Cancelled in wallet', 'warn');
+    } else {
+      toast('Deposit failed: ' + msg, 'error');
+      addLog('Deposit error: ' + msg, '#ff3b3b', 'Deposit');
+    }
+  } finally {
+    depositBusy = false;
+    if (btn) { btn.disabled = false; btn.textContent = '◎ Deposit SOL → Treasury'; }
+  }
 }
 
 function renderWalletUI() {
@@ -778,24 +949,53 @@ function renderWalletUI() {
 }
 
 function disconnectWallet() {
+  const type = localStorage.getItem('yabbai_wallet_type') || 'phantom';
+  try {
+    const p = getWalletProviderByType(type);
+    if (p?.disconnect) p.disconnect();
+    else if (type !== 'solflare' && window.solflare?.disconnect) window.solflare.disconnect();
+  } catch (_) {}
+
   walletAddr = null;
   solBalance = 0;
   localStorage.removeItem('yabbai_wallet');
   localStorage.removeItem('yabbai_wallet_type');
   document.getElementById('walletArea').innerHTML = `<button class="wallet-btn wallet-disconnected" onclick="openSIWS()"><div class="w-dot"></div>Connect Wallet</button>`;
+  const cp = document.getElementById('cpBalance');
+  if (cp) cp.textContent = 'Balance: —';
   toast('Wallet disconnected');
 }
 
-// Auto-reconnect
-window.addEventListener('load', async () => {
+async function restoreWalletSession() {
   const saved = localStorage.getItem('yabbai_wallet');
   const savedType = localStorage.getItem('yabbai_wallet_type') || 'phantom';
-  if (saved) {
+  if (!saved) return;
+
+  await fetchSolPrice();
+
+  const provider = getWalletProviderByType(savedType);
+  try {
+    if (provider) {
+      if (provider.isConnected && provider.publicKey) {
+        walletAddr = provider.publicKey.toString();
+      } else if (savedType === 'phantom' && typeof provider.connect === 'function') {
+        await provider.connect({ onlyIfTrusted: true });
+        walletAddr = provider.publicKey.toString();
+      } else {
+        walletAddr = saved;
+      }
+    } else {
+      walletAddr = saved;
+    }
+    localStorage.setItem('yabbai_wallet', walletAddr);
+  } catch (_) {
     walletAddr = saved;
-    await fetchWalletBalance();
-    renderWalletUI();
   }
-});
+
+  await fetchWalletBalance();
+  updateDepositUsd();
+  renderWalletUI();
+}
 
 // ── LIVE DATA ────────────────────────────────────────────
 async function fetchSolPrice() {
@@ -803,7 +1003,17 @@ async function fetchSolPrice() {
     const r = await fetch(`https://api.jup.ag/price/v2?ids=So11111111111111111111111111111111111111112`);
     const d = await r.json();
     const p = d?.data?.['So11111111111111111111111111111111111111112']?.price;
-    if (p) { solPrice = parseFloat(p); document.getElementById('statSol').textContent = '$'+solPrice.toFixed(2); }
+    if (p) {
+      solPrice = parseFloat(p);
+      const el = document.getElementById('statSol');
+      if (el) el.textContent = '$'+solPrice.toFixed(2);
+      if (walletAddr) {
+        const cp = document.getElementById('cpBalance');
+        if (cp) cp.textContent = `Balance: ${solBalance.toFixed(4)} SOL · $${(solBalance * solPrice).toFixed(2)}`;
+        renderWalletUI();
+        updateDepositUsd();
+      }
+    }
   } catch {}
 }
 
@@ -852,14 +1062,60 @@ async function fetchTokenData() {
   }
 }
 
-// ── AI BRAIN ─────────────────────────────────────────────
+// ── AI BRAIN (MISSION_API from mission-config.js) ─────────
+function syncAiModelLabel() {
+  const sel = document.getElementById('aiModel')?.value || 'auto';
+  const labels = {
+    claude: 'Claude Sonnet (Anthropic)',
+    kimi: 'Kimi / Moonshot',
+    auto: 'Auto · Claude first, then Kimi fallback',
+  };
+  const el = document.getElementById('aiModelLabel');
+  if (el) el.textContent = labels[sel] || labels.auto;
+}
+
+async function fetchMissionApiStatus() {
+  if (!MISSION_API) {
+    addLog('AI: set YABBAI_MISSION_API in mission-config.js (e.g. Cloudflare Worker) — see workers/wrangler.toml', '#ffc200', 'AI');
+    return;
+  }
+  try {
+    const r = await fetch(MISSION_API, { method: 'GET' });
+    if (!r.ok) return;
+    const d = await r.json();
+    const ok = [];
+    if (d.anthropicConfigured) ok.push('Anthropic ✓');
+    if (d.moonshotConfigured) ok.push('Moonshot ✓');
+    if (ok.length) addLog(`AI backend ready · ${ok.join(' · ')}`, '#14F195', 'AI');
+    else addLog('AI backend: set ANTHROPIC_API_KEY / MOONSHOT_API_KEY as Worker secrets', '#ffc200', 'AI');
+  } catch (_) {
+    addLog('AI backend not reachable — check MISSION_API URL and CORS', '#ffc200', 'AI');
+  }
+}
+
 async function callAI(prompt, context='mission') {
   const btn = document.getElementById('aiDeployBtn');
   const resp = document.getElementById('aiResponse');
   if (btn) { btn.disabled = true; btn.innerHTML = '<div class="ai-spinner"></div> Deploying...'; }
   if (resp) { resp.style.display = 'block'; resp.textContent = ''; resp.innerHTML = '<div class="ai-loading"><div class="ai-spinner"></div>AI brain processing mission...</div>'; }
 
-  const model = document.getElementById('aiModel')?.value || 'claude';
+  if (!MISSION_API) {
+    if (resp) {
+      resp.textContent =
+`⚠ No AI proxy URL configured.
+
+4EVERLAND only serves static files. Deploy the API separately (recommended: Cloudflare Worker in this repo under workers/), then edit yabbai/mission-config.js:
+
+  window.YABBAI_MISSION_API = 'https://your-worker.<subdomain>.workers.dev';
+
+Add secrets ANTHROPIC_API_KEY and/or MOONSHOT_API_KEY on the Worker. Manual mission cards below still work.`;
+    }
+    toast('Set mission-config.js with your Worker URL', 'warn');
+    if (btn) { btn.disabled = false; btn.innerHTML = '<span id="aiDeployIcon">⚡</span> Deploy Mission'; }
+    return;
+  }
+
+  const modelChoice = document.getElementById('aiModel')?.value || 'auto';
   const systemPrompt = `You are the YABBAI autonomous income mission brain.
 Treasury: ${TREASURY}
 Token: $YABBAI on Solana. Mint: ${MINT}
@@ -869,27 +1125,56 @@ Always include: specific actions, timelines, expected outcomes.
 Be concise. Be specific. Think like a crypto growth hacker.`;
 
   try {
-    const apiResp = await fetch('https://api.anthropic.com/v1/messages', {
+    const apiResp = await fetch(MISSION_API, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'x-api-key': '', 'anthropic-version': '2023-06-01' },
-      body: JSON.stringify({ model:'claude-sonnet-4-20250514', max_tokens:800, system:systemPrompt, messages:[{role:'user',content:prompt}] }),
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        modelChoice,
+        prompt,
+        context,
+        system: systemPrompt,
+      }),
     });
 
-    if (apiResp.ok) {
-      const data = await apiResp.json();
-      const text = data.content?.map(b=>b.text||'').join('') || '';
-      if (resp) resp.textContent = text;
-      addLog('Mission deployed via Claude AI', '#9945FF', 'Claude');
-      toast('✓ Mission deployed by Claude AI');
-    } else {
-      throw new Error('Claude API key not set — add ANTHROPIC_API_KEY to Netlify env vars');
+    const raw = await apiResp.text();
+    let data = {};
+    try { data = JSON.parse(raw); } catch (_) {}
+
+    if (!apiResp.ok) {
+      throw new Error(data.error || raw || `HTTP ${apiResp.status}`);
     }
-  } catch(e) {
-    if (resp) resp.textContent = `⚠ AI API not configured.\n\nTo enable real AI missions:\n1. Go to Netlify → Site config → Environment variables\n2. Add: ANTHROPIC_API_KEY = your-key\n3. Redeploy\n\nFor now, use the manual mission buttons below. ↓`;
-    addLog('AI API not configured — manual missions available', '#ffc200', 'System');
+
+    const text = data.text || '';
+    const extra = data.fallbackNote ? `\n\n— Note: ${data.fallbackNote}` : '';
+    if (resp) resp.textContent = text + extra;
+
+    const src =
+      data.provider === 'moonshot' ? 'Kimi (Moonshot)' :
+      data.provider === 'anthropic' ? 'Claude' : 'AI';
+    addLog(`Mission response · ${src}`, '#9945FF', 'AI');
+    toast(`✓ Mission deployed (${src})`);
+  } catch (e) {
+    const msg = e?.message || String(e);
+    if (resp) {
+      resp.textContent =
+`⚠ AI request failed.
+
+${msg}
+
+Setup (keys never go in the browser):
+1. Deploy API: \`cd workers && wrangler deploy\` (set secrets ANTHROPIC_API_KEY, MOONSHOT_API_KEY)
+2. Put the Worker URL in yabbai/mission-config.js → window.YABBAI_MISSION_API
+3. Redeploy the static site on 4EVERLAND
+
+Alternative: Netlify Functions still supported via netlify/functions/mission.js + env vars.
+
+Manual mission cards below still work without AI.`;
+    }
+    addLog('AI mission error: ' + msg, '#ffc200', 'System');
+    toast('AI request failed — check Worker secrets & mission-config.js', 'error');
   }
 
-  if (btn) { btn.disabled = false; btn.innerHTML = '<span>⚡</span> Deploy Mission'; }
+  if (btn) { btn.disabled = false; btn.innerHTML = '<span id="aiDeployIcon">⚡</span> Deploy Mission'; }
 }
 
 async function deployMission() {
@@ -1056,16 +1341,23 @@ function toast(msg, type='') {
 }
 
 // ── CASHOUT INPUT LISTENER ───────────────────────────────
-window.addEventListener('load', () => {
+window.addEventListener('load', async () => {
   const ca = document.getElementById('cashoutAmt');
   if (ca) ca.addEventListener('input', updateCashoutCalc);
+  const da = document.getElementById('depositAmt');
+  if (da) da.addEventListener('input', updateDepositUsd);
+
+  await restoreWalletSession();
+
+  syncAiModelLabel();
+  fetchMissionApiStatus();
 
   // Init
   renderMissions();
-  fetchSolPrice();
   fetchTokenData();
   setInterval(fetchTokenData, 30000);
   setInterval(fetchSolPrice, 60000);
+  setInterval(() => { if (walletAddr) { fetchWalletBalance(); updateDepositUsd(); } }, 45000);
 
   addLog('YABBAI engine initialised — all systems online', '#14F195', 'YABBAI');
   addLog(`Mint: ${MINT.slice(0,10)}...`, '#9945FF', '$YABBAI');
