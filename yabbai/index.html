@@ -6,6 +6,7 @@
 <!-- Optional: set treasury receiver without editing mission-config.js (host inject / CMS). -->
 <meta name="yabbai-treasury-receiver" content="">
 <title>$YABBAI — Autonomous Income Generator · Solana</title>
+<link rel="icon" type="image/svg+xml" href="/favicon.svg">
 <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=Azeret+Mono:wght@300;400;500&family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <style>
 :root{
@@ -870,7 +871,7 @@ body::before{content:'';position:fixed;inset:0;z-index:0;pointer-events:none;
 
 </div><!-- /main -->
 
-<script src="mission-config.js?v=20260510d"></script>
+<script src="mission-config.js?v=20260510e"></script>
 <script>
 // ── CONFIG ──────────────────────────────────────────────
 const MINT     = 'AcEVtpLEfxMHFzXQrhJiDhoWCkLVYH3drD2cxNAzLFUv';
@@ -1672,7 +1673,7 @@ function resolveLiveWalletAddress() {
 let web3BalanceModulePromise = null;
 function loadWeb3BalanceModule() {
   if (!web3BalanceModulePromise) {
-    web3BalanceModulePromise = import('https://esm.sh/@solana/web3.js@1.95.3');
+    web3BalanceModulePromise = import('https://esm.sh/@solana/web3.js@1.95.3?bundle&target=es2022');
   }
   return web3BalanceModulePromise;
 }
@@ -2226,7 +2227,7 @@ async function depositSolToTreasury() {
 
   try {
     await ensureBufferPolyfill();
-    const web3 = await import('https://esm.sh/@solana/web3.js@1.95.3');
+    const web3 = await import('https://esm.sh/@solana/web3.js@1.95.3?bundle&target=es2022');
     const { Connection, Transaction, SystemProgram, PublicKey } = web3;
 
     const lamports = Math.round(amt * 1e9);
