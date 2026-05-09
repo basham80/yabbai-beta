@@ -1,6 +1,14 @@
 /**
  * Treasury → user SOL payout (Cloudflare Worker).
  * Requires wallet-signed message so random callers cannot drain treasury.
+ *
+ * Ops alignment (static app `yabbai/`):
+ * - Browser deposits use the **public** receiver from `window.YABBAI_TREASURY_RECEIVER`
+ *   (or meta `yabbai-treasury-receiver`) in `yabbai/mission-config.js` — same name as optional
+ *   Worker var `YABBAI_TREASURY_RECEIVER` below.
+ * - This Worker signs sends with **TREASURY_SECRET_KEY**; its **public key must match** that
+ *   receiver, or payouts debit the wrong account. Optional: set plain var `YABBAI_TREASURY_RECEIVER`
+ *   to the same base58 pubkey; GET/POST will report or enforce a mismatch (see fetch handler).
  */
 import {
   Connection,
@@ -54,11 +62,28 @@ export default {
     }
 
     if (request.method === 'GET') {
-      const ready = !!(env.TREASURY_SECRET_KEY && String(env.TREASURY_SECRET_KEY).trim());
+      const secretRaw = env.TREASURY_SECRET_KEY && String(env.TREASURY_SECRET_KEY).trim();
+      let treasuryPubkey = null;
+      if (secretRaw) {
+        try {
+          treasuryPubkey = loadTreasuryKeypair(secretRaw).publicKey.toBase58();
+        } catch (_) {
+          /* invalid secret — omit pubkey */
+        }
+      }
+      const expectedRecv =
+        env.YABBAI_TREASURY_RECEIVER && String(env.YABBAI_TREASURY_RECEIVER).trim();
+      let treasuryMatchesEnv;
+      if (treasuryPubkey && expectedRecv) {
+        treasuryMatchesEnv = treasuryPubkey === expectedRecv;
+      }
       return json(200, {
         ok: true,
         service: 'yabbai-payout',
-        treasuryConfigured: ready,
+        treasuryConfigured: !!treasuryPubkey,
+        treasuryPubkey: treasuryPubkey || undefined,
+        treasuryReceiverEnvSet: !!expectedRecv,
+        treasuryMatchesEnv,
       });
     }
 
@@ -136,6 +161,15 @@ export default {
       treasury = loadTreasuryKeypair(secret);
     } catch (e) {
       return json(503, { error: 'treasury key invalid: ' + e.message });
+    }
+
+    const expectedRecv =
+      env.YABBAI_TREASURY_RECEIVER && String(env.YABBAI_TREASURY_RECEIVER).trim();
+    if (expectedRecv && treasury.publicKey.toBase58() !== expectedRecv) {
+      return json(503, {
+        error:
+          'TREASURY_SECRET_KEY public key does not match YABBAI_TREASURY_RECEIVER — fix secrets/vars',
+      });
     }
 
     const rpc = env.SOLANA_RPC_URL || 'https://api.mainnet-beta.solana.com';

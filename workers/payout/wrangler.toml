@@ -7,7 +7,12 @@ compatibility_flags = ["nodejs_compat"]
 [vars]
 SOLANA_RPC_URL = "https://api.mainnet-beta.solana.com"
 MAX_WITHDRAW_SOL = "25"
+# Optional: same base58 pubkey as static `window.YABBAI_TREASURY_RECEIVER` / meta
+# `yabbai-treasury-receiver`. If set, Worker GET shows treasuryMatchesEnv; POST refuses
+# payout when TREASURY_SECRET_KEY's pubkey ≠ this value.
+# YABBAI_TREASURY_RECEIVER = ""
 
 # Secrets (never commit):
 #   cd workers/payout && npx wrangler secret put TREASURY_SECRET_KEY
-# Paste base58-encoded 64-byte secret key (same format as Phantom export / solana-keygen)
+# Paste base58-encoded 64-byte secret key (same format as Phantom export / solana-keygen).
+# That keypair's PUBLIC address must match the site's deposit receiver and optional var above.

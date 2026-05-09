@@ -22,6 +22,7 @@
 npm install
 npx wrangler secret put TREASURY_SECRET_KEY
 npx wrangler deploy</pre>
+  <p><code>TREASURY_SECRET_KEY</code> must be the keypair for the same on-chain address users see as <code>YABBAI_TREASURY_RECEIVER</code> in <code>yabbai/mission-config.js</code>. Optionally set plain var <code>YABBAI_TREASURY_RECEIVER</code> in <code>wrangler.toml</code> to that pubkey so GET can verify a match.</p>
   <p>Then set <code>window.YABBAI_PAYOUT_API</code> in <code>yabbai/mission-config.js</code> to the Worker HTTPS URL.</p>
 </body>
 </html>

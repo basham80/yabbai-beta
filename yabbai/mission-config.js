@@ -9,9 +9,12 @@
  * Leave empty to disable AI missions until configured.
  *
  * Payout API (optional): deploy workers/payout (`cd workers/payout && npx wrangler deploy`), add secret
- * TREASURY_SECRET_KEY, then set:
+ * TREASURY_SECRET_KEY (must be the keypair for this same **public** receiver), then set:
  *
  *   window.YABBAI_PAYOUT_API = 'https://yabbai-payout.<account>.workers.dev';
+ *
+ * Worker optional plain var `YABBAI_TREASURY_RECEIVER` (wrangler.toml [vars]) should match
+ * `window.YABBAI_TREASURY_RECEIVER` here so GET can verify treasuryMatchesEnv.
  */
 window.YABBAI_MISSION_API = '';
 
@@ -33,6 +36,11 @@ window.YABBAI_TREASURY_ADDRESS = '';
  * The $YABBAI mint is always watched. Users can add more from the Deposit tab ("paste mint").
  */
 window.YABBAI_SPL_WATCHLIST = '';
+
+/**
+ * SPL transfers from this static page are not built in-app (no @solana/spl-token bundle): users
+ * send SPL via Phantom/Solflare to the treasury pubkey; SOL deposits use wallet-signed SystemProgram.transfer.
+ */
 
 /**
  * Strongly recommended on IPFS / 4EVERLAND: public mainnet RPC often blocks or rate-limits browser `fetch`,
