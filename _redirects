@@ -1,3 +1,4 @@
-/  /index.html  200
-/hub  /index.html  200
-/*  /index.html  200
+# Multi-page static site — no SPA catch-all (that was routing traffic to a broken root index on IPFS).
+# Temporarily send domain root to hub.html until publish root on 4EVERLAND is repo root with correct index.html.
+/               /hub.html   302
+/index.html     /hub.html   302

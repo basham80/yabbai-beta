@@ -37,6 +37,16 @@ This repo is meant to be published from the **repository root** (the folder that
 
 Upload or connect **the whole project** (or at minimum root `index.html`, `_redirects`, `netlify.toml`, and all sibling app folders you use). Deploy **Cloudflare Workers** separately with Wrangler; they are **not** the static website root.
 
+#### Troubleshooting: browser shows `wrangler.toml` (plain text)
+
+That almost always means the static host’s **publish directory** is set to **`workers/payout`** (or you opened `/workers/payout/wrangler.toml` directly). Fix the dashboard setting so the site root is **`.`** (repo root with hub `index.html`) or **`yabbai/`** for the main app only — never `workers/payout`. The payout Worker is deployed only via **`npx wrangler deploy`** inside `workers/payout`, not by uploading that folder as your website.
+
+#### After redeploy (Git / IPFS)
+
+If **`/`** still shows **`wrangler.toml` text**, your **publish root on 4EVERLAND is still wrong** (often `workers/payout`). Fix **Root Directory = empty**, **Output Directory = empty**, republish from **repo root**.
+
+If **`/`** is wrong but **`/hub.html`** and **`/yabbai/`** work, this repo uses **`_redirects` + `netlify.toml`** so **`/` redirects to `/hub.html`** after redeploy. If your gateway ignores those files, set **Advanced → Rewrite** in the 4EVERLAND project: path **`/`** → **`/hub.html`** (or **`/yabbai/`**).
+
 #### Add Environment Variable
 
 1. Go to your deployment dashboard

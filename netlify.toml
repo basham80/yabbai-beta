@@ -6,11 +6,18 @@ publish = "."
 command = "echo 'Static site - no build needed'"
 functions = "netlify/functions"
 
-# SPA fallback (4EVERLAND / Netlify static). AI runs separately — see wrangler.toml + yabbai/mission-config.js
+# Do not use /* → /index.html here — this repo is multi-page (hub, yabbai/, bash/, …). A SPA fallback can
+# force every URL onto root index.html and breaks IPFS deploys when root index is wrong.
+# Root workaround: send / and /index.html to hub.html (works even when repo hub index was mis-uploaded).
 [[redirects]]
-from = "/*"
-to = "/index.html"
-status = 200
+from = "/"
+to = "/hub.html"
+status = 302
+
+[[redirects]]
+from = "/index.html"
+to = "/hub.html"
+status = 302
 
 [env.production]
   [env.production.context]
