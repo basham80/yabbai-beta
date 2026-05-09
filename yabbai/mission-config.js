@@ -50,7 +50,13 @@ window.YABBAI_SPL_WATCHLIST = '';
 window.YABBAI_SOLANA_RPC = '';
 
 /**
- * Phantom / wallet note: SOL and SPL balances on this page come from Solana JSON-RPC
- * (`getBalance`, `getParsedTokenAccountsByOwner`), not from the extension UI. Phantom does not
- * grant a separate "token balance permission"; if balances stay blank, set YABBAI_SOLANA_RPC above.
+ * Optional: Cloudflare Worker + D1 balance API (`workers/balance-api`). Deploy then set base URL (no trailing slash needed).
+ * GET /balance?wallet=<pubkey> returns { ok, lamports, sol } using server-side RPC + SQLite cache.
+ * Example: window.YABBAI_BALANCE_API = 'https://yabbai-balance-api.<account>.workers.dev';
+ */
+window.YABBAI_BALANCE_API = '';
+
+/**
+ * Phantom / wallet note: SOL and SPL balances on this page use Solana JSON-RPC and/or YABBAI_BALANCE_API,
+ * not the extension’s internal display. If the chip is wrong, set YABBAI_BALANCE_API (Worker) and/or YABBAI_SOLANA_RPC.
  */

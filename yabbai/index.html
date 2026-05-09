@@ -1535,6 +1535,39 @@ async function fetchWalletBalance() {
     return true;
   };
 
+  // 0) Optional Worker + D1 (server-side RPC — fixes IPFS/public-RPC browser blocks)
+  const balBase =
+    typeof window !== 'undefined' &&
+    window.YABBAI_BALANCE_API &&
+    String(window.YABBAI_BALANCE_API).trim();
+  if (balBase) {
+    try {
+      const u = new URL('balance', balBase.replace(/\/$/, '') + '/');
+      u.searchParams.set('wallet', addrRaw);
+      const sigOpt = abortableFetchSignal(15000);
+      const signal = sigOpt.signal || sigOpt;
+      const r = await fetch(u.toString(), { method: 'GET', signal, mode: 'cors', cache: 'no-store' });
+      if (sigOpt.cancel) sigOpt.cancel();
+      if (r.ok) {
+        const j = await r.json();
+        if (j && j.ok !== false) {
+          let lp =
+            j.lamports != null
+              ? Number(j.lamports)
+              : j.sol != null
+                ? Math.round(Number(j.sol) * 1e9)
+                : NaN;
+          if (Number.isFinite(lp) && lp >= 0) {
+            const rpcHint = getSolanaRpcList()[0] || 'https://api.mainnet-beta.solana.com';
+            if (applyLamports(lp, rpcHint, '(Worker+D1)')) return;
+          }
+        }
+      }
+    } catch (e) {
+      console.warn('[YABBAI][SOL] YABBAI_BALANCE_API', e);
+    }
+  }
+
   // 1) @solana/web3 Connection first (same path as deposits; handles RPC quirks)
   for (const rpc of endpoints) {
     try {

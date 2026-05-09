@@ -70,6 +70,18 @@ If you host on **Netlify** instead, you can set `window.YABBAI_MISSION_API = '/.
 
 Shared logic lives in **`api/mission-logic.mjs`**.
 
+#### SOL balance server + database (optional)
+
+If the wallet chip shows **0** or **—** on IPFS because browsers cannot reach public RPC reliably, deploy **`workers/balance-api`** (Cloudflare Worker). It runs **`getBalance` on the server** and optionally caches results in **Cloudflare D1**.
+
+1. `cd workers/balance-api`
+2. `wrangler d1 create yabbai-balance` — copy **`database_id`** into `wrangler.toml` under `[[d1_databases]]` (see comments in that file), binding **`DB`**, then run **`wrangler d1 migrations apply yabbai-balance --remote`**
+3. Set **`SOLANA_RPC_URL`** in `[vars]` or via **`wrangler secret put SOLANA_RPC_URL`** to a Helius/Alchemy mainnet URL (recommended).
+4. **`npx wrangler deploy`**
+5. In **`yabbai/mission-config.js`**, set **`window.YABBAI_BALANCE_API`** to the Worker base URL (e.g. `https://yabbai-balance-api.<you>.workers.dev`), redeploy static site.
+
+The page calls **`GET /balance?wallet=<pubkey>`** first; falls back to in-browser RPC if unset.
+
 #### For Netlify Specifically
 
 
