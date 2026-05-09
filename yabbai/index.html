@@ -1046,7 +1046,7 @@ async function connectWallet(type) {
     if (!provider.publicKey) {
       throw new Error('Wallet did not return a public key');
     }
-    walletAddr = provider.publicKey.toString();
+    walletAddr = provider.publicKey.toString().trim();
     localStorage.setItem('yabbai_wallet', walletAddr);
     localStorage.setItem('yabbai_wallet_type', type);
 
@@ -1062,6 +1062,10 @@ async function connectWallet(type) {
 
     await fetchSolPrice({ skipBalanceSync: true });
     await fetchWalletBalance();
+    if (solBalance <= 0) {
+      await new Promise(r => setTimeout(r, 650));
+      await fetchWalletBalance();
+    }
     syncBalanceLabels();
     renderVaultPanel();
     toast(`✓ Connected: ${walletAddr.slice(0,6)}...${walletAddr.slice(-4)}`);
@@ -1119,7 +1123,7 @@ function resolveLiveWalletAddress() {
   const provider = getWalletProviderByType(type);
   if (!provider?.publicKey) return walletAddr;
   try {
-    const live = provider.publicKey.toString();
+    const live = provider.publicKey.toString().trim();
     if (live && live !== walletAddr) {
       walletAddr = live;
       localStorage.setItem('yabbai_wallet', walletAddr);
@@ -1138,69 +1142,128 @@ function loadWeb3BalanceModule() {
   return web3BalanceModulePromise;
 }
 
+/** Parse getBalance JSON-RPC body — lamports may be number, string, or nested under result.value */
+function lamportsFromGetBalanceJson(d) {
+  if (!d || d.error) return null;
+  const r = d.result;
+  if (r === null || r === undefined) return null;
+  if (typeof r === 'number' && Number.isFinite(r)) return Math.floor(r);
+  if (typeof r === 'string') {
+    const x = parseInt(r, 10);
+    return Number.isFinite(x) ? x : null;
+  }
+  if (typeof r === 'bigint') return Number(r);
+  if (typeof r === 'object' && r !== null && 'value' in r) {
+    const v = r.value;
+    if (typeof v === 'number' && Number.isFinite(v)) return Math.floor(v);
+    if (typeof v === 'string') {
+      const x = parseInt(v, 10);
+      return Number.isFinite(x) ? x : null;
+    }
+    if (typeof v === 'bigint') return Number(v);
+  }
+  return null;
+}
+
 async function fetchWalletBalance() {
   resolveLiveWalletAddress();
-  if (!walletAddr) return;
+  const addrRaw = walletAddr ? String(walletAddr).trim() : '';
+  if (!addrRaw) return;
+
+  let web3;
+  try {
+    web3 = await loadWeb3BalanceModule();
+  } catch (e) {
+    console.warn('[YABBAI][SOL] web3 load failed', e);
+    addLog('Balance: could not load Solana library — try refresh', '#ffc200', 'RPC');
+    return;
+  }
+
+  const { Connection, PublicKey } = web3;
+  let pk;
+  try {
+    pk = new PublicKey(addrRaw);
+  } catch (e) {
+    console.warn('[YABBAI][SOL] invalid pubkey', addrRaw, e);
+    toast('Wallet address invalid — disconnect and reconnect.', 'error');
+    return;
+  }
+  walletAddr = addrRaw;
 
   const endpoints = getSolanaRpcList();
-  const jsonBody = JSON.stringify({
-    jsonrpc: '2.0',
-    id: 1,
-    method: 'getBalance',
-    params: [walletAddr, { commitment: 'confirmed' }],
-  });
 
+  const applyLamports = (lamports, rpc, tag) => {
+    let n =
+      typeof lamports === 'bigint'
+        ? Number(lamports)
+        : typeof lamports === 'string'
+          ? parseInt(lamports, 10)
+          : Number(lamports);
+    if (!Number.isFinite(n) || n < 0) return false;
+    primarySolanaRpc = rpc;
+    solBalance = n / 1e9;
+    syncBalanceLabels();
+    addLog(`Wallet balance: ${solBalance.toFixed(4)} SOL${tag ? ' ' + tag : ''}`, '#14F195', 'RPC');
+    return true;
+  };
+
+  // 1) @solana/web3 Connection first (same path as deposits; handles RPC quirks)
   for (const rpc of endpoints) {
     try {
-      const sigOpt = abortableFetchSignal(12000);
-      const signal = sigOpt.signal || sigOpt;
-      const r = await fetch(rpc, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: jsonBody,
-        signal,
-      });
-      if (sigOpt.cancel) sigOpt.cancel();
-      if (!r.ok) continue;
-      const d = await r.json();
-      if (d.error) {
-        console.warn('[YABBAI][SOL]', rpc, d.error);
-        continue;
-      }
-      const lamports = d.result?.value;
-      if (typeof lamports === 'number') {
-        primarySolanaRpc = rpc;
-        solBalance = lamports / 1e9;
-        syncBalanceLabels();
-        addLog(`Wallet balance: ${solBalance.toFixed(4)} SOL`, '#14F195', 'RPC');
-        return;
-      }
+      const conn = new Connection(rpc, 'confirmed');
+      const lamports = await conn.getBalance(pk, 'confirmed');
+      if (applyLamports(lamports, rpc, '(rpc)')) return;
     } catch (e) {
-      console.warn('[YABBAI][SOL]', rpc, e?.message || e);
+      console.warn('[YABBAI][SOL] Connection.getBalance', rpc, e?.message || e);
     }
   }
 
-  try {
-    const web3 = await loadWeb3BalanceModule();
-    const { Connection, PublicKey } = web3;
-    const pk = new PublicKey(walletAddr);
-    for (const rpc of endpoints) {
+  // 2) Raw JSON-RPC — try without optional params (some gateways reject the 2nd arg)
+  const jsonBodies = [
+    JSON.stringify({
+      jsonrpc: '2.0',
+      id: 1,
+      method: 'getBalance',
+      params: [addrRaw],
+    }),
+    JSON.stringify({
+      jsonrpc: '2.0',
+      id: 1,
+      method: 'getBalance',
+      params: [addrRaw, { commitment: 'confirmed' }],
+    }),
+  ];
+
+  for (const rpc of endpoints) {
+    for (const body of jsonBodies) {
       try {
-        const conn = new Connection(rpc, 'confirmed');
-        const lamports = await conn.getBalance(pk, 'confirmed');
-        primarySolanaRpc = rpc;
-        solBalance = lamports / 1e9;
-        syncBalanceLabels();
-        addLog(`Wallet balance: ${solBalance.toFixed(4)} SOL`, '#14F195', 'RPC');
-        return;
-      } catch (_) {}
+        const sigOpt = abortableFetchSignal(20000);
+        const signal = sigOpt.signal || sigOpt;
+        const r = await fetch(rpc, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body,
+          signal,
+          cache: 'no-store',
+          mode: 'cors',
+        });
+        if (sigOpt.cancel) sigOpt.cancel();
+        if (!r.ok) continue;
+        const d = await r.json();
+        if (d.error) {
+          console.warn('[YABBAI][SOL]', rpc, d.error);
+          continue;
+        }
+        const lamports = lamportsFromGetBalanceJson(d);
+        if (lamports != null && applyLamports(lamports, rpc, '(http)')) return;
+      } catch (e) {
+        console.warn('[YABBAI][SOL] fetch', rpc, e?.message || e);
+      }
     }
-  } catch (e) {
-    console.warn('[YABBAI][SOL] web3 fallback', e);
   }
 
   addLog('Balance fetch failed — set window.YABBAI_SOLANA_RPC in mission-config.js (private RPC)', '#ffc200', 'RPC');
-  toast('Could not load SOL balance (public RPC busy). Add YABBAI_SOLANA_RPC in mission-config.js.', 'warn');
+  toast('Could not load SOL balance. Set YABBAI_SOLANA_RPC in mission-config.js (Helius/Alchemy RPC).', 'warn');
 }
 
 async function ensureBufferPolyfill() {
@@ -1241,10 +1304,17 @@ async function depositSolToTreasury() {
     return;
   }
 
-  const fromStr = provider.publicKey.toString();
-  if (fromStr !== walletAddr) {
+  const fromStr = provider.publicKey.toString().trim();
+  if (fromStr !== (walletAddr || '').trim()) {
     walletAddr = fromStr;
     localStorage.setItem('yabbai_wallet', walletAddr);
+    await fetchWalletBalance();
+  }
+
+  // First RPC poll sometimes returns 0 from congested public endpoints — refetch once before blocking deposit
+  if (solBalance <= 0) {
+    await new Promise(r => setTimeout(r, 650));
+    await fetchWalletBalance();
   }
 
   const reserve = 0.02;
