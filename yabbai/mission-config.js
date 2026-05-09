@@ -19,8 +19,30 @@ window.YABBAI_MISSION_API = '';
 window.YABBAI_PAYOUT_API = '';
 
 /**
+ * On-chain deposit receiver (Solana pubkey, base58). Use the same name as server/Worker env
+ * `YABBAI_TREASURY_RECEIVER` so ops can grep one string across static + backend configs.
+ * Alias: `window.YABBAI_TREASURY_ADDRESS` (either wins if set).
+ * Optional HTML: `<meta name="yabbai-treasury-receiver" content="YourPubkey...">` in `index.html`
+ * overrides both (useful for host-specific injects).
+ */
+window.YABBAI_TREASURY_RECEIVER = '';
+window.YABBAI_TREASURY_ADDRESS = '';
+
+/**
+ * Extra SPL mints (comma-separated base58) to show balances for in the wallet chip (RPC read only).
+ * The $YABBAI mint is always watched. Users can add more from the Deposit tab ("paste mint").
+ */
+window.YABBAI_SPL_WATCHLIST = '';
+
+/**
  * Strongly recommended on IPFS / 4EVERLAND: public mainnet RPC often blocks or rate-limits browser `fetch`,
  * so the wallet chip shows "—" until this is set. Use a free Helius / Alchemy / QuickNode mainnet HTTPS URL.
  * Example: window.YABBAI_SOLANA_RPC = 'https://mainnet.helius-rpc.com/?api-key=YOUR_KEY';
  */
 window.YABBAI_SOLANA_RPC = '';
+
+/**
+ * Phantom / wallet note: SOL and SPL balances on this page come from Solana JSON-RPC
+ * (`getBalance`, `getParsedTokenAccountsByOwner`), not from the extension UI. Phantom does not
+ * grant a separate "token balance permission"; if balances stay blank, set YABBAI_SOLANA_RPC above.
+ */

@@ -3,6 +3,8 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<!-- Optional: set treasury receiver without editing mission-config.js (host inject / CMS). -->
+<meta name="yabbai-treasury-receiver" content="">
 <title>$YABBAI — Autonomous Income Generator · Solana</title>
 <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=Azeret+Mono:wght@300;400;500&family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <style>
@@ -305,7 +307,7 @@ body::before{content:'';position:fixed;inset:0;z-index:0;pointer-events:none;
     <span class="ticker-item" id="tickPrice">PRICE: FETCHING...</span>
     <span class="ticker-item" id="tickMcap">MCAP: FETCHING...</span>
     <span class="ticker-item">◈ PUMP · ESKY · MISSION · SCALE · WITHDRAW</span>
-    <span class="ticker-item">◈ TREASURY: 8e6ogxf...UHPi</span>
+    <span class="ticker-item">◈ TREASURY: <span class="js-treasury-short">8e6ogxf...UHPi</span></span>
     <span class="ticker-item">◈ MINT: AcEVtp...LFUv</span>
     <span class="ticker-item">◈ 14 APIs LIVE</span>
     <span class="ticker-item">◈ PAYPAL AUTOPAYOUT ACTIVE</span>
@@ -313,7 +315,7 @@ body::before{content:'';position:fixed;inset:0;z-index:0;pointer-events:none;
     <span class="ticker-item" id="tickPrice2">PRICE: FETCHING...</span>
     <span class="ticker-item" id="tickMcap2">MCAP: FETCHING...</span>
     <span class="ticker-item">◈ PUMP · ESKY · MISSION · SCALE · WITHDRAW</span>
-    <span class="ticker-item">◈ TREASURY: 8e6ogxf...UHPi</span>
+    <span class="ticker-item">◈ TREASURY: <span class="js-treasury-short">8e6ogxf...UHPi</span></span>
     <span class="ticker-item">◈ MINT: AcEVtp...LFUv</span>
     <span class="ticker-item">◈ 14 APIs LIVE</span>
     <span class="ticker-item">◈ PAYPAL AUTOPAYOUT ACTIVE</span>
@@ -326,6 +328,7 @@ body::before{content:'';position:fixed;inset:0;z-index:0;pointer-events:none;
   <div class="tb-nav">
     <div class="tn active" onclick="showPage('dashboard')" data-page="dashboard">Dashboard</div>
     <div class="tn" onclick="showPage('missions')" data-page="missions">Missions</div>
+    <div class="tn" onclick="showPage('deposit')" data-page="deposit">Deposit</div>
     <div class="tn" onclick="showPage('cashout')" data-page="cashout">Cashout</div>
     <div class="tn" onclick="showPage('lp')" data-page="lp">LP Manager</div>
     <div class="tn" onclick="showPage('ecosystem')" data-page="ecosystem">Ecosystem</div>
@@ -374,7 +377,7 @@ body::before{content:'';position:fixed;inset:0;z-index:0;pointer-events:none;
   <!-- TREASURY -->
   <div class="treasury-strip">
     <span class="ts-label">◆ Master Treasury</span>
-    <span class="ts-addr">8e6ogxfUnj6YXHp1tR4Kj1ytSkmEhLhi2fbKqRVxUHPi</span>
+    <span class="ts-addr js-treasury-full">8e6ogxfUnj6YXHp1tR4Kj1ytSkmEhLhi2fbKqRVxUHPi</span>
     <span class="ts-copy" onclick="copyTreasury()">Copy</span>
   </div>
 
@@ -414,6 +417,10 @@ body::before{content:'';position:fixed;inset:0;z-index:0;pointer-events:none;
         </div>
         <div style="font-family:'Azeret Mono',monospace;font-size:0.6rem;color:var(--dim);margin-bottom:12px" id="depositUsd">≈ $0.00 USD</div>
         <div id="rpcBalanceHint" class="vault-note" style="display:none;margin-bottom:10px;border-color:rgba(255,194,0,0.35);color:var(--gold)"></div>
+        <label class="vault-note" style="display:flex;align-items:center;gap:8px;cursor:pointer;margin-bottom:10px;border-color:var(--wire2)">
+          <input type="checkbox" id="depositDryRunDash" style="accent-color:var(--neon)">
+          <span>Dry run only (show summary, do not open wallet)</span>
+        </label>
         <button class="cashout-execute" id="depositBtn" type="button" onclick="depositSolToTreasury()" style="background:linear-gradient(135deg,#1a0d2e,rgba(153,69,255,0.85));color:#fff">◎ Confirm deposit</button>
       </div>
       <div class="cashout-panel" style="margin:0;border-color:rgba(20,241,149,0.22)">
@@ -468,6 +475,15 @@ body::before{content:'';position:fixed;inset:0;z-index:0;pointer-events:none;
     <div><div class="sh-title">Mission Control</div><div class="sh-sub">AI missions use a separate API URL (see mission-config.js) — 4EVERLAND hosts static files only</div></div>
   </div>
 
+  <div class="treasury-strip" style="margin-bottom:20px">
+    <span class="ts-label">◆ Treasury receiver</span>
+    <span class="ts-addr js-treasury-full">8e6ogxfUnj6YXHp1tR4Kj1ytSkmEhLhi2fbKqRVxUHPi</span>
+    <span class="ts-copy" onclick="copyTreasury()">Copy</span>
+  </div>
+  <div class="vault-note" style="margin-bottom:18px;border-color:rgba(153,69,255,0.25)">
+    Fund the treasury with <strong>SOL</strong> (signed transfer from the <strong>Deposit</strong> tab or Platform Vault on Dashboard) or send <strong>any SPL token</strong> from your wallet app to this same address — the receiver is one Solana account; token accounts are created by the wallet/protocol as usual.
+  </div>
+
   <!-- AI BRAIN -->
   <div class="section">
     <div class="ai-panel">
@@ -504,6 +520,64 @@ body::before{content:'';position:fixed;inset:0;z-index:0;pointer-events:none;
       <button class="btn btn-outline" style="font-size:0.72rem;padding:7px 14px" onclick="runAllMissions()">▶ Run All</button>
     </div>
     <div class="missions-grid" id="missionsGrid"></div>
+  </div>
+
+</div>
+
+<!-- ── DEPOSIT ── -->
+<div id="page-deposit" class="page-section">
+
+  <div class="section-header">
+    <div><div class="sh-title">Deposit</div><div class="sh-sub">SOL + SPL to treasury · on-chain transfers only when you confirm in your wallet</div></div>
+  </div>
+
+  <div class="treasury-strip" style="margin-bottom:16px">
+    <span class="ts-label">◆ Treasury receiver (SOL & SPL)</span>
+    <span class="ts-addr js-treasury-full">8e6ogxfUnj6YXHp1tR4Kj1ytSkmEhLhi2fbKqRVxUHPi</span>
+    <span class="ts-copy" onclick="copyTreasury()">Copy</span>
+  </div>
+
+  <div class="vault-note" style="margin-bottom:20px;line-height:1.65">
+    <strong>SOL:</strong> use the form below — the app builds a normal transfer and your wallet (Phantom, etc.) asks you to sign. Nothing is sent automatically.
+    <br><strong>SPL tokens:</strong> send from Phantom’s Send flow to this treasury address; pick the token there. Unknown mints may need an associated token account — treat large sends as irreversible.
+    <br><strong>Config:</strong> set <code>window.YABBAI_TREASURY_RECEIVER</code> in <code>mission-config.js</code> (recommended env name <code>YABBAI_TREASURY_RECEIVER</code> for parity with backends).
+  </div>
+
+  <div class="vault-panel" style="margin-bottom:24px">
+    <div class="vault-head">
+      <div class="vault-hero">
+        <div class="vault-title">◎ On-chain SOL deposit</div>
+        <div class="vault-sub">Same flow as Platform Vault on Dashboard — credits your local vault allocation after confirmation. Requires <strong>mainnet</strong> in your wallet.</div>
+      </div>
+    </div>
+    <div class="cashout-panel" style="margin:0;border-color:rgba(153,69,255,0.25);max-width:520px">
+      <div class="cp-header">
+        <div class="cp-icon">↓</div>
+        <div><div class="cp-title">Amount (SOL)</div></div>
+      </div>
+      <div class="cashout-amount">
+        <input class="ca-input" id="depositTabAmt" type="number" placeholder="0.00" min="0" step="0.0001">
+        <button class="ca-max" type="button" onclick="setMaxDeposit()">MAX</button>
+      </div>
+      <div style="font-family:'Azeret Mono',monospace;font-size:0.6rem;color:var(--dim);margin-bottom:12px" id="depositTabUsd">≈ $0.00 USD</div>
+      <label class="vault-note" style="display:flex;align-items:center;gap:8px;cursor:pointer;margin-bottom:10px;border-color:var(--wire2)">
+        <input type="checkbox" id="depositDryRun" style="accent-color:var(--neon)">
+        <span>Dry run only (summary, no wallet)</span>
+      </label>
+      <button class="cashout-execute" id="depositTabBtn" type="button" onclick="depositSolToTreasury()" style="background:linear-gradient(135deg,#1a0d2e,rgba(153,69,255,0.85));color:#fff">◎ Sign deposit in wallet</button>
+    </div>
+  </div>
+
+  <div class="section-header" style="margin-top:8px">
+    <div><div class="sh-title">Track SPL balance</div><div class="sh-sub">Optional — paste a mint to show UI amount next to your wallet (RPC only)</div></div>
+  </div>
+  <div class="cashout-panel" style="max-width:520px">
+    <div style="font-family:'Azeret Mono',monospace;font-size:0.56rem;color:var(--dim);text-transform:uppercase;letter-spacing:0.08em;margin-bottom:6px">Token mint (base58)</div>
+    <div class="cashout-amount">
+      <input class="ca-input" id="pasteMintInput" type="text" placeholder="Mint address…" autocomplete="off">
+      <button class="ca-max" type="button" onclick="addTrackedMintFromInput()">Add</button>
+    </div>
+    <div style="font-family:'Azeret Mono',monospace;font-size:0.55rem;color:var(--muted);margin-top:10px" id="trackedMintsHint">$YABBAI mint is always tracked when connected.</div>
   </div>
 
 </div>
@@ -545,7 +619,7 @@ body::before{content:'';position:fixed;inset:0;z-index:0;pointer-events:none;
         <div class="co-option selected" data-method="wallet" onclick="selectCashout(this)">
           <div class="co-icon">◎</div>
           <div class="co-name">Solana Wallet</div>
-          <div class="co-desc">Send SOL to 8e6ogxf...UHPi</div>
+          <div class="co-desc js-treasury-cashout-desc">Send SOL to treasury · use Deposit tab for in-app signed send</div>
         </div>
         <div class="co-option" data-method="paypal" onclick="selectCashout(this)">
           <div class="co-icon">🅿</div>
@@ -654,7 +728,7 @@ body::before{content:'';position:fixed;inset:0;z-index:0;pointer-events:none;
 
   <div class="treasury-strip">
     <span class="ts-label">◆ Master Treasury</span>
-    <span class="ts-addr">8e6ogxfUnj6YXHp1tR4Kj1ytSkmEhLhi2fbKqRVxUHPi</span>
+    <span class="ts-addr js-treasury-full">8e6ogxfUnj6YXHp1tR4Kj1ytSkmEhLhi2fbKqRVxUHPi</span>
     <span class="ts-copy" onclick="copyTreasury()">Copy</span>
   </div>
 
@@ -701,7 +775,10 @@ body::before{content:'';position:fixed;inset:0;z-index:0;pointer-events:none;
 // ── CONFIG ──────────────────────────────────────────────
 const MINT     = 'AcEVtpLEfxMHFzXQrhJiDhoWCkLVYH3drD2cxNAzLFUv';
 const POOL     = 'DaxLJ5mRkqWtfhFBKtibtGSYaiE7zFrtgsi5evmVBAax';
-const TREASURY = '8e6ogxfUnj6YXHp1tR4Kj1ytSkmEhLhi2fbKqRVxUHPi';
+const DEFAULT_TREASURY = '8e6ogxfUnj6YXHp1tR4Kj1ytSkmEhLhi2fbKqRVxUHPi';
+/** Mainnet-beta genesis — used to block deposits on devnet/testnet wallets. */
+const MAINNET_GENESIS_HASH = 'EtWTRABZaYq6iMfeYKouRu166VU2xqa1wcaWoxeehBOw';
+const MIN_DEPOSIT_SOL = 1e-6;
 const PAYPAL   = 'basham_x@protonmail.com';
 const PUMP_URL = `https://pump.fun/coin/${MINT}`;
 const DEX_URL  = `https://dexscreener.com/solana/${POOL}`;
@@ -713,6 +790,103 @@ const DEX_URL  = `https://dexscreener.com/solana/${POOL}`;
 const MISSION_API = (typeof window !== 'undefined' && window.YABBAI_MISSION_API && String(window.YABBAI_MISSION_API).trim())
   ? String(window.YABBAI_MISSION_API).trim()
   : '';
+
+/**
+ * Treasury receiver: meta tag (host inject) > window.YABBAI_TREASURY_RECEIVER > YABBAI_TREASURY_ADDRESS > default.
+ * Recommended env-style name for ops: YABBAI_TREASURY_RECEIVER (set on window in mission-config.js for static hosts).
+ */
+function getTreasuryAddress() {
+  let meta = '';
+  try {
+    meta = document.querySelector('meta[name="yabbai-treasury-receiver"]')?.getAttribute('content')?.trim() || '';
+  } catch (_) {}
+  const w1 =
+    typeof window !== 'undefined' && window.YABBAI_TREASURY_RECEIVER && String(window.YABBAI_TREASURY_RECEIVER).trim();
+  const w2 =
+    typeof window !== 'undefined' && window.YABBAI_TREASURY_ADDRESS && String(window.YABBAI_TREASURY_ADDRESS).trim();
+  const raw = (meta || w1 || w2 || DEFAULT_TREASURY || '').trim();
+  return raw;
+}
+
+function treasuryShortAddr(addr) {
+  const s = String(addr || '').trim();
+  if (s.length < 14) return s || '—';
+  return s.slice(0, 8) + '...' + s.slice(-4);
+}
+
+function applyTreasuryToDom() {
+  const addr = getTreasuryAddress();
+  document.querySelectorAll('.js-treasury-full').forEach(el => {
+    el.textContent = addr;
+  });
+  document.querySelectorAll('.js-treasury-short').forEach(el => {
+    el.textContent = treasuryShortAddr(addr);
+  });
+  const short = treasuryShortAddr(addr);
+  document.querySelectorAll('.js-treasury-cashout-desc').forEach(el => {
+    el.textContent = `Treasury ${short} · Deposit tab signs SOL in-app`;
+  });
+}
+
+function getUserTrackedMintsOnly() {
+  try {
+    const raw = localStorage.getItem('yabbai_tracked_mints');
+    const arr = raw ? JSON.parse(raw) : [];
+    if (!Array.isArray(arr)) return [];
+    return arr.map(x => String(x).trim()).filter(Boolean).slice(0, 24);
+  } catch (_) {
+    return [];
+  }
+}
+
+function saveTrackedMints(userList) {
+  try {
+    localStorage.setItem('yabbai_tracked_mints', JSON.stringify(userList.slice(0, 24)));
+  } catch (_) {}
+}
+
+/** SPL mints to show next to wallet chip: $YABBAI + config watchlist + user-pasted mints. */
+function getTrackedMintStrings() {
+  const out = [];
+  const push = (x) => {
+    const t = String(x || '').trim();
+    if (t && !out.includes(t)) out.push(t);
+  };
+  push(MINT);
+  try {
+    const w = typeof window !== 'undefined' && window.YABBAI_SPL_WATCHLIST;
+    if (w) String(w).split(/[\s,]+/).forEach(push);
+  } catch (_) {}
+  getUserTrackedMintsOnly().forEach(push);
+  return out;
+}
+
+function addTrackedMintFromInput() {
+  const inp = document.getElementById('pasteMintInput');
+  const raw = (inp && inp.value ? inp.value : '').trim();
+  if (!raw) {
+    toast('Paste a mint address first', 'warn');
+    return;
+  }
+  if (raw.length < 32 || raw.length > 64) {
+    toast('Mint looks invalid (length)', 'error');
+    return;
+  }
+  const user = getUserTrackedMintsOnly();
+  if (user.includes(raw) || raw === MINT) {
+    toast('Already tracking that mint', '');
+    return;
+  }
+  user.push(raw);
+  saveTrackedMints(user);
+  if (inp) inp.value = '';
+  const hint = document.getElementById('trackedMintsHint');
+  if (hint) hint.textContent = 'Mint saved — balances refresh on next RPC poll.';
+  toast('Mint added to watch list');
+  if (walletAddr) fetchWalletBalance();
+}
+
+let splWalletLines = [];
 
 /** Some wallets expose the RPC they use — often more reliable from the browser than our public list. */
 function collectWalletRpcHints() {
@@ -1154,7 +1328,12 @@ async function connectWallet(type) {
       return;
     }
 
-    const connectResult = await provider.connect();
+    let connectResult;
+    try {
+      connectResult = await provider.connect({ onlyIfTrusted: false });
+    } catch (e0) {
+      connectResult = await provider.connect();
+    }
     walletAddr = readProviderPublicKeyString(provider, connectResult);
     if (!walletAddr) {
       throw new Error('Wallet did not return a public key');
@@ -1418,6 +1597,69 @@ async function fetchWalletBalance() {
   solBalanceFetchOk = false;
   syncBalanceLabels();
   toast('Could not load SOL balance in-browser. You can still deposit — wallet shows real SOL. Set YABBAI_SOLANA_RPC for live chip.', 'warn');
+  try {
+    await refreshSplTokenBalances(pk, web3, endpoints);
+  } catch (_) {}
+}
+
+async function assertMainnetRpc(connection) {
+  const gh = await connection.getGenesisHash();
+  if (gh !== MAINNET_GENESIS_HASH) {
+    throw new Error(`Wrong Solana cluster — use Mainnet (expected genesis, got ${(gh || '').slice(0, 12)}…)`);
+  }
+}
+
+async function refreshSplTokenBalances(ownerPk, web3Mod, rpcList) {
+  splWalletLines = [];
+  const mints = getTrackedMintStrings();
+  if (!ownerPk || !web3Mod || !mints.length) {
+    renderWalletUI();
+    return;
+  }
+  const { Connection, PublicKey } = web3Mod;
+  const orderedRpc = [];
+  const pushRpc = (u) => {
+    if (u && typeof u === 'string' && !orderedRpc.includes(u)) orderedRpc.push(u);
+  };
+  if (primarySolanaRpc) pushRpc(primarySolanaRpc);
+  (rpcList || []).forEach(pushRpc);
+
+  const fetchLines = async (rpc) => {
+    const c = new Connection(rpc, 'confirmed');
+    const lines = [];
+    for (const m of mints) {
+      let mintPk;
+      try {
+        mintPk = new PublicKey(m);
+      } catch (_) {
+        continue;
+      }
+      try {
+        const rows = await c.getParsedTokenAccountsByOwner(ownerPk, { mint: mintPk }, 'confirmed');
+        let ui = 0;
+        const infos = rows && rows.value ? rows.value : [];
+        for (const row of infos) {
+          const amt = row?.account?.data?.parsed?.info?.tokenAmount?.uiAmount;
+          if (typeof amt === 'number' && Number.isFinite(amt)) ui += amt;
+        }
+        if (ui > 0) lines.push({ mint: m, ui });
+      } catch (_) {
+        /* ignore per-mint */
+      }
+    }
+    return lines;
+  };
+
+  for (const rpc of orderedRpc.slice(0, 8)) {
+    try {
+      splWalletLines = await fetchLines(rpc);
+      renderWalletUI();
+      return;
+    } catch (_) {
+      splWalletLines = [];
+    }
+  }
+  renderWalletUI();
 }
 
 async function ensureBufferPolyfill() {
