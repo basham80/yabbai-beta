@@ -421,7 +421,7 @@ body::before{content:'';position:fixed;inset:0;z-index:0;pointer-events:none;
 <div id="page-missions" class="page-section">
 
   <div class="section-header">
-    <div><div class="sh-title">Mission Control</div><div class="sh-sub">Deploy autonomous income missions via Claude AI</div></div>
+    <div><div class="sh-title">Mission Control</div><div class="sh-sub">AI missions use a separate API URL (see mission-config.js) — 4EVERLAND hosts static files only</div></div>
   </div>
 
   <!-- AI BRAIN -->
@@ -431,7 +431,7 @@ body::before{content:'';position:fixed;inset:0;z-index:0;pointer-events:none;
         <div class="ai-orb">🧠</div>
         <div>
           <div class="ai-title">YABBAI AI Brain</div>
-          <div class="ai-model" id="aiModelLabel">Claude Sonnet 4 · Auto-routing</div>
+          <div class="ai-model" id="aiModelLabel">Claude Sonnet (Anthropic)</div>
         </div>
         <div style="margin-left:auto;display:flex;gap:6px;align-items:center">
           <div style="font-family:'Azeret Mono',monospace;font-size:0.58rem;color:var(--neon)">● ONLINE</div>
@@ -439,7 +439,7 @@ body::before{content:'';position:fixed;inset:0;z-index:0;pointer-events:none;
       </div>
       <textarea class="ai-input" id="aiPrompt" placeholder="Describe your mission... e.g. Generate community growth for $YABBAI by finding new holders on Twitter and Telegram. Reinvest 70% of yield into LP. Target: reach $5K market cap by end of week."></textarea>
       <div class="ai-controls">
-        <select class="ai-model-select" id="aiModel">
+        <select class="ai-model-select" id="aiModel" onchange="syncAiModelLabel()">
           <option value="claude">Claude Sonnet 4</option>
           <option value="kimi">Kimi 2.5</option>
           <option value="auto">Auto (Claude → Kimi fallback)</option>
@@ -652,6 +652,7 @@ body::before{content:'';position:fixed;inset:0;z-index:0;pointer-events:none;
 
 </div><!-- /main -->
 
+<script src="mission-config.js"></script>
 <script>
 // ── CONFIG ──────────────────────────────────────────────
 const MINT     = 'AcEVtpLEfxMHFzXQrhJiDhoWCkLVYH3drD2cxNAzLFUv';
@@ -661,6 +662,14 @@ const PAYPAL   = 'basham_x@protonmail.com';
 const RPC      = 'https://api.mainnet-beta.solana.com';
 const PUMP_URL = `https://pump.fun/coin/${MINT}`;
 const DEX_URL  = `https://dexscreener.com/solana/${POOL}`;
+/**
+ * AI proxy URL (keys live only on that server — never in this static bundle).
+ * Set window.YABBAI_MISSION_API in mission-config.js (e.g. Cloudflare Worker URL).
+ * 4EVERLAND is static-only; deploy the Worker separately and paste its URL here.
+ */
+const MISSION_API = (typeof window !== 'undefined' && window.YABBAI_MISSION_API && String(window.YABBAI_MISSION_API).trim())
+  ? String(window.YABBAI_MISSION_API).trim()
+  : '';
 
 let walletAddr = null;
 let solBalance = 0;
@@ -752,8 +761,7 @@ async function connectWallet(type) {
 
     await fetchSolPrice();
     await fetchWalletBalance();
-    updateDepositUsd();
-    renderWalletUI();
+    syncBalanceLabels();
     toast(`✓ Connected: ${walletAddr.slice(0,6)}...${walletAddr.slice(-4)}`);
   } catch(e) {
     toast('Connection failed: ' + e.message, 'error');
@@ -765,6 +773,19 @@ function abortableFetchSignal(ms) {
   const c = new AbortController();
   const t = setTimeout(() => c.abort(), ms);
   return { signal: c.signal, cancel: () => clearTimeout(t) };
+}
+
+/** Keeps cashout bar, top wallet chip, and deposit USD in sync with solBalance + solPrice */
+function syncBalanceLabels() {
+  if (!walletAddr) return;
+  const usdTxt =
+    Number.isFinite(solPrice) && solPrice > 0 && Number.isFinite(solBalance)
+      ? (solBalance * solPrice).toFixed(2)
+      : '—';
+  const cp = document.getElementById('cpBalance');
+  if (cp) cp.textContent = `Balance: ${solBalance.toFixed(4)} SOL · $${usdTxt}`;
+  renderWalletUI();
+  updateDepositUsd();
 }
 
 async function fetchWalletBalance() {
@@ -790,13 +811,12 @@ async function fetchWalletBalance() {
       const lamports = d.result?.value;
       if (lamports !== undefined) {
         solBalance = lamports / 1e9;
-        const balStr = `${solBalance.toFixed(4)} SOL`;
-        const usdStr = `$${(solBalance * solPrice).toFixed(2)}`;
-        const el = document.getElementById('cpBalance');
-        if (el) el.textContent = `Balance: ${balStr} · ${usdStr}`;
-        addLog(`Wallet balance: ${balStr} (${usdStr})`, '#14F195', 'RPC');
-        renderWalletUI();
-        updateDepositUsd();
+        syncBalanceLabels();
+        addLog(
+          `Wallet balance: ${solBalance.toFixed(4)} SOL`,
+          '#14F195',
+          'RPC'
+        );
         return;
       }
     } catch(e) { continue; }
@@ -932,7 +952,7 @@ function renderWalletUI() {
         <div class="w-dot"></div>
         <div>
           <div class="w-addr">${icons[walletType]} ${walletAddr.slice(0,6)}...${walletAddr.slice(-4)}</div>
-          <div class="w-bal">${solBalance.toFixed(4)} SOL · $${(solBalance*solPrice).toFixed(2)}</div>
+          <div class="w-bal">${solBalance.toFixed(4)} SOL · ${(Number.isFinite(solPrice) && solPrice > 0) ? '$'+(solBalance*solPrice).toFixed(2) : '$—'}</div>
         </div>
       </div>
       <button class="btn btn-outline" style="font-size:0.65rem;padding:7px 10px" onclick="disconnectWallet()">✕</button>
@@ -962,8 +982,6 @@ async function restoreWalletSession() {
   const savedType = localStorage.getItem('yabbai_wallet_type') || 'phantom';
   if (!saved) return;
 
-  await fetchSolPrice();
-
   const provider = getWalletProviderByType(savedType);
   try {
     if (provider) {
@@ -983,29 +1001,55 @@ async function restoreWalletSession() {
     walletAddr = saved;
   }
 
+  await fetchSolPrice();
   await fetchWalletBalance();
-  updateDepositUsd();
-  renderWalletUI();
+  syncBalanceLabels();
 }
 
 // ── LIVE DATA ────────────────────────────────────────────
 async function fetchSolPrice() {
+  let price = null;
+
   try {
-    const r = await fetch(`https://api.jup.ag/price/v2?ids=So11111111111111111111111111111111111111112`);
+    const r = await fetch(
+      'https://api.jup.ag/price/v2?ids=So11111111111111111111111111111111111111112'
+    );
     const d = await r.json();
-    const p = d?.data?.['So11111111111111111111111111111111111111112']?.price;
-    if (p) {
-      solPrice = parseFloat(p);
-      const el = document.getElementById('statSol');
-      if (el) el.textContent = '$'+solPrice.toFixed(2);
-      if (walletAddr) {
-        const cp = document.getElementById('cpBalance');
-        if (cp) cp.textContent = `Balance: ${solBalance.toFixed(4)} SOL · $${(solBalance * solPrice).toFixed(2)}`;
-        renderWalletUI();
-        updateDepositUsd();
-      }
-    }
-  } catch {}
+    const entry = d?.data?.['So11111111111111111111111111111111111111112'];
+    const raw = typeof entry === 'object' && entry !== null ? entry.price : entry;
+    const p = raw != null ? parseFloat(raw) : NaN;
+    if (Number.isFinite(p) && p > 0) price = p;
+  } catch (_) {}
+
+  if (!price) {
+    try {
+      const r = await fetch(
+        'https://api.coingecko.com/api/v3/simple/price?ids=solana&vs_currencies=usd'
+      );
+      const d = await r.json();
+      const p = parseFloat(d?.solana?.usd);
+      if (Number.isFinite(p) && p > 0) price = p;
+    } catch (_) {}
+  }
+
+  if (!price) {
+    try {
+      const r = await fetch(
+        'https://api.binance.com/api/v3/ticker/price?symbol=SOLUSDT'
+      );
+      const d = await r.json();
+      const p = parseFloat(d?.price);
+      if (Number.isFinite(p) && p > 0) price = p;
+    } catch (_) {}
+  }
+
+  if (price && Number.isFinite(price) && price > 0) {
+    solPrice = price;
+    const el = document.getElementById('statSol');
+    if (el) el.textContent = '$' + solPrice.toFixed(2);
+  }
+
+  syncBalanceLabels();
 }
 
 async function fetchTokenData() {
@@ -1053,14 +1097,60 @@ async function fetchTokenData() {
   }
 }
 
-// ── AI BRAIN ─────────────────────────────────────────────
+// ── AI BRAIN (MISSION_API from mission-config.js) ─────────
+function syncAiModelLabel() {
+  const sel = document.getElementById('aiModel')?.value || 'auto';
+  const labels = {
+    claude: 'Claude Sonnet (Anthropic)',
+    kimi: 'Kimi / Moonshot',
+    auto: 'Auto · Claude first, then Kimi fallback',
+  };
+  const el = document.getElementById('aiModelLabel');
+  if (el) el.textContent = labels[sel] || labels.auto;
+}
+
+async function fetchMissionApiStatus() {
+  if (!MISSION_API) {
+    addLog('AI: set YABBAI_MISSION_API in mission-config.js (e.g. Cloudflare Worker) — see workers/wrangler.toml', '#ffc200', 'AI');
+    return;
+  }
+  try {
+    const r = await fetch(MISSION_API, { method: 'GET' });
+    if (!r.ok) return;
+    const d = await r.json();
+    const ok = [];
+    if (d.anthropicConfigured) ok.push('Anthropic ✓');
+    if (d.moonshotConfigured) ok.push('Moonshot ✓');
+    if (ok.length) addLog(`AI backend ready · ${ok.join(' · ')}`, '#14F195', 'AI');
+    else addLog('AI backend: set ANTHROPIC_API_KEY / MOONSHOT_API_KEY as Worker secrets', '#ffc200', 'AI');
+  } catch (_) {
+    addLog('AI backend not reachable — check MISSION_API URL and CORS', '#ffc200', 'AI');
+  }
+}
+
 async function callAI(prompt, context='mission') {
   const btn = document.getElementById('aiDeployBtn');
   const resp = document.getElementById('aiResponse');
   if (btn) { btn.disabled = true; btn.innerHTML = '<div class="ai-spinner"></div> Deploying...'; }
   if (resp) { resp.style.display = 'block'; resp.textContent = ''; resp.innerHTML = '<div class="ai-loading"><div class="ai-spinner"></div>AI brain processing mission...</div>'; }
 
-  const model = document.getElementById('aiModel')?.value || 'claude';
+  if (!MISSION_API) {
+    if (resp) {
+      resp.textContent =
+`⚠ No AI proxy URL configured.
+
+4EVERLAND only serves static files. Deploy the API separately (recommended: Cloudflare Worker in this repo under workers/), then edit yabbai/mission-config.js:
+
+  window.YABBAI_MISSION_API = 'https://your-worker.<subdomain>.workers.dev';
+
+Add secrets ANTHROPIC_API_KEY and/or MOONSHOT_API_KEY on the Worker. Manual mission cards below still work.`;
+    }
+    toast('Set mission-config.js with your Worker URL', 'warn');
+    if (btn) { btn.disabled = false; btn.innerHTML = '<span id="aiDeployIcon">⚡</span> Deploy Mission'; }
+    return;
+  }
+
+  const modelChoice = document.getElementById('aiModel')?.value || 'auto';
   const systemPrompt = `You are the YABBAI autonomous income mission brain.
 Treasury: ${TREASURY}
 Token: $YABBAI on Solana. Mint: ${MINT}
@@ -1070,27 +1160,56 @@ Always include: specific actions, timelines, expected outcomes.
 Be concise. Be specific. Think like a crypto growth hacker.`;
 
   try {
-    const apiResp = await fetch('https://api.anthropic.com/v1/messages', {
+    const apiResp = await fetch(MISSION_API, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'x-api-key': '', 'anthropic-version': '2023-06-01' },
-      body: JSON.stringify({ model:'claude-sonnet-4-20250514', max_tokens:800, system:systemPrompt, messages:[{role:'user',content:prompt}] }),
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        modelChoice,
+        prompt,
+        context,
+        system: systemPrompt,
+      }),
     });
 
-    if (apiResp.ok) {
-      const data = await apiResp.json();
-      const text = data.content?.map(b=>b.text||'').join('') || '';
-      if (resp) resp.textContent = text;
-      addLog('Mission deployed via Claude AI', '#9945FF', 'Claude');
-      toast('✓ Mission deployed by Claude AI');
-    } else {
-      throw new Error('Claude API key not set — add ANTHROPIC_API_KEY to Netlify env vars');
+    const raw = await apiResp.text();
+    let data = {};
+    try { data = JSON.parse(raw); } catch (_) {}
+
+    if (!apiResp.ok) {
+      throw new Error(data.error || raw || `HTTP ${apiResp.status}`);
     }
-  } catch(e) {
-    if (resp) resp.textContent = `⚠ AI API not configured.\n\nTo enable real AI missions:\n1. Go to Netlify → Site config → Environment variables\n2. Add: ANTHROPIC_API_KEY = your-key\n3. Redeploy\n\nFor now, use the manual mission buttons below. ↓`;
-    addLog('AI API not configured — manual missions available', '#ffc200', 'System');
+
+    const text = data.text || '';
+    const extra = data.fallbackNote ? `\n\n— Note: ${data.fallbackNote}` : '';
+    if (resp) resp.textContent = text + extra;
+
+    const src =
+      data.provider === 'moonshot' ? 'Kimi (Moonshot)' :
+      data.provider === 'anthropic' ? 'Claude' : 'AI';
+    addLog(`Mission response · ${src}`, '#9945FF', 'AI');
+    toast(`✓ Mission deployed (${src})`);
+  } catch (e) {
+    const msg = e?.message || String(e);
+    if (resp) {
+      resp.textContent =
+`⚠ AI request failed.
+
+${msg}
+
+Setup (keys never go in the browser):
+1. Deploy API: \`cd workers && wrangler deploy\` (set secrets ANTHROPIC_API_KEY, MOONSHOT_API_KEY)
+2. Put the Worker URL in yabbai/mission-config.js → window.YABBAI_MISSION_API
+3. Redeploy the static site on 4EVERLAND
+
+Alternative: Netlify Functions still supported via netlify/functions/mission.js + env vars.
+
+Manual mission cards below still work without AI.`;
+    }
+    addLog('AI mission error: ' + msg, '#ffc200', 'System');
+    toast('AI request failed — check Worker secrets & mission-config.js', 'error');
   }
 
-  if (btn) { btn.disabled = false; btn.innerHTML = '<span>⚡</span> Deploy Mission'; }
+  if (btn) { btn.disabled = false; btn.innerHTML = '<span id="aiDeployIcon">⚡</span> Deploy Mission'; }
 }
 
 async function deployMission() {
@@ -1265,12 +1384,15 @@ window.addEventListener('load', async () => {
 
   await restoreWalletSession();
 
+  syncAiModelLabel();
+  fetchMissionApiStatus();
+
   // Init
   renderMissions();
   fetchTokenData();
   setInterval(fetchTokenData, 30000);
   setInterval(fetchSolPrice, 60000);
-  setInterval(() => { if (walletAddr) { fetchWalletBalance(); updateDepositUsd(); } }, 45000);
+  setInterval(() => { if (walletAddr) fetchWalletBalance(); }, 45000);
 
   addLog('YABBAI engine initialised — all systems online', '#14F195', 'YABBAI');
   addLog(`Mint: ${MINT.slice(0,10)}...`, '#9945FF', '$YABBAI');
