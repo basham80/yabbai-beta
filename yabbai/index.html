@@ -786,8 +786,30 @@ const MIN_DEPOSIT_SOL = 1e-6;
  * We require: RPC balance >= transfer_amount + this reserve (when RPC is trusted and > 0).
  */
 const DEPOSIT_TX_FEE_RESERVE_LAMPORTS = 5000 + 5000 + 5000; // base sig fee + small priority buffer + rounding safety
+/** One base signature worth (~5000 lamports) — first successful deposit skips the extra conservative buffer above. */
+const DEPOSIT_MINIMAL_FEE_RESERVE_LAMPORTS = 5000;
 function depositTxFeeReserveSol() {
   return DEPOSIT_TX_FEE_RESERVE_LAMPORTS / 1e9;
+}
+/** localStorage key — set to '1' after first confirmed in-app SOL deposit in this browser. */
+const YABBAI_HAS_DEPOSITED_SOL_LS = 'yabbai_has_deposited_sol';
+
+/** True when balance checks / MAX should use minimal lamports (still non-zero for real sig fee). */
+function useMinimalDepositFeeReserveForChecks() {
+  try {
+    if (localStorage.getItem(YABBAI_HAS_DEPOSITED_SOL_LS) === '1') return false;
+  } catch (_) {}
+  // Old builds: vault already holds credited SOL for this wallet but flag was never set.
+  if (walletAddr) {
+    const v = loadVaultState();
+    if (v.totalSol > 0) return false;
+  }
+  return true;
+}
+
+/** Reserve subtracted from RPC balance for deposit MAX / insufficient-SOL pre-check (conservative unless first deposit). */
+function effectiveDepositFeeReserveSol() {
+  return useMinimalDepositFeeReserveForChecks() ? DEPOSIT_MINIMAL_FEE_RESERVE_LAMPORTS / 1e9 : depositTxFeeReserveSol();
 }
 const PAYPAL   = 'basham_x@protonmail.com';
 const PUMP_URL = `https://pump.fun/coin/${MINT}`;
@@ -1813,7 +1835,7 @@ function setMaxDeposit() {
     toast('MAX unavailable — RPC balance missing/zero here. Type SOL manually; Phantom shows real balance when you sign.', 'warn');
     return;
   }
-  const feeReserve = depositTxFeeReserveSol();
+  const feeReserve = effectiveDepositFeeReserveSol();
   const max = Math.max(0, solBalance - feeReserve);
   input.value = max > 0 ? max.toFixed(6) : '';
   syncDepositUsdFromInputs();
@@ -1824,7 +1846,7 @@ function syncDepositUsdFromInputs() {
   const syncOne = (amtEl, usdEl) => {
     if (!amtEl || !usdEl) return;
     const amt = parseFloat(amtEl.value || 0);
-    usdEl.textContent = `≈ $${(amt * px).toFixed(2)} USD · Amount sent to treasury; ~${depositTxFeeReserveSol().toFixed(6)} SOL network fee extra`;
+    usdEl.textContent = `≈ $${(amt * px).toFixed(2)} USD · Amount sent to treasury; ~${effectiveDepositFeeReserveSol().toFixed(6)} SOL reserved for network fee`;
   };
   syncOne(document.getElementById('depositAmt'), document.getElementById('depositUsd'));
   syncOne(document.getElementById('depositTabAmt'), document.getElementById('depositTabUsd'));
@@ -1873,7 +1895,7 @@ async function depositSolToTreasury() {
     await fetchWalletBalance();
   }
 
-  const feeReserveSol = depositTxFeeReserveSol();
+  const feeReserveSol = effectiveDepositFeeReserveSol();
   // Transfer lamports = user amount; chain deducts fee separately — require balance >= amount + estimated fee when RPC is trusted.
   // RPC "0 SOL" / untrusted: do not block (wallet enforces).
   if (solBalanceFetchOk && solBalance > 0 && amt + feeReserveSol > solBalance) {
@@ -1962,6 +1984,9 @@ async function depositSolToTreasury() {
         addLog(`Deposit confirmed · ${sigStr.slice(0, 10)}…`, '#14F195', 'Solana');
         toast('Deposit confirmed — vault credited');
         vaultCreditDeposit(amt);
+        try {
+          localStorage.setItem(YABBAI_HAS_DEPOSITED_SOL_LS, '1');
+        } catch (_) {}
         const da = document.getElementById('depositAmt');
         const dtab = document.getElementById('depositTabAmt');
         if (da) da.value = '';
