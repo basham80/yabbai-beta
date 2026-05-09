@@ -870,7 +870,7 @@ body::before{content:'';position:fixed;inset:0;z-index:0;pointer-events:none;
 
 </div><!-- /main -->
 
-<script src="mission-config.js?v=20260510c"></script>
+<script src="mission-config.js?v=20260510d"></script>
 <script>
 // ── CONFIG ──────────────────────────────────────────────
 const MINT     = 'AcEVtpLEfxMHFzXQrhJiDhoWCkLVYH3drD2cxNAzLFUv';
@@ -1672,7 +1672,7 @@ function resolveLiveWalletAddress() {
 let web3BalanceModulePromise = null;
 function loadWeb3BalanceModule() {
   if (!web3BalanceModulePromise) {
-    web3BalanceModulePromise = import('https://cdn.jsdelivr.net/npm/@solana/web3.js@1.95.3/+esm');
+    web3BalanceModulePromise = import('https://esm.sh/@solana/web3.js@1.95.3');
   }
   return web3BalanceModulePromise;
 }
@@ -2226,7 +2226,7 @@ async function depositSolToTreasury() {
 
   try {
     await ensureBufferPolyfill();
-    const web3 = await import('https://cdn.jsdelivr.net/npm/@solana/web3.js@1.95.3/+esm');
+    const web3 = await import('https://esm.sh/@solana/web3.js@1.95.3');
     const { Connection, Transaction, SystemProgram, PublicKey } = web3;
 
     const lamports = Math.round(amt * 1e9);
