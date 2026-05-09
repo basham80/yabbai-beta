@@ -1390,7 +1390,7 @@ async function connectWallet(type) {
       fetchSolPrice({ skipBalanceSync: true }),
       fetchWalletBalance(),
     ]);
-    if (solBalanceFetchOk && solBalance <= 0) {
+    if (solBalance <= 0) {
       await new Promise((r) => setTimeout(r, 650));
       await fetchWalletBalance();
     }
