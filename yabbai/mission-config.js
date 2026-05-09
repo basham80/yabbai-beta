@@ -60,7 +60,7 @@ window.YABBAI_SPL_WATCHLIST = '';
  *
  * Same variable is used for `Connection` in balance, SPL reads, and SOL deposits (`yabbai/index.html`).
  */
-window.YABBAI_SOLANA_RPC = '';
+window.YABBAI_SOLANA_RPC = 'https://mainnet.helius-rpc.com/?api-key=ef97adf5-e2b0-4870-a115-7d979424d895';
 
 /**
  * **Preferred path for reliable SOL balance** when set: the page calls this Worker first (GET), then falls back to browser RPC.
