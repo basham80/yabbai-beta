@@ -219,6 +219,19 @@ body::before{content:'';position:fixed;inset:0;z-index:0;pointer-events:none;
 
 /* TREASURY */
 .treasury-strip{background:rgba(153,69,255,0.05);border:1px solid rgba(153,69,255,0.15);border-radius:8px;padding:10px 16px;display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:20px;}
+.vault-panel{background:linear-gradient(165deg,rgba(20,241,149,0.06),rgba(153,69,255,0.05));border:2px solid rgba(20,241,149,0.22);border-radius:14px;padding:22px;margin-bottom:28px;}
+.vault-head{display:flex;flex-wrap:wrap;align-items:flex-start;justify-content:space-between;gap:16px;margin-bottom:18px;}
+.vault-hero{flex:1;min-width:200px;}
+.vault-title{font-family:'Syne',sans-serif;font-weight:700;font-size:1.15rem;color:var(--neon);margin-bottom:4px;}
+.vault-sub{font-family:'Azeret Mono',monospace;font-size:0.58rem;color:var(--dim);line-height:1.5;max-width:520px;}
+.vault-metrics{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:12px;margin-bottom:18px;}
+.vm-card{background:var(--plate2);border:1px solid var(--wire2);border-radius:10px;padding:14px;}
+.vm-val{font-family:'Syne',sans-serif;font-weight:700;font-size:1.35rem;background:linear-gradient(135deg,var(--neon),var(--arc));-webkit-background-clip:text;-webkit-text-fill-color:transparent;}
+.vm-lbl{font-family:'Azeret Mono',monospace;font-size:0.52rem;color:var(--dim);text-transform:uppercase;letter-spacing:0.08em;margin-top:6px;}
+.vm-pulse{font-family:'Azeret Mono',monospace;font-size:0.62rem;color:var(--gold);margin-top:6px;}
+.vault-split{display:grid;grid-template-columns:1fr 1fr;gap:14px;}
+@media(max-width:720px){.vault-split{grid-template-columns:1fr;}}
+.vault-note{font-family:'Azeret Mono',monospace;font-size:0.55rem;color:var(--muted);line-height:1.55;margin-top:12px;padding:10px;background:rgba(0,0,0,0.2);border-radius:8px;border:1px solid var(--wire);}
 .ts-label{font-family:'Azeret Mono',monospace;font-size:0.56rem;color:var(--sol);letter-spacing:0.08em;text-transform:uppercase;flex-shrink:0;}
 .ts-addr{font-family:'Azeret Mono',monospace;font-size:0.62rem;color:var(--neon);word-break:break-all;flex:1;}
 .ts-copy{font-family:'Azeret Mono',monospace;font-size:0.56rem;color:var(--dim);cursor:pointer;padding:3px 8px;border-radius:4px;border:1px solid var(--wire);flex-shrink:0;transition:all 0.15s;}
@@ -365,28 +378,58 @@ body::before{content:'';position:fixed;inset:0;z-index:0;pointer-events:none;
     <span class="ts-copy" onclick="copyTreasury()">Copy</span>
   </div>
 
-  <!-- DEPOSIT SOL (wallet signs transfer) -->
-  <div class="section">
-    <div class="cashout-panel" style="border-color:rgba(153,69,255,0.25)">
-      <div class="cp-header">
-        <div class="cp-icon">◎</div>
-        <div>
-          <div class="cp-title">Deposit SOL to Treasury</div>
-          <div style="font-family:'Azeret Mono',monospace;font-size:0.58rem;color:var(--dim);margin-top:3px">
-            Uses your connected wallet · approval opens in Phantom, Solflare, Backpack, etc.
-          </div>
-        </div>
+  <!-- PLATFORM VAULT (per-wallet allocation + simulated vault yield; deposits are on-chain to treasury) -->
+  <div class="vault-panel" id="vaultPanel">
+    <div class="vault-head">
+      <div class="vault-hero">
+        <div class="vault-title">◎ Platform Vault</div>
+        <div class="vault-sub">Deposits move SOL to treasury on-chain. This dashboard tracks your <strong>allocated balance</strong> for missions, LP routing, and simulated vault yield. Withdraw reduces your allocation record (beta — automated treasury → wallet payouts require backend settlement).</div>
       </div>
-      <div style="font-family:'Azeret Mono',monospace;font-size:0.56rem;color:var(--dim);text-transform:uppercase;letter-spacing:0.08em;margin-bottom:6px">Amount (SOL)</div>
-      <div class="cashout-amount">
-        <input class="ca-input" id="depositAmt" type="number" placeholder="0.00" min="0" step="0.0001">
-        <button class="ca-max" type="button" onclick="setMaxDeposit()">MAX</button>
-      </div>
-      <div style="font-family:'Azeret Mono',monospace;font-size:0.6rem;color:var(--dim);margin-bottom:14px" id="depositUsd">≈ $0.00 USD</div>
-      <button class="cashout-execute" id="depositBtn" type="button" onclick="depositSolToTreasury()" style="background:linear-gradient(135deg,#1a0d2e,rgba(153,69,255,0.85));color:#fff">
-        ◎ Deposit SOL → Treasury
-      </button>
     </div>
+    <div class="vault-metrics">
+      <div class="vm-card">
+        <div class="vm-val" id="vaultCircSol">0.0000</div>
+        <div class="vm-lbl">Circulating vault (SOL)</div>
+        <div class="vm-pulse" id="vaultYieldPulse">Yield engine idle</div>
+      </div>
+      <div class="vm-card">
+        <div class="vm-val" id="vaultCircUsd" style="-webkit-text-fill-color:var(--gold)">$0.00</div>
+        <div class="vm-lbl">Vault USD (estimate)</div>
+      </div>
+      <div class="vm-card">
+        <div class="vm-val" id="vaultApyLbl" style="font-size:1rem;-webkit-text-fill-color:var(--arc)">~15% APY</div>
+        <div class="vm-lbl">Simulated compound (illustrative)</div>
+      </div>
+    </div>
+    <div class="vault-split">
+      <div class="cashout-panel" style="margin:0;border-color:rgba(153,69,255,0.25)">
+        <div class="cp-header">
+          <div class="cp-icon">↓</div>
+          <div><div class="cp-title">Deposit to treasury & credit vault</div></div>
+        </div>
+        <div style="font-family:'Azeret Mono',monospace;font-size:0.56rem;color:var(--dim);text-transform:uppercase;letter-spacing:0.08em;margin-bottom:6px">Amount (SOL)</div>
+        <div class="cashout-amount">
+          <input class="ca-input" id="depositAmt" type="number" placeholder="0.00" min="0" step="0.0001">
+          <button class="ca-max" type="button" onclick="setMaxDeposit()">MAX</button>
+        </div>
+        <div style="font-family:'Azeret Mono',monospace;font-size:0.6rem;color:var(--dim);margin-bottom:12px" id="depositUsd">≈ $0.00 USD</div>
+        <button class="cashout-execute" id="depositBtn" type="button" onclick="depositSolToTreasury()" style="background:linear-gradient(135deg,#1a0d2e,rgba(153,69,255,0.85));color:#fff">◎ Confirm deposit</button>
+      </div>
+      <div class="cashout-panel" style="margin:0;border-color:rgba(20,241,149,0.22)">
+        <div class="cp-header">
+          <div class="cp-icon">↑</div>
+          <div><div class="cp-title">Withdraw allocation → wallet</div></div>
+        </div>
+        <div style="font-family:'Azeret Mono',monospace;font-size:0.56rem;color:var(--dim);text-transform:uppercase;letter-spacing:0.08em;margin-bottom:6px">Amount (SOL)</div>
+        <div class="cashout-amount">
+          <input class="ca-input" id="vaultWithdrawAmt" type="number" placeholder="0.00" min="0" step="0.0001">
+          <button class="ca-max" type="button" onclick="setMaxVaultWithdraw()">MAX</button>
+        </div>
+        <div style="font-family:'Azeret Mono',monospace;font-size:0.6rem;color:var(--dim);margin-bottom:12px" id="vaultWithdrawUsd">≈ $0.00 USD</div>
+        <button class="cashout-execute" id="vaultWithdrawBtn" type="button" onclick="withdrawVaultToWallet()" style="background:linear-gradient(135deg,#003320,var(--neon));color:#000">Withdraw to connected wallet</button>
+      </div>
+    </div>
+    <div class="vault-note" id="vaultLegalNote">Connect a wallet to manage your vault. On-chain deposits use your wallet signature. Withdrawals update your dashboard allocation; routing SOL from treasury back to your wallet in production is handled by settlement automation or ops (not embedded private keys in this static app).</div>
   </div>
 
   <!-- LIVE STATS -->
@@ -674,12 +717,251 @@ const MISSION_API = (typeof window !== 'undefined' && window.YABBAI_MISSION_API 
 let walletAddr = null;
 let solBalance = 0;
 let solPrice   = 88;
+try {
+  const _cachedUsd = parseFloat(localStorage.getItem('yabbai_sol_usd') || '');
+  if (Number.isFinite(_cachedUsd) && _cachedUsd > 1 && _cachedUsd < 500000) solPrice = _cachedUsd;
+} catch (_) {}
 let depositBusy = false;
 let tokenPrice = 0;
 let tokenMcap  = 313;
 let tokenLiq   = 0;
 let tokenVol   = 0;
 let selectedCashout = 'wallet';
+
+/** Platform vault: per-wallet ledger (local) + illustrative compound yield. Deposits credit after on-chain tx. */
+const VAULT_APY_ANNUAL = 0.15;
+
+function vaultStorageKey() {
+  return 'yabbai_vault_v1_' + (walletAddr || '');
+}
+
+function loadVaultState() {
+  try {
+    const raw = localStorage.getItem(vaultStorageKey());
+    if (!raw) return { totalSol: 0, lastYieldTs: Date.now(), depositedCumulative: 0 };
+    const o = JSON.parse(raw);
+    return {
+      totalSol: Math.max(0, Number(o.totalSol) || 0),
+      lastYieldTs: Number(o.lastYieldTs) || Date.now(),
+      depositedCumulative: Math.max(0, Number(o.depositedCumulative) || 0),
+    };
+  } catch (_) {
+    return { totalSol: 0, lastYieldTs: Date.now(), depositedCumulative: 0 };
+  }
+}
+
+function saveVaultState(v) {
+  if (!walletAddr) return;
+  try {
+    localStorage.setItem(vaultStorageKey(), JSON.stringify(v));
+  } catch (_) {}
+}
+
+function accrueVaultYield() {
+  if (!walletAddr) return;
+  const v = loadVaultState();
+  if (v.totalSol <= 0) {
+    v.lastYieldTs = Date.now();
+    saveVaultState(v);
+    return;
+  }
+  const now = Date.now();
+  const elapsedSec = Math.max(0, (now - v.lastYieldTs) / 1000);
+  if (elapsedSec < 0.5) return;
+  const years = elapsedSec / (365 * 24 * 3600);
+  v.totalSol *= Math.pow(1 + VAULT_APY_ANNUAL, years);
+  v.lastYieldTs = now;
+  saveVaultState(v);
+}
+
+function vaultCreditDeposit(solAmt) {
+  if (!walletAddr || !Number.isFinite(solAmt) || solAmt <= 0) return;
+  accrueVaultYield();
+  const v = loadVaultState();
+  v.totalSol += solAmt;
+  v.depositedCumulative += solAmt;
+  v.lastYieldTs = Date.now();
+  saveVaultState(v);
+  renderVaultPanel();
+  addLog(`Vault +${solAmt.toFixed(4)} SOL credited (matches treasury deposit)`, '#14F195', 'Vault');
+}
+
+function renderVaultPanel() {
+  const solEl = document.getElementById('vaultCircSol');
+  const usdEl = document.getElementById('vaultCircUsd');
+  const pulseEl = document.getElementById('vaultYieldPulse');
+  if (!solEl || !usdEl || !pulseEl) return;
+
+  if (!walletAddr) {
+    solEl.textContent = '—';
+    usdEl.textContent = '—';
+    pulseEl.textContent = 'Connect wallet';
+    return;
+  }
+
+  accrueVaultYield();
+  const v = loadVaultState();
+  const px = effectiveSolUsd();
+  solEl.textContent = v.totalSol.toFixed(4);
+  usdEl.textContent = '$' + (v.totalSol * px).toFixed(2);
+
+  const gainVsDep = v.totalSol - v.depositedCumulative;
+  if (v.totalSol <= 0) {
+    pulseEl.textContent = 'Deposit to start circulating balance';
+  } else if (v.depositedCumulative > 0 && gainVsDep > 1e-8) {
+    pulseEl.textContent = `Accruing +${gainVsDep.toFixed(4)} SOL vs. deposits (simulated yield)`;
+  } else {
+    pulseEl.textContent = 'Yield engine active · ~' + Math.round(VAULT_APY_ANNUAL * 100) + '% APY (illustrative)';
+  }
+}
+
+function setMaxVaultWithdraw() {
+  accrueVaultYield();
+  const v = loadVaultState();
+  const input = document.getElementById('vaultWithdrawAmt');
+  if (input) input.value = v.totalSol > 0 ? v.totalSol.toFixed(6) : '';
+  updateVaultWithdrawUsd();
+}
+
+function updateVaultWithdrawUsd() {
+  const amt = parseFloat(document.getElementById('vaultWithdrawAmt')?.value || 0);
+  const el = document.getElementById('vaultWithdrawUsd');
+  const px = effectiveSolUsd();
+  if (el) el.textContent = `≈ $${(amt * px).toFixed(2)} USD`;
+}
+
+function enqueuePayoutRequest(amountSol) {
+  try {
+    const q = JSON.parse(localStorage.getItem('yabbai_payout_queue') || '[]');
+    q.push({ wallet: walletAddr, amountSol, ts: Date.now() });
+    localStorage.setItem('yabbai_payout_queue', JSON.stringify(q.slice(-80)));
+  } catch (_) {}
+}
+
+async function withdrawVaultToWallet() {
+  const amt = parseFloat(document.getElementById('vaultWithdrawAmt')?.value || 0);
+  if (!walletAddr) {
+    openSIWS();
+    toast('Connect wallet first', 'warn');
+    return;
+  }
+  if (!amt || amt <= 0) {
+    toast('Enter withdrawal amount', 'warn');
+    return;
+  }
+
+  accrueVaultYield();
+  const v = loadVaultState();
+  if (amt > v.totalSol + 1e-9) {
+    toast('Amount exceeds vault balance', 'error');
+    return;
+  }
+
+  const payoutUrl =
+    typeof window.YABBAI_PAYOUT_API === 'string' ? window.YABBAI_PAYOUT_API.trim() : '';
+
+  const btn = document.getElementById('vaultWithdrawBtn');
+  if (btn) {
+    btn.disabled = true;
+    btn.textContent = payoutUrl ? 'Sign in wallet…' : 'Working…';
+  }
+
+  try {
+    let backendOk = false;
+    let txSig = null;
+    let backendErr = '';
+
+    if (payoutUrl) {
+      const ts = Date.now();
+      const message = `YABBAI_WITHDRAW_V1|wallet=${walletAddr}|amountSol=${amt}|ts=${ts}`;
+      const encoded = new TextEncoder().encode(message);
+      const provider = getActiveWalletProvider();
+      if (!provider?.signMessage) {
+        toast('Wallet cannot sign messages — use Phantom/Solflare', 'error');
+        return;
+      }
+      let signed;
+      try {
+        signed = await provider.signMessage(encoded);
+      } catch (e) {
+        toast(e?.message || 'Signing cancelled', 'warn');
+        return;
+      }
+      const sigBytes =
+        signed?.signature instanceof Uint8Array
+          ? signed.signature
+          : signed instanceof Uint8Array
+            ? signed
+            : null;
+      if (!sigBytes) {
+        toast('Unexpected wallet signature format', 'error');
+        return;
+      }
+
+      const bs58mod = await import('https://esm.sh/bs58@6.0.0');
+      const bs58 = bs58mod.default;
+      const signature = bs58.encode(sigBytes);
+
+      if (btn) btn.textContent = 'Sending payout…';
+
+      const r = await fetch(payoutUrl, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          wallet: walletAddr,
+          amountSol: amt,
+          message,
+          signature,
+        }),
+      });
+      let data = {};
+      try {
+        data = await r.json();
+      } catch (_) {}
+      backendOk = r.ok;
+      txSig = data.signature || null;
+      backendErr = data.error || r.statusText || '';
+
+      if (!backendOk) {
+        toast(backendErr || 'Payout failed', 'error');
+        addLog(`Payout failed: ${backendErr || r.status}`, '#ff3b3b', 'Vault');
+        return;
+      }
+    }
+
+    v.totalSol -= amt;
+    v.lastYieldTs = Date.now();
+    saveVaultState(v);
+    enqueuePayoutRequest(amt);
+
+    if (payoutUrl && backendOk) {
+      toast(txSig ? `SOL sent · ${txSig.slice(0, 8)}…` : 'Payout confirmed');
+      addLog(
+        `Vault −${amt.toFixed(4)} SOL · on-chain ${txSig ? txSig.slice(0, 12) + '…' : 'ok'}`,
+        '#14F195',
+        'Vault'
+      );
+    } else {
+      toast('Vault allocation reduced (no payout URL — local ledger only)');
+      addLog(
+        `Vault −${amt.toFixed(4)} SOL — set YABBAI_PAYOUT_API for on-chain return`,
+        '#ffc200',
+        'Vault'
+      );
+    }
+
+    document.getElementById('vaultWithdrawAmt').value = '';
+    updateVaultWithdrawUsd();
+    renderVaultPanel();
+    await fetchWalletBalance();
+    syncBalanceLabels();
+  } finally {
+    if (btn) {
+      btn.disabled = false;
+      btn.textContent = 'Withdraw to connected wallet';
+    }
+  }
+}
 
 // ── MISSIONS DATA ────────────────────────────────────────
 const MISSIONS = [
@@ -753,16 +1035,16 @@ async function connectWallet(type) {
     const message = `Sign in to YABBAI\nWallet: ${walletAddr}\nTimestamp: ${Date.now()}\nThis signature proves wallet ownership and does not initiate any transaction.`;
     const encodedMsg = new TextEncoder().encode(message);
     try {
-      const signed = await provider.signMessage(encodedMsg, 'utf8');
+      const signed = await provider.signMessage(encodedMsg);
       addLog(`SIWS verified — wallet: ${walletAddr.slice(0,8)}...`, '#14F195', 'SIWS');
     } catch(e) {
       addLog(`Wallet connected without SIWS signature`, '#ffc200', 'Wallet');
     }
 
-    await fetchSolPrice();
+    await fetchSolPrice({ skipBalanceSync: true });
     await fetchWalletBalance();
-    updateDepositUsd();
-    renderWalletUI();
+    syncBalanceLabels();
+    renderVaultPanel();
     toast(`✓ Connected: ${walletAddr.slice(0,6)}...${walletAddr.slice(-4)}`);
   } catch(e) {
     toast('Connection failed: ' + e.message, 'error');
@@ -774,6 +1056,43 @@ function abortableFetchSignal(ms) {
   const c = new AbortController();
   const t = setTimeout(() => c.abort(), ms);
   return { signal: c.signal, cancel: () => clearTimeout(t) };
+}
+
+/** USD/SOL for labels — live quote + sticky cache so UI never shows $0 when APIs flake */
+function effectiveSolUsd() {
+  let p = Number(solPrice);
+  if (!Number.isFinite(p) || p <= 0) {
+    try {
+      p = parseFloat(localStorage.getItem('yabbai_sol_usd') || '');
+    } catch (_) {
+      p = NaN;
+    }
+  }
+  if (!Number.isFinite(p) || p <= 0) p = 130;
+  return p;
+}
+
+function persistSolUsd(price) {
+  if (!Number.isFinite(price) || price <= 0) return;
+  solPrice = price;
+  try {
+    localStorage.setItem('yabbai_sol_usd', String(price));
+  } catch (_) {}
+}
+
+/** Keeps cashout bar, top wallet chip, and deposit USD in sync with solBalance + solPrice */
+function syncBalanceLabels() {
+  if (!walletAddr) return;
+  const px = effectiveSolUsd();
+  const usdTxt =
+    Number.isFinite(solBalance) && solBalance >= 0
+      ? (solBalance * px).toFixed(2)
+      : '—';
+  const cp = document.getElementById('cpBalance');
+  if (cp) cp.textContent = `Balance: ${solBalance.toFixed(4)} SOL · $${usdTxt}`;
+  renderWalletUI();
+  updateDepositUsd();
+  renderVaultPanel();
 }
 
 async function fetchWalletBalance() {
@@ -799,13 +1118,12 @@ async function fetchWalletBalance() {
       const lamports = d.result?.value;
       if (lamports !== undefined) {
         solBalance = lamports / 1e9;
-        const balStr = `${solBalance.toFixed(4)} SOL`;
-        const usdStr = `$${(solBalance * solPrice).toFixed(2)}`;
-        const el = document.getElementById('cpBalance');
-        if (el) el.textContent = `Balance: ${balStr} · ${usdStr}`;
-        addLog(`Wallet balance: ${balStr} (${usdStr})`, '#14F195', 'RPC');
-        renderWalletUI();
-        updateDepositUsd();
+        syncBalanceLabels();
+        addLog(
+          `Wallet balance: ${solBalance.toFixed(4)} SOL`,
+          '#14F195',
+          'RPC'
+        );
         return;
       }
     } catch(e) { continue; }
@@ -831,7 +1149,8 @@ function setMaxDeposit() {
 function updateDepositUsd() {
   const amt = parseFloat(document.getElementById('depositAmt')?.value || 0);
   const el = document.getElementById('depositUsd');
-  if (el) el.textContent = `≈ $${(amt * solPrice).toFixed(2)} USD · Fee paid separately by wallet`;
+  const px = effectiveSolUsd();
+  if (el) el.textContent = `≈ $${(amt * px).toFixed(2)} USD · Fee paid separately by wallet`;
 }
 
 async function depositSolToTreasury() {
@@ -913,7 +1232,8 @@ async function depositSolToTreasury() {
     );
 
     addLog(`Deposit confirmed · ${sigStr.slice(0, 10)}…`, '#14F195', 'Solana');
-    toast('Deposit confirmed');
+    toast('Deposit confirmed — vault credited');
+    vaultCreditDeposit(amt);
     document.getElementById('depositAmt').value = '';
     updateDepositUsd();
     await fetchWalletBalance();
@@ -933,15 +1253,20 @@ async function depositSolToTreasury() {
 
 function renderWalletUI() {
   if (!walletAddr) return;
+  const px = effectiveSolUsd();
   const walletType = localStorage.getItem('yabbai_wallet_type') || 'phantom';
   const icons = { phantom:'👻', solflare:'🔆', backpack:'🎒' };
+  const usdChip =
+    Number.isFinite(solBalance) && solBalance >= 0
+      ? '$' + (solBalance * px).toFixed(2)
+      : '$—';
   document.getElementById('walletArea').innerHTML = `
     <div style="display:flex;align-items:center;gap:8px">
       <div class="wallet-btn wallet-connected">
         <div class="w-dot"></div>
         <div>
           <div class="w-addr">${icons[walletType]} ${walletAddr.slice(0,6)}...${walletAddr.slice(-4)}</div>
-          <div class="w-bal">${solBalance.toFixed(4)} SOL · $${(solBalance*solPrice).toFixed(2)}</div>
+          <div class="w-bal">${solBalance.toFixed(4)} SOL · ${usdChip}</div>
         </div>
       </div>
       <button class="btn btn-outline" style="font-size:0.65rem;padding:7px 10px" onclick="disconnectWallet()">✕</button>
@@ -963,6 +1288,7 @@ function disconnectWallet() {
   document.getElementById('walletArea').innerHTML = `<button class="wallet-btn wallet-disconnected" onclick="openSIWS()"><div class="w-dot"></div>Connect Wallet</button>`;
   const cp = document.getElementById('cpBalance');
   if (cp) cp.textContent = 'Balance: —';
+  renderVaultPanel();
   toast('Wallet disconnected');
 }
 
@@ -970,8 +1296,6 @@ async function restoreWalletSession() {
   const saved = localStorage.getItem('yabbai_wallet');
   const savedType = localStorage.getItem('yabbai_wallet_type') || 'phantom';
   if (!saved) return;
-
-  await fetchSolPrice();
 
   const provider = getWalletProviderByType(savedType);
   try {
@@ -992,29 +1316,91 @@ async function restoreWalletSession() {
     walletAddr = saved;
   }
 
+  await fetchSolPrice({ skipBalanceSync: true });
   await fetchWalletBalance();
-  updateDepositUsd();
-  renderWalletUI();
+  syncBalanceLabels();
+  renderVaultPanel();
 }
 
 // ── LIVE DATA ────────────────────────────────────────────
-async function fetchSolPrice() {
-  try {
-    const r = await fetch(`https://api.jup.ag/price/v2?ids=So11111111111111111111111111111111111111112`);
-    const d = await r.json();
-    const p = d?.data?.['So11111111111111111111111111111111111111112']?.price;
-    if (p) {
-      solPrice = parseFloat(p);
-      const el = document.getElementById('statSol');
-      if (el) el.textContent = '$'+solPrice.toFixed(2);
-      if (walletAddr) {
-        const cp = document.getElementById('cpBalance');
-        if (cp) cp.textContent = `Balance: ${solBalance.toFixed(4)} SOL · $${(solBalance * solPrice).toFixed(2)}`;
-        renderWalletUI();
-        updateDepositUsd();
-      }
+function parseJupiterSolUsd(json) {
+  const mint = 'So11111111111111111111111111111111111111112';
+  const entry = json?.data?.[mint];
+  if (entry == null) return null;
+  if (typeof entry === 'number') {
+    const p = parseFloat(entry);
+    return Number.isFinite(p) && p > 0 ? p : null;
+  }
+  if (typeof entry === 'object') {
+    const keys = ['price', 'usdPrice', 'value', 'derivedPrice'];
+    for (const k of keys) {
+      if (entry[k] == null) continue;
+      const p = parseFloat(entry[k]);
+      if (Number.isFinite(p) && p > 0.01 && p < 1e7) return p;
     }
-  } catch {}
+  }
+  const p = parseFloat(entry);
+  return Number.isFinite(p) && p > 0 ? p : null;
+}
+
+async function fetchSolPrice(opts) {
+  const skipBalanceSync = opts && opts.skipBalanceSync;
+  let price = null;
+
+  const jupUrls = [
+    'https://lite-api.jup.ag/price/v2?ids=So11111111111111111111111111111111111111112',
+    'https://api.jup.ag/price/v2?ids=So11111111111111111111111111111111111111112',
+  ];
+
+  for (const url of jupUrls) {
+    if (price) break;
+    try {
+      const r = await fetch(url);
+      const d = await r.json();
+      price = parseJupiterSolUsd(d);
+    } catch (_) {}
+  }
+
+  if (!price) {
+    try {
+      const r = await fetch(
+        'https://api.coingecko.com/api/v3/simple/price?ids=solana&vs_currencies=usd'
+      );
+      const d = await r.json();
+      const p = parseFloat(d?.solana?.usd);
+      if (Number.isFinite(p) && p > 0) price = p;
+    } catch (_) {}
+  }
+
+  if (!price) {
+    try {
+      const r = await fetch(
+        'https://api.binance.com/api/v3/ticker/price?symbol=SOLUSDT'
+      );
+      const d = await r.json();
+      const p = parseFloat(d?.price);
+      if (Number.isFinite(p) && p > 0) price = p;
+    } catch (_) {}
+  }
+
+  if (!price) {
+    try {
+      const r = await fetch(
+        'https://api.kraken.com/0/public/Ticker?pair=SOLUSD'
+      );
+      const d = await r.json();
+      const p = parseFloat(d?.result?.SOLUSD?.c?.[0]);
+      if (Number.isFinite(p) && p > 0) price = p;
+    } catch (_) {}
+  }
+
+  if (price && Number.isFinite(price) && price > 0) {
+    persistSolUsd(price);
+    const el = document.getElementById('statSol');
+    if (el) el.textContent = '$' + solPrice.toFixed(2);
+  }
+
+  if (!skipBalanceSync && walletAddr) syncBalanceLabels();
 }
 
 async function fetchTokenData() {
@@ -1256,8 +1642,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
 function updateCashoutCalc() {
   const amt = parseFloat(document.getElementById('cashoutAmt')?.value || 0);
-  const usd = (amt * solPrice).toFixed(2);
-  const aud = (amt * solPrice * 1.1).toFixed(2);
+  const px = effectiveSolUsd();
+  const usd = (amt * px).toFixed(2);
+  const aud = (amt * px * 1.1).toFixed(2);
   const el = document.getElementById('cashoutUSD');
   if (el) el.textContent = `≈ $${usd} USD · ≈ $${aud} AUD`;
 }
@@ -1288,9 +1675,10 @@ function updateLPCalc() {
   const amt = parseFloat(document.getElementById('lpAmt')?.value || 0);
   const el = document.getElementById('lpCalcResult');
   if (!el || !amt) { if(el) el.textContent=''; return; }
-  const usd = (amt * solPrice).toFixed(2);
-  const aud = (amt * solPrice * 1.1).toFixed(2);
-  const newMcap = tokenMcap + (amt * solPrice * 800);
+  const px = effectiveSolUsd();
+  const usd = (amt * px).toFixed(2);
+  const aud = (amt * px * 1.1).toFixed(2);
+  const newMcap = tokenMcap + (amt * px * 800);
   const grad = Math.min(100, (newMcap/69000)*100).toFixed(1);
   el.textContent = `≈ $${usd} USD · ≈ $${aud} AUD · Bonding curve moves to ~${grad}%`;
 }
@@ -1346,6 +1734,8 @@ window.addEventListener('load', async () => {
   if (ca) ca.addEventListener('input', updateCashoutCalc);
   const da = document.getElementById('depositAmt');
   if (da) da.addEventListener('input', updateDepositUsd);
+  const vw = document.getElementById('vaultWithdrawAmt');
+  if (vw) vw.addEventListener('input', updateVaultWithdrawUsd);
 
   await restoreWalletSession();
 
@@ -1357,7 +1747,12 @@ window.addEventListener('load', async () => {
   fetchTokenData();
   setInterval(fetchTokenData, 30000);
   setInterval(fetchSolPrice, 60000);
-  setInterval(() => { if (walletAddr) { fetchWalletBalance(); updateDepositUsd(); } }, 45000);
+  setInterval(() => { if (walletAddr) fetchWalletBalance(); }, 45000);
+  setInterval(() => {
+    if (!walletAddr) return;
+    accrueVaultYield();
+    renderVaultPanel();
+  }, 12000);
 
   addLog('YABBAI engine initialised — all systems online', '#14F195', 'YABBAI');
   addLog(`Mint: ${MINT.slice(0,10)}...`, '#9945FF', '$YABBAI');
