@@ -871,7 +871,7 @@ body::before{content:'';position:fixed;inset:0;z-index:0;pointer-events:none;
 
 </div><!-- /main -->
 
-<script src="mission-config.js?v=20260510f"></script>
+<script src="mission-config.js?v=20260510g"></script>
 <script>
 // ── CONFIG ──────────────────────────────────────────────
 const MINT     = 'AcEVtpLEfxMHFzXQrhJiDhoWCkLVYH3drD2cxNAzLFUv';
@@ -879,7 +879,7 @@ const POOL     = 'DaxLJ5mRkqWtfhFBKtibtGSYaiE7zFrtgsi5evmVBAax';
 /** Canonical YABBAI site treasury (public key only in git). Private key is NOT stored here — ops hold it off-repo (e.g. `wrangler secret put TREASURY_SECRET_KEY` for the payout Worker). Hosts/forks may override via `<meta name="yabbai-treasury-receiver">` or `window.YABBAI_TREASURY_RECEIVER`. */
 const DEFAULT_TREASURY = '2DarZ9hCi5PirKsDsnriewZEGqaz6Q11pEitoZJxBsYM';
 /** Mainnet-beta genesis hash — `assertMainnetRpc` rejects any RPC whose `getGenesisHash()` does not match. */
-const MAINNET_GENESIS_HASH = 'EtWTRABZaYq6iMfeYKouRu166VU2xqa1wcaWoxeehBOw';
+const MAINNET_GENESIS_HASH = '5eykt4UsFv8P8NJdTREpY1vzqKqZKvdpKuc147dw2N9d';
 const MIN_DEPOSIT_SOL = 1e-6;
 /** SOL deposit = SystemProgram.transfer(lamports); wallet + RPC enforce spendable SOL (no in-page fee holdback). */
 const PAYPAL   = 'basham_x@protonmail.com';
@@ -1853,10 +1853,16 @@ async function fetchWalletBalanceCore(opts) {
     String(window.YABBAI_BALANCE_API).trim();
   if (balBase) {
     const base = balBase.replace(/\/$/, '');
+    // Resolve to absolute URL — base may be relative (e.g. '/api') or absolute (e.g. 'https://worker.dev')
+    const absBase = /^https?:\/\//i.test(base)
+      ? base
+      : (typeof window !== 'undefined' && window.location && window.location.origin
+          ? window.location.origin + (base.startsWith('/') ? base : '/' + base)
+          : base);
     for (let wTry = 0; wTry < 3; wTry++) {
       if (wTry > 0) await new Promise((r) => setTimeout(r, 500));
       try {
-        const u = new URL('balance', base + '/');
+        const u = new URL('balance', absBase + '/');
         u.searchParams.set('wallet', addrRaw);
         const sigOpt = abortableFetchSignal(24000);
         const signal = sigOpt.signal || sigOpt;
