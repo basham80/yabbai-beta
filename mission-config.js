@@ -71,7 +71,7 @@ window.YABBAI_SOLANA_RPC = 'https://mainnet.helius-rpc.com/?api-key=ef97adf5-e2b
  * Empty string `''` means **no Worker** — balance uses `YABBAI_SOLANA_RPC` if set, else rotating public mainnet HTTPS endpoints (often rate-limited / CORS from static hosts). First balance fetch logs a **one-time** browser console tip when this stays empty.
  * Set this URL before pinning static/IPFS builds if the Live Engine should not depend on public browser RPC alone.
  */
-window.YABBAI_BALANCE_API = '';
+window.YABBAI_BALANCE_API = '/api';
 
 /**
  * Phantom / wallet note: SOL and SPL balances on this page use Solana JSON-RPC and/or YABBAI_BALANCE_API,

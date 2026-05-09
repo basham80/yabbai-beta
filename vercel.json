@@ -8,6 +8,10 @@
     "api/mission.mjs": {
       "memory": 256,
       "maxDuration": 30
+    },
+    "api/balance.mjs": {
+      "memory": 128,
+      "maxDuration": 10
     }
   },
   "headers": [
