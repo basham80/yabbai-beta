@@ -1074,7 +1074,7 @@ function clearWalletListenerCleanup() {
 /**
  * Phantom (and compatible wallets) update publicKey asynchronously on multi-account switch — refetch balance on same pubkey RPC uses.
  */
-function bindWalletProviderEvents(provider, type) {
+function bindWalletProviderEvents(provider) {
   clearWalletListenerCleanup();
   if (!provider || typeof provider.on !== 'function') return;
 
@@ -1090,7 +1090,7 @@ function bindWalletProviderEvents(provider, type) {
         await fetchWalletBalance();
         syncBalanceLabels();
         renderVaultPanel();
-        toast('Wallet account switched — balance refreshed', '');
+        toast('Wallet account switched — balance refreshed');
       } else {
         disconnectWallet();
       }
@@ -1162,7 +1162,7 @@ async function connectWallet(type) {
     localStorage.setItem('yabbai_wallet', walletAddr);
     localStorage.setItem('yabbai_wallet_type', type);
 
-    bindWalletProviderEvents(provider, type);
+    bindWalletProviderEvents(provider);
 
     // Sign In With Solana — sign a message to verify ownership
     const message = `Sign in to YABBAI\nWallet: ${walletAddr}\nTimestamp: ${Date.now()}\nThis signature proves wallet ownership and does not initiate any transaction.`;
@@ -1641,7 +1641,7 @@ async function restoreWalletSession() {
     if (walletAddr) localStorage.setItem('yabbai_wallet', walletAddr);
   }
 
-  if (provider && walletAddr) bindWalletProviderEvents(provider, savedType);
+  if (provider && walletAddr) bindWalletProviderEvents(provider);
 
   await fetchSolPrice({ skipBalanceSync: true });
   resolveLiveWalletAddress();
