@@ -559,8 +559,9 @@ body::before{content:'';position:fixed;inset:0;z-index:0;pointer-events:none;
       <div class="ai-controls">
         <select class="ai-model-select" id="aiModel" onchange="syncAiModelLabel()">
           <option value="claude">Claude Sonnet 4</option>
-          <option value="kimi">Kimi 2.5</option>
-          <option value="auto">Auto (Claude → Kimi fallback)</option>
+          <option value="kimi">Kimi K2 (NVIDIA · free)</option>
+          <option value="deepseek">DeepSeek V4 Pro (NVIDIA · free)</option>
+          <option value="auto">Auto (Claude → Kimi → DeepSeek → Moonshot)</option>
         </select>
         <div style="flex:1"></div>
         <button class="ai-deploy-btn" id="aiDeployBtn" onclick="deployMission()">
@@ -883,7 +884,7 @@ body::before{content:'';position:fixed;inset:0;z-index:0;pointer-events:none;
 
 </div><!-- /main -->
 
-<script src="mission-config.js?v=20260510g"></script>
+<script src="mission-config.js?v=20260510h"></script>
 <script>
 // ── CONFIG ──────────────────────────────────────────────
 const MINT     = 'AcEVtpLEfxMHFzXQrhJiDhoWCkLVYH3drD2cxNAzLFUv';
@@ -2568,8 +2569,9 @@ function syncAiModelLabel() {
   const sel = document.getElementById('aiModel')?.value || 'auto';
   const labels = {
     claude: 'Claude Sonnet (Anthropic)',
-    kimi: 'Kimi / Moonshot',
-    auto: 'Auto · Claude first, then Kimi fallback',
+    kimi: 'Kimi K2 · NVIDIA (free tier)',
+    deepseek: 'DeepSeek V4 Pro · NVIDIA (free tier)',
+    auto: 'Auto · Claude → Kimi → DeepSeek → Moonshot',
   };
   const el = document.getElementById('aiModelLabel');
   if (el) el.textContent = labels[sel] || labels.auto;
