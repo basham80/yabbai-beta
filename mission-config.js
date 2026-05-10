@@ -16,7 +16,7 @@
  * Worker optional plain var `YABBAI_TREASURY_RECEIVER` (wrangler.toml [vars]) should match
  * `window.YABBAI_TREASURY_RECEIVER` here so GET can verify treasuryMatchesEnv.
  */
-window.YABBAI_MISSION_API = '/api/mission';
+window.YABBAI_MISSION_API = 'https://forcydclemuxktthoeug.supabase.co/functions/v1/ai-mission';
 
 /** Optional: treasury SOL payout Worker URL (HTTPS). Empty disables on-chain withdraw. */
 window.YABBAI_PAYOUT_API = '';

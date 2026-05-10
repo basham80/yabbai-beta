@@ -2719,9 +2719,10 @@ async function fetchMissionApiStatus() {
     missionApiReachable = true;
     const ok = [];
     if (d.anthropicConfigured) ok.push('Anthropic ✓');
+    if (d.kimiNvidiaConfigured) ok.push('Kimi/NVIDIA ✓');
     if (d.moonshotConfigured) ok.push('Moonshot ✓');
     if (ok.length) addLog(`AI backend ready · ${ok.join(' · ')}`, '#14F195', 'AI');
-    else addLog('AI backend: set ANTHROPIC_API_KEY / MOONSHOT_API_KEY as Worker secrets', '#ffc200', 'AI');
+    else addLog('AI backend: set ANTHROPIC_API_KEY / NVIDIA_API_KEY / MOONSHOT_API_KEY as Supabase secrets', '#ffc200', 'AI');
   } catch (_) {
     missionApiReachable = false;
     addLog('AI backend not reachable — check MISSION_API URL and CORS', '#ffc200', 'AI');
@@ -2739,13 +2740,9 @@ async function callAI(prompt, context='mission') {
   if (!MISSION_API) {
     if (resp) {
       resp.textContent =
-`⚠ No AI proxy URL configured.
+`No AI proxy URL configured. Set window.YABBAI_MISSION_API in mission-config.js to your Supabase Edge Function URL.
 
-4EVERLAND only serves static files. Deploy the API separately (recommended: Cloudflare Worker in this repo under workers/), then edit yabbai/mission-config.js:
-
-  window.YABBAI_MISSION_API = 'https://your-worker.<subdomain>.workers.dev';
-
-Add secrets ANTHROPIC_API_KEY and/or MOONSHOT_API_KEY on the Worker. Manual mission cards below still work.`;
+Manual mission cards below still work without AI.`;
     }
     toast('Set mission-config.js with your Worker URL', 'warn');
     if (btn) { btn.disabled = false; btn.innerHTML = '<span id="aiDeployIcon">⚡</span> Deploy Mission'; }
@@ -2789,16 +2786,9 @@ Add secrets ANTHROPIC_API_KEY and/or MOONSHOT_API_KEY on the Worker. Manual miss
     const msg = e?.message || String(e);
     if (resp) {
       resp.textContent =
-`⚠ AI request failed.
+`AI request failed: ${msg}
 
-${msg}
-
-Setup (keys never go in the browser):
-1. Deploy API: \`cd workers && wrangler deploy\` (set secrets ANTHROPIC_API_KEY, MOONSHOT_API_KEY)
-2. Put the Worker URL in yabbai/mission-config.js → window.YABBAI_MISSION_API
-3. Redeploy the static site on 4EVERLAND
-
-Alternative: Netlify Functions still supported via netlify/functions/mission.js + env vars.
+The AI proxy is a Supabase Edge Function. Make sure ANTHROPIC_API_KEY (or NVIDIA_API_KEY / MOONSHOT_API_KEY) is set in Supabase project secrets.
 
 Manual mission cards below still work without AI.`;
     }
