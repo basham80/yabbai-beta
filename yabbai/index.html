@@ -701,6 +701,18 @@ body::before{content:'';position:fixed;inset:0;z-index:0;pointer-events:none;
         <div class="cp-balance" id="cpBalance">Balance: —</div>
       </div>
 
+      <!-- SOURCE TREASURY -->
+      <div style="background:rgba(153,69,255,0.06);border:1px solid rgba(153,69,255,0.2);border-radius:8px;padding:10px 12px;margin-bottom:14px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;">
+        <div>
+          <div style="font-family:'Azeret Mono',monospace;font-size:0.56rem;color:var(--dim);text-transform:uppercase;letter-spacing:0.08em;margin-bottom:3px">Source treasury</div>
+          <div style="font-family:'Azeret Mono',monospace;font-size:0.72rem;color:var(--text);word-break:break-all" id="cashoutSourceAddr">—</div>
+        </div>
+        <div style="display:flex;flex-direction:column;align-items:flex-end;gap:2px;">
+          <div style="font-family:'Azeret Mono',monospace;font-size:0.56rem;color:var(--dim);text-transform:uppercase;letter-spacing:0.08em">Treasury balance</div>
+          <div style="font-family:'Azeret Mono',monospace;font-size:0.85rem;color:var(--neon);font-weight:600" id="cashoutTreasuryBal">— SOL</div>
+        </div>
+      </div>
+
       <!-- FLOW DIAGRAM -->
       <div class="cashout-flow">
         <div class="cf-step">🏊 LP Yield</div>
