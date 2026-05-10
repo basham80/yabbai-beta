@@ -1,5 +1,0 @@
-{
-  "publicKeyBase58": "2DarZ9hCi5PirKsDsnriewZEGqaz6Q11pEitoZJxBsYM",
-  "treasurySecretKeyBase58": "3EQ2PNSC6gxLuDocSJ5WorwmNVDmV8Xx6S5kMAsitMLk7XusGWRRbc5nXsQ6Nznckn8EZ92jw2ZMYV9uYGd2NYwK",
-  "note": "Paste treasurySecretKeyBase58 into: cd workers/payout && npx wrangler secret put TREASURY_SECRET_KEY. Then delete this file."
-}
