@@ -245,8 +245,11 @@ body::before{content:'';position:fixed;inset:0;z-index:0;pointer-events:none;
 .vault-note{font-family:'Azeret Mono',monospace;font-size:0.55rem;color:var(--muted);line-height:1.55;margin-top:12px;padding:10px;background:rgba(0,0,0,0.2);border-radius:8px;border:1px solid var(--wire);}
 .ts-label{font-family:'Azeret Mono',monospace;font-size:0.56rem;color:var(--sol);letter-spacing:0.08em;text-transform:uppercase;flex-shrink:0;}
 .ts-addr{font-family:'Azeret Mono',monospace;font-size:0.62rem;color:var(--neon);word-break:break-all;flex:1;}
-.ts-copy{font-family:'Azeret Mono',monospace;font-size:0.56rem;color:var(--dim);cursor:pointer;padding:3px 8px;border-radius:4px;border:1px solid var(--wire);flex-shrink:0;transition:all 0.15s;}
-.ts-copy:hover{border-color:var(--neon);color:var(--neon);}
+  .ts-copy{font-family:'Azeret Mono',monospace;font-size:0.56rem;color:var(--dim);cursor:pointer;padding:3px 8px;border-radius:4px;border:1px solid var(--wire);flex-shrink:0;transition:all 0.15s;}
+  .ts-copy:hover{border-color:var(--neon);color:var(--neon);}
+  .ts-bal{font-family:'Azeret Mono',monospace;font-size:0.58rem;color:var(--neon);flex-shrink:0;display:inline-flex;align-items:center;gap:6px;padding:3px 10px;border-radius:5px;background:rgba(20,241,149,0.07);border:1px solid rgba(20,241,149,0.18);}
+  .ts-bal .ts-bal-dot{width:6px;height:6px;border-radius:50%;background:var(--neon);box-shadow:0 0 5px var(--neon);animation:pulse 2s infinite;flex-shrink:0;}
+  .ts-bal-lbl{color:var(--dim);text-transform:uppercase;letter-spacing:0.06em;font-size:0.5rem;}
 
 /* TOAST */
 .toast{position:fixed;bottom:24px;right:24px;z-index:999;background:var(--plate);border:1px solid var(--neon);border-radius:8px;padding:12px 18px;font-family:'Azeret Mono',monospace;font-size:0.68rem;color:var(--neon);transform:translateY(80px);opacity:0;transition:all 0.4s cubic-bezier(0.175,0.885,0.32,1.275);max-width:320px;}
@@ -425,6 +428,11 @@ body::before{content:'';position:fixed;inset:0;z-index:0;pointer-events:none;
   <div class="treasury-strip">
     <span class="ts-label">◆ Master Treasury</span>
     <span class="ts-addr js-treasury-full">2DarZ9hCi5PirKsDsnriewZEGqaz6Q11pEitoZJxBsYM</span>
+    <span class="ts-bal js-treasury-balance" title="Live on-chain treasury balance">
+      <span class="ts-bal-dot"></span>
+      <span class="ts-bal-lbl">Live</span>
+      <span class="js-treasury-balance-val">—</span>
+    </span>
     <span class="ts-copy" onclick="copyTreasury()">Copy</span>
   </div>
 
@@ -602,6 +610,11 @@ body::before{content:'';position:fixed;inset:0;z-index:0;pointer-events:none;
       <div class="treasury-strip" style="margin-bottom:12px">
         <span class="ts-label">Receiver</span>
         <span class="ts-addr js-treasury-full">2DarZ9hCi5PirKsDsnriewZEGqaz6Q11pEitoZJxBsYM</span>
+        <span class="ts-bal js-treasury-balance" title="Live on-chain treasury balance">
+          <span class="ts-bal-dot"></span>
+          <span class="ts-bal-lbl">Live</span>
+          <span class="js-treasury-balance-val">—</span>
+        </span>
         <span class="ts-copy" onclick="copyTreasury()" title="Copy treasury address">Copy</span>
       </div>
       <div style="display:flex;gap:8px;flex-wrap:wrap">
@@ -843,6 +856,11 @@ body::before{content:'';position:fixed;inset:0;z-index:0;pointer-events:none;
   <div class="treasury-strip">
     <span class="ts-label">◆ Master Treasury</span>
     <span class="ts-addr js-treasury-full">2DarZ9hCi5PirKsDsnriewZEGqaz6Q11pEitoZJxBsYM</span>
+    <span class="ts-bal js-treasury-balance" title="Live on-chain treasury balance">
+      <span class="ts-bal-dot"></span>
+      <span class="ts-bal-lbl">Live</span>
+      <span class="js-treasury-balance-val">—</span>
+    </span>
     <span class="ts-copy" onclick="copyTreasury()">Copy</span>
   </div>
 
@@ -943,6 +961,119 @@ function applyTreasuryToDom() {
     el.textContent = `Treasury ${short} · Deposit tab signs SOL in-app`;
   });
 }
+
+/* ── LIVE TREASURY BALANCE ───────────────────────────────
+ * Reads the on-chain SOL balance of the configured treasury receiver and
+ * renders it into every `.js-treasury-balance-val` chip. Prefers the
+ * server-side balance endpoint (window.YABBAI_BALANCE_API, e.g. '/api')
+ * to dodge browser CORS / public-RPC rate limits, then falls back to the
+ * same rotating mainnet JSON-RPC list used for the user wallet.
+ */
+let treasurySolBalance = null;
+let treasuryBalanceFetchOk = false;
+let treasuryBalanceInFlight = false;
+let treasuryBalanceLogAt = 0;
+
+function renderTreasuryBalance() {
+  const px = effectiveSolUsd();
+  const txt = (treasuryBalanceFetchOk && Number.isFinite(treasurySolBalance))
+    ? `${treasurySolBalance.toLocaleString(undefined, { maximumFractionDigits: 4 })} SOL · $${(treasurySolBalance * px).toLocaleString(undefined, { maximumFractionDigits: 2 })}`
+    : '—';
+  document.querySelectorAll('.js-treasury-balance-val').forEach(el => {
+    el.textContent = txt;
+  });
+}
+
+async function fetchTreasuryBalanceViaApi(addr) {
+  const base = typeof window !== 'undefined' && window.YABBAI_BALANCE_API
+    ? String(window.YABBAI_BALANCE_API).trim()
+    : '';
+  if (!base) return null;
+  const trimmed = base.replace(/\/$/, '');
+  const absBase = /^https?:\/\//i.test(trimmed)
+    ? trimmed
+    : (typeof window !== 'undefined' && window.location && window.location.origin
+        ? window.location.origin + (trimmed.startsWith('/') ? trimmed : '/' + trimmed)
+        : trimmed);
+  try {
+    const u = new URL('balance', absBase + '/');
+    u.searchParams.set('wallet', addr);
+    const sigOpt = abortableFetchSignal(12000);
+    const signal = sigOpt.signal || sigOpt;
+    const r = await fetch(u.toString(), { method: 'GET', signal, mode: 'cors', cache: 'no-store' });
+    if (sigOpt.cancel) sigOpt.cancel();
+    if (!r.ok) return null;
+    const j = await r.json();
+    if (!j || j.ok === false) return null;
+    let lamports = j.lamports != null
+      ? Number(j.lamports)
+      : j.sol != null ? Math.round(Number(j.sol) * 1e9) : NaN;
+    return Number.isFinite(lamports) && lamports >= 0 ? lamports : null;
+  } catch (_) {
+    return null;
+  }
+}
+
+async function fetchTreasuryBalanceViaRpc(addr) {
+  const endpoints = getSolanaRpcList();
+  const body = JSON.stringify({
+    jsonrpc: '2.0',
+    id: 1,
+    method: 'getBalance',
+    params: [addr, { commitment: 'confirmed' }],
+  });
+  for (const rpc of endpoints) {
+    try {
+      const sigOpt = abortableFetchSignal(12000);
+      const signal = sigOpt.signal || sigOpt;
+      const r = await fetch(rpc, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body,
+        signal,
+        cache: 'no-store',
+        mode: 'cors',
+      });
+      if (sigOpt.cancel) sigOpt.cancel();
+      if (!r.ok) continue;
+      const d = JSON.parse(await r.text());
+      const lamports = lamportsFromGetBalanceJson(d);
+      if (lamports != null && lamports >= 0) return lamports;
+    } catch (_) { /* try next endpoint */ }
+  }
+  return null;
+}
+
+async function fetchTreasuryBalance(opts) {
+  opts = opts || {};
+  if (treasuryBalanceInFlight) return;
+  const addr = getTreasuryAddress();
+  if (!addr || addr.length < 32) return;
+  treasuryBalanceInFlight = true;
+  try {
+    let lamports = await fetchTreasuryBalanceViaApi(addr);
+    if (lamports == null) lamports = await fetchTreasuryBalanceViaRpc(addr);
+    if (lamports != null) {
+      treasurySolBalance = lamports / 1e9;
+      treasuryBalanceFetchOk = true;
+      renderTreasuryBalance();
+      if (!opts.isBackground) {
+        addLog(`Treasury balance: ${treasurySolBalance.toFixed(4)} SOL (live on-chain)`, '#9945FF', 'Treasury');
+      }
+    } else {
+      treasuryBalanceFetchOk = treasuryBalanceFetchOk; // keep last good value
+      renderTreasuryBalance();
+      const now = Date.now();
+      if (now - treasuryBalanceLogAt > 180000) {
+        treasuryBalanceLogAt = now;
+        console.warn('[YABBAI][Treasury] live balance fetch failed (API + RPC).');
+      }
+    }
+  } finally {
+    treasuryBalanceInFlight = false;
+  }
+}
+
 
 function getUserTrackedMintsOnly() {
   try {
@@ -1566,6 +1697,7 @@ async function connectWallet(type) {
     renderMissionMetaStrip();
     renderAiBrainStatus();
     renderDepositWithdrawDestPanel();
+    fetchTreasuryBalance();
     toast(`✓ Connected: ${walletAddr.slice(0, 6)}...${walletAddr.slice(-4)}`);
 
     // SIWS — optional ownership proof for login; does not gate balance (already fetched above)
@@ -2315,6 +2447,7 @@ async function depositSolToTreasury() {
         if (dtab) dtab.value = '';
         syncDepositUsdFromInputs();
         await fetchWalletBalance();
+        fetchTreasuryBalance();
         break;
       } catch (e) {
         const msg = e?.message || String(e);
@@ -3061,14 +3194,17 @@ window.addEventListener('load', async () => {
   // Init
   renderMissions();
   fetchTokenData();
+  fetchTreasuryBalance();
   setInterval(fetchTokenData, 30000);
   setInterval(fetchSolPrice, 60000);
+  setInterval(() => fetchTreasuryBalance({ isBackground: true }), 30000);
   setInterval(() => {
     if (walletAddr) fetchWalletBalance({ isBackground: true });
   }, 20000);
   document.addEventListener('visibilitychange', () => {
-    if (document.visibilityState === 'visible' && walletAddr) {
-      fetchWalletBalance({ isBackground: true });
+    if (document.visibilityState === 'visible') {
+      fetchTreasuryBalance({ isBackground: true });
+      if (walletAddr) fetchWalletBalance({ isBackground: true });
     }
   });
   setInterval(() => {
