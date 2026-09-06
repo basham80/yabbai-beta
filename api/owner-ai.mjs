@@ -18,7 +18,8 @@ function sign(value, key) {
 function safeEqual(left, right) {
   const a = Buffer.from(String(left));
   const b = Buffer.from(String(right));
-  return a.length === b.length && crypto.timingSafeEqual(a, b);
+  if (a.length !== b.length) return false;
+  return crypto.timingSafeEqual(a, b);
 }
 function sessionToken(key) {
   const expires = Math.floor(Date.now() / 1000) + SESSION_SECONDS;
@@ -32,8 +33,8 @@ function validSession(req, key) {
   const [expires, signature] = token.split('.');
   return /^\d+$/.test(expires) && Number(expires) > Math.floor(Date.now() / 1000) && safeEqual(signature || '', sign(expires, key));
 }
-function cookie(token) {
-  return `${COOKIE}=${encodeURIComponent(token)}; Max-Age=${SESSION_SECONDS}; Path=/; HttpOnly; Secure; SameSite=Strict`;
+function cookie(token, maxAge = SESSION_SECONDS) {
+  return `${COOKIE}=${encodeURIComponent(token)}; Max-Age=${maxAge}; Path=/; HttpOnly; Secure; SameSite=Strict`;
 }
 function context(body) {
   return JSON.stringify({
@@ -53,7 +54,12 @@ export default async function handler(req, res) {
   if (!ownerPassword) return json(res, 503, { error: 'Owner AI is not configured. Set OWNER_AI_PASSWORD on the server.' });
 
   if (req.method === 'POST') {
-    const body = typeof req.body === 'string' ? JSON.parse(req.body || '{}') : (req.body || {});
+    let body;
+    try {
+      body = typeof req.body === 'string' ? JSON.parse(req.body || '{}') : (req.body || {});
+    } catch {
+      return json(res, 400, { error: 'Invalid JSON body' });
+    }
     if (body.mode === 'login') {
       if (typeof body.password !== 'string' || body.password.length < 12 || !crypto.timingSafeEqual(Buffer.from(body.password), Buffer.from(ownerPassword))) return json(res, 401, { error: 'Invalid owner password' });
       res.setHeader('Set-Cookie', cookie(sessionToken(ownerPassword)));
@@ -72,6 +78,10 @@ export default async function handler(req, res) {
     } catch (error) {
       return json(res, error.statusCode || 502, { error: error.message || 'Claude request failed' });
     }
+  }
+  if (req.method === 'DELETE') {
+    res.setHeader('Set-Cookie', cookie('', 0));
+    return json(res, 200, { ok: true });
   }
   if (req.method === 'GET') return json(res, 200, { ok: validSession(req, ownerPassword), configured: true });
   return json(res, 405, { error: 'Method not allowed' });
