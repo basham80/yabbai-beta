@@ -167,7 +167,9 @@ body::before{content:'';position:fixed;inset:0;z-index:0;pointer-events:none;
 .ai-deploy-btn:disabled{opacity:0.5;cursor:not-allowed;transform:none;}
 .ai-response{background:var(--plate2);border:1px solid var(--wire);border-radius:8px;padding:14px;font-family:'Azeret Mono',monospace;font-size:0.68rem;color:var(--neon);line-height:1.7;min-height:60px;display:none;margin-top:10px;white-space:pre-wrap;}
 .ai-loading{display:inline-flex;align-items:center;gap:6px;color:var(--dim);font-family:'Azeret Mono',monospace;font-size:0.65rem;}
-.ai-spinner{width:14px;height:14px;border:2px solid var(--wire2);border-top-color:var(--neon);border-radius:50%;animation:spin 0.8s linear infinite;}
+  .ai-spinner{width:14px;height:14px;border:2px solid var(--wire2);border-top-color:var(--neon);border-radius:50%;animation:spin 0.8s linear infinite;}
+  .owner-ai-panel{background:linear-gradient(135deg,rgba(255,194,0,.06),rgba(153,69,255,.07));border:1px solid rgba(255,194,0,.25);border-radius:12px;padding:20px;margin-top:12px}.owner-ai-kicker{font-family:'Azeret Mono',monospace;font-size:.58rem;color:var(--gold);text-transform:uppercase;letter-spacing:.08em}.owner-ai-title{font-family:'Syne',sans-serif;font-weight:700;font-size:1.05rem;margin:5px 0}.owner-ai-copy{color:var(--muted);font-size:.76rem;line-height:1.55;margin-bottom:14px}.owner-ai-form{display:flex;gap:8px;flex-wrap:wrap}.owner-ai-input{flex:1;min-width:210px;background:var(--plate2);border:1px solid var(--wire2);border-radius:7px;padding:10px;color:var(--white);font-family:'Azeret Mono',monospace;font-size:.7rem}.owner-ai-response{display:block;background:var(--plate2);border:1px solid var(--wire);border-radius:8px;padding:12px;margin-top:12px;white-space:pre-wrap;font-family:'Azeret Mono',monospace;font-size:.65rem;line-height:1.6;color:var(--muted)}.owner-ai-response.success{color:var(--neon)}.owner-ai-response.error{color:var(--red)}
+
 
 /* CASHOUT PANEL */
 .cashout-panel{background:var(--plate);border:1px solid rgba(20,241,149,0.15);border-radius:12px;padding:20px;}
@@ -571,6 +573,23 @@ body::before{content:'';position:fixed;inset:0;z-index:0;pointer-events:none;
       <div class="ai-response" id="aiResponse"></div>
     </div>
   </div>
+  <div class="owner-ai-panel" aria-labelledby="ownerAiTitle">
+    <div class="owner-ai-kicker">Private owner control surface</div>
+    <div class="owner-ai-title" id="ownerAiTitle">Claude operations analyst</div>
+    <div class="owner-ai-copy">Password-gated analysis of this app and token state. Claude can recommend next steps and prepare safe previews; it cannot access private keys or broadcast a transaction.</div>
+    <form id="ownerAiLogin" class="owner-ai-form">
+      <input class="owner-ai-input" id="ownerAiPassword" type="password" minlength="12" autocomplete="current-password" placeholder="Owner password" required>
+      <button class="mf-btn mfb-config" id="ownerAiLoginButton" type="submit">Unlock</button>
+    </form>
+    <div id="ownerAiWorkspace" hidden>
+      <form id="ownerAiForm" class="owner-ai-form">
+        <input class="owner-ai-input" id="ownerAiPrompt" maxlength="6000" placeholder="Ask Claude what to do next…" required>
+        <button class="mf-btn mfb-run" id="ownerAiRun" type="submit">Analyze</button>
+        <button class="mf-btn mfb-config" id="ownerAiPreview" type="button">Mint preview</button>
+      </form>
+    </div>
+    <div id="ownerAiResponse" class="owner-ai-response" aria-live="polite">Locked. This panel does not expose treasury secrets.</div>
+  </div>
 
   <!-- MISSION CARDS -->
   <div class="section">
@@ -884,7 +903,9 @@ body::before{content:'';position:fixed;inset:0;z-index:0;pointer-events:none;
 
 </div><!-- /main -->
 
-<script src="mission-config.js?v=20260510h"></script>
+  <script src="mission-config.js?v=20260510h"></script>
+  <script src="owner-ai.js?v=20260906a" defer></script>
+
 <script>
 // ── CONFIG ──────────────────────────────────────────────
 const MINT     = 'AcEVtpLEfxMHFzXQrhJiDhoWCkLVYH3drD2cxNAzLFUv';
