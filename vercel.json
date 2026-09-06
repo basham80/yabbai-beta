@@ -4,34 +4,33 @@
   "outputDirectory": ".",
   "cleanUrls": false,
   "trailingSlash": false,
+  "public": true,
   "functions": {
-    "api/mission.mjs": {
-      "memory": 256,
-      "maxDuration": 30
-    },
-    "api/owner-ai.mjs": {
-      "memory": 256,
-      "maxDuration": 30
-    },
-    "api/balance.mjs": {
-      "memory": 128,
-      "maxDuration": 10
-    }
+    "api/mission.mjs": { "memory": 256, "maxDuration": 30 },
+    "api/owner-ai.mjs": { "memory": 256, "maxDuration": 30 },
+    "api/balance.mjs": { "memory": 128, "maxDuration": 10 }
   },
   "headers": [
     {
       "source": "/api/(.*)",
       "headers": [
         { "key": "Cache-Control", "value": "no-store" },
-        { "key": "X-Content-Type-Options", "value": "nosniff" },
-        { "key": "Referrer-Policy", "value": "strict-origin-when-cross-origin" }
+        { "key": "Access-Control-Allow-Origin", "value": "*" },
+        { "key": "X-Content-Type-Options", "value": "nosniff" }
       ]
     },
     {
-      "source": "/(.*)\\.(html|js|css|json)",
+      "source": "/(.*)",
       "headers": [
         { "key": "Cache-Control", "value": "public, max-age=0, must-revalidate" }
       ]
     }
+  ],
+  "rewrites": [
+    { "source": "/bash", "destination": "/bash/index.html" },
+    { "source": "/yabbai", "destination": "/yabbai/index.html" },
+    { "source": "/yabbie", "destination": "/yabbie/index.html" },
+    { "source": "/homegrown", "destination": "/homegrown/index.html" },
+    { "source": "/greenhousegrow", "destination": "/greenhousegrow/index.html" }
   ]
 }
