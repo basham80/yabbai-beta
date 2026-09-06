@@ -9,6 +9,10 @@
       "memory": 256,
       "maxDuration": 30
     },
+    "api/owner-ai.mjs": {
+      "memory": 256,
+      "maxDuration": 30
+    },
     "api/balance.mjs": {
       "memory": 128,
       "maxDuration": 10
@@ -18,9 +22,9 @@
     {
       "source": "/api/(.*)",
       "headers": [
-        { "key": "Access-Control-Allow-Origin", "value": "*" },
-        { "key": "Access-Control-Allow-Headers", "value": "Content-Type" },
-        { "key": "Access-Control-Allow-Methods", "value": "GET, POST, OPTIONS" }
+        { "key": "Cache-Control", "value": "no-store" },
+        { "key": "X-Content-Type-Options", "value": "nosniff" },
+        { "key": "Referrer-Policy", "value": "strict-origin-when-cross-origin" }
       ]
     },
     {
