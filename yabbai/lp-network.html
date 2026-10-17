@@ -283,6 +283,7 @@ canvas#netCanvas{width:100%;height:100%;}
 @keyframes fadeUp{from{opacity:0;transform:translateY(16px);}to{opacity:1;transform:translateY(0);}}
 .fade-up{animation:fadeUp 0.4s ease both;}
 
+.ops-strip{display:grid;grid-template-columns:1.25fr 1fr 1fr;gap:10px;margin:0 0 20px;padding:14px 16px;background:linear-gradient(135deg,rgba(255,184,0,.07),rgba(18,18,18,.9));border:1px solid rgba(255,184,0,.22);border-radius:10px}.ops-title{font-family:'Syne',sans-serif;font-size:.82rem;font-weight:700}.ops-sub{font-family:'Azeret Mono',monospace;font-size:.58rem;color:var(--dim);margin-top:4px;line-height:1.5}.ops-cell{border-left:1px solid var(--wire);padding-left:14px}.ops-value{font-family:'Azeret Mono',monospace;font-size:.72rem;color:var(--neon)}.ops-value.warn{color:var(--gold)}.ops-value.error{color:var(--red)}.ops-action{margin-top:7px;padding:5px 9px;border:1px solid var(--wire2);border-radius:5px;background:transparent;color:var(--text);font:500 .6rem 'Azeret Mono',monospace;cursor:pointer}.ops-action:hover{border-color:var(--gold);color:var(--gold)}
 @media(max-width:1000px){.layout{grid-template-columns:1fr;}.sidebar{display:none;}}
 @media(max-width:640px){.overview-grid{grid-template-columns:1fr 1fr;}.lpr-flow{grid-template-columns:1fr;}.lpr-arrow{display:none;}}
 </style>
@@ -389,6 +390,23 @@ canvas#netCanvas{width:100%;height:100%;}
           <div class="ov-sub">tokens with pools</div>
         </div>
       </div>
+
+      <section class="ops-strip" aria-label="System readiness" data-testid="system-readiness-panel">
+        <div>
+          <div class="ops-title">Execution control room</div>
+          <div class="ops-sub">Live market data, wallet state and transaction hand-off. The app never signs or moves funds without your wallet approval.</div>
+        </div>
+        <div class="ops-cell">
+          <div class="ops-value" id="opsMarket" data-testid="market-status">CHECKING</div>
+          <div class="ops-sub">DEXSCREENER / JUPITER DATA</div>
+          <button class="ops-action" type="button" onclick="refreshAll()">Refresh live data</button>
+        </div>
+        <div class="ops-cell">
+          <div class="ops-value warn" id="opsWallet" data-testid="wallet-status">NOT CONNECTED</div>
+          <div class="ops-sub" id="opsUpdated">Last sync: waiting</div>
+          <button class="ops-action" type="button" onclick="connectWallet()">Connect Phantom</button>
+        </div>
+      </section>
 
       <!-- NETWORK CANVAS -->
       <div class="network-canvas">
@@ -635,11 +653,16 @@ async function fetchSolPrice() {
       const p = d?.solana?.usd || d?.data?.So11111111111111111111111111111111111111112?.price;
       if (Number.isFinite(Number(p)) && Number(p) > 0) {
         solPrice = Number(p);
+        const marketStatus = document.getElementById('opsMarket');
+        if (marketStatus) { marketStatus.textContent = 'LIVE'; marketStatus.className = 'ops-value'; }
+        const updated = document.getElementById('opsUpdated');
+        if (updated) updated.textContent = 'Last sync: '+new Date().toLocaleTimeString();
         document.getElementById('tbSolPrice').textContent = '$'+solPrice.toFixed(2);
         return;
       }
-    } catch {}
-  }
+  } catch {}
+  const marketStatus = document.getElementById('opsMarket');
+  if (marketStatus && marketStatus.textContent === 'CHECKING') { marketStatus.textContent = 'DEGRADED'; marketStatus.className = 'ops-value warn'; }
 }
 
 async function fetchYabbaiPrice() {
@@ -1017,6 +1040,8 @@ async function connectWallet() {
         <div class="tc-bal">${solBalance.toFixed(4)} SOL · $${(solBalance*solPrice).toFixed(2)}</div>
       </div>`;
     document.getElementById('ovSolBal').textContent = solBalance.toFixed(4)+' SOL';
+    const walletStatus = document.getElementById('opsWallet');
+    if (walletStatus) { walletStatus.textContent = 'READY · '+walletAddr.slice(0,6)+'…'+walletAddr.slice(-4); walletStatus.className = 'ops-value'; }
     toast('Wallet connected — '+solBalance.toFixed(4)+' SOL');
   } catch(e) {
     toast('Connect failed: '+e.message, 'error');
