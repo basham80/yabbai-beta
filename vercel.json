@@ -31,6 +31,7 @@
     { "source": "/yabbai", "destination": "/yabbai/index.html" },
     { "source": "/yabbie", "destination": "/yabbie/index.html" },
     { "source": "/homegrown", "destination": "/homegrown/index.html" },
-    { "source": "/greenhousegrow", "destination": "/greenhousegrow/index.html" }
+    { "source": "/greenhousegrow", "destination": "/greenhousegrow/index.html" },
+    { "source": "/lp-network.html", "destination": "/yabbai/lp-network.html" }
   ]
 }
