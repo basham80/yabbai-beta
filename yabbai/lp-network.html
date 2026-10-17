@@ -584,7 +584,9 @@ canvas#netCanvas{width:100%;height:100%;}
 const TREASURY = '2DarZ9hCi5PirKsDsnriewZEGqaz6Q11pEitoZJxBsYM';
 const YABBAI_MINT = 'AcEVtpLEfxMHFzXQrhJiDhoWCkLVYH3drD2cxNAzLFUv';
 const YABBAI_POOL = 'DaxLJ5mRkqWtfhFBKtibtGSYaiE7zFrtgsi5evmVBAax';
-const RPC = 'https://api.mainnet-beta.solana.com';
+const RPC = (window.YABBAI_SOLANA_RPC && /^https:\/\//i.test(window.YABBAI_SOLANA_RPC))
+  ? window.YABBAI_SOLANA_RPC
+  : 'https://api.mainnet-beta.solana.com';
 
 let walletAddr = null;
 let solBalance = 0;
@@ -621,15 +623,23 @@ window.addEventListener('load', () => {
 });
 
 async function fetchSolPrice() {
-  try {
-    const r = await fetch('https://api.jup.ag/price/v2?ids=So11111111111111111111111111111111111111112');
-    const d = await r.json();
-    const p = d?.data?.['So11111111111111111111111111111111111111112']?.price;
-    if (p) {
-      solPrice = parseFloat(p);
-      document.getElementById('tbSolPrice').textContent = '$'+solPrice.toFixed(2);
-    }
-  } catch {}
+  const sources = [
+    'https://api.coingecko.com/api/v3/simple/price?ids=solana&vs_currencies=usd',
+    'https://price.jup.ag/v6/price?ids=So11111111111111111111111111111111111111112'
+  ];
+  for (const url of sources) {
+    try {
+      const r = await fetch(url, { cache:'no-store' });
+      if (!r.ok) continue;
+      const d = await r.json();
+      const p = d?.solana?.usd || d?.data?.So11111111111111111111111111111111111111112?.price;
+      if (Number.isFinite(Number(p)) && Number(p) > 0) {
+        solPrice = Number(p);
+        document.getElementById('tbSolPrice').textContent = '$'+solPrice.toFixed(2);
+        return;
+      }
+    } catch {}
+  }
 }
 
 async function fetchYabbaiPrice() {
@@ -807,7 +817,12 @@ document.addEventListener('DOMContentLoaded', () => {
   });
 });
 
-function executeRouter() {
+async function executeRouter() {
+  if (!walletAddr) {
+    toast('Connect your wallet before routing LP', 'warn');
+    await connectWallet();
+    if (!walletAddr) return;
+  }
   const from    = document.getElementById('routerFrom')?.value;
   const to      = document.getElementById('routerTo')?.value;
   const fromAmt = parseFloat(document.getElementById('routerFromAmt')?.value || 0);
@@ -834,8 +849,8 @@ function executeRouter() {
     }
   }, 2000);
 
-  addToHistory('⚡', `LP routed: ${fromToken?.symbol} → ${toToken?.symbol}`, `${fromAmt} SOL`, '+LP', 'pos');
-  toast(`LP route executing — sign both transactions in wallet`);
+  addToHistory('⚡', `LP route prepared: ${fromToken?.symbol} → ${toToken?.symbol}`, `${fromAmt} SOL · awaiting signatures`, 'Pending', 'pos');
+  toast('Raydium opened — sign removal and add-liquidity transactions in your wallet');
 }
 
 // ── CREATE TOKEN ─────────────────────────────────────────
@@ -989,9 +1004,12 @@ async function connectWallet() {
     const resp = await provider.connect();
     walletAddr = resp.publicKey.toString();
     const balRes = await fetch(RPC, { method:'POST', headers:{'Content-Type':'application/json'},
-      body: JSON.stringify({jsonrpc:'2.0',id:1,method:'getBalance',params:[walletAddr]}) });
+      body: JSON.stringify({jsonrpc:'2.0',id:1,method:'getBalance',params:[walletAddr, { commitment:'confirmed' }]}) });
+    if (!balRes.ok) throw new Error('Solana RPC unavailable');
     const balData = await balRes.json();
-    solBalance = (balData.result?.value || 0) / 1e9;
+    if (balData.error) throw new Error(balData.error.message || 'Solana RPC error');
+    solBalance = Number(balData.result?.value || 0) / 1e9;
+    updateOverview();
 
     document.getElementById('walletArea').innerHTML = `
       <div class="tb-connected">
@@ -1005,10 +1023,21 @@ async function connectWallet() {
   }
 }
 
-function refreshAll() {
-  fetchSolPrice();
-  fetchYabbaiPrice();
-  toast('Refreshing live data...');
+async function refreshAll() {
+  await Promise.all([fetchSolPrice(), fetchYabbaiPrice()]);
+  if (walletAddr) {
+    try {
+      const r = await fetch(RPC, { method:'POST', headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({jsonrpc:'2.0',id:1,method:'getBalance',params:[walletAddr, { commitment:'confirmed' }]}) });
+      const d = await r.json();
+      if (!d.error) {
+        solBalance = Number(d.result?.value || 0) / 1e9;
+        document.getElementById('ovSolBal').textContent = solBalance.toFixed(4)+' SOL';
+        updateOverview();
+      }
+    } catch {}
+  }
+  toast('Live data refreshed');
 }
 
 // ── MODAL ─────────────────────────────────────────────────
